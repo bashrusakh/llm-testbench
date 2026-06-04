@@ -160,12 +160,84 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         startable=False,
     ),
     BenchmarkModule(
+        module_id="bigcodebench",
+        label="BigCodeBench",
+        status="planned",
+        description="Software-engineering-oriented code generation benchmark adapter.",
+        capabilities=["code-generation", "library-use", "unit-tests"],
+        result_schema=["task_id", "success", "language", "tests_passed", "tests_total"],
+        startable=False,
+    ),
+    BenchmarkModule(
+        module_id="swe-rebench",
+        label="SWE-rebench",
+        status="planned",
+        description="Fresh repository-level issue-solving tasks for current-model comparisons.",
+        capabilities=["repo-agent", "decontaminated-tasks", "repeated-runs", "test-execution"],
+        result_schema=["instance_id", "resolved", "patch", "test_log", "run_index"],
+        startable=False,
+    ),
+    BenchmarkModule(
         module_id="swe-bench",
         label="SWE-bench",
         status="planned",
         description="Repository-level issue-to-patch evaluation.",
         capabilities=["repo-agent", "patch-generation", "test-execution"],
         result_schema=["instance_id", "resolved", "patch", "test_log"],
+        startable=False,
+    ),
+    BenchmarkModule(
+        module_id="multi-swe-bench",
+        label="Multi-SWE-bench",
+        status="planned",
+        description="Multilingual repository-level issue-solving tasks.",
+        capabilities=["repo-agent", "multilingual", "patch-generation", "test-execution"],
+        result_schema=["instance_id", "language", "resolved", "patch", "test_log"],
+        startable=False,
+    ),
+    BenchmarkModule(
+        module_id="codeclash",
+        label="CodeClash",
+        status="planned",
+        description="Multi-round goal-oriented software engineering evaluation.",
+        capabilities=["multi-round", "repo-agent", "goal-oriented", "test-execution"],
+        result_schema=["task_id", "rounds", "success", "score", "transcript"],
+        startable=False,
+    ),
+    BenchmarkModule(
+        module_id="gaia",
+        label="GAIA",
+        status="planned",
+        description="Assistant and tool-reasoning benchmark adapter.",
+        capabilities=["tool-use", "reasoning", "multi-step"],
+        result_schema=["task_id", "success", "answer", "tool_calls"],
+        startable=False,
+    ),
+    BenchmarkModule(
+        module_id="webarena",
+        label="WebArena",
+        status="planned",
+        description="Browser-agent benchmark adapter.",
+        capabilities=["browser-agent", "web-navigation", "tool-use"],
+        result_schema=["task_id", "success", "steps", "final_state"],
+        startable=False,
+    ),
+    BenchmarkModule(
+        module_id="osworld",
+        label="OSWorld",
+        status="planned",
+        description="Desktop/computer-use agent benchmark adapter.",
+        capabilities=["computer-use", "desktop-agent", "tool-use"],
+        result_schema=["task_id", "success", "steps", "final_state"],
+        startable=False,
+    ),
+    BenchmarkModule(
+        module_id="tau-bench",
+        label="tau-bench",
+        status="planned",
+        description="Business workflow tool-use benchmark adapter.",
+        capabilities=["tool-use", "business-workflow", "policy-following"],
+        result_schema=["task_id", "success", "reward", "tool_calls"],
         startable=False,
     ),
 )
@@ -928,9 +1000,142 @@ class BenchmarkServer:
                 "csv": f"/api/benchmark/{record.get('job_id')}/results.csv",
                 "tsv": f"/api/benchmark/{record.get('job_id')}/results.tsv",
                 "manifest": f"/api/benchmark/{record.get('job_id')}/manifest.json",
+                "summary": f"/api/benchmark/{record.get('job_id')}/summary.json",
             },
         }
         return json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
+
+    @staticmethod
+    def _build_run_summary(record: Dict[str, Any]) -> str:
+        def number(value: Any) -> Optional[float]:
+            if value in (None, ""):
+                return None
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
+        def first_number(*values: Any) -> Optional[float]:
+            for value in values:
+                parsed = number(value)
+                if parsed is not None:
+                    return parsed
+            return None
+
+        def average(values: List[float]) -> Optional[float]:
+            if not values:
+                return None
+            return round(sum(values) / len(values), 4)
+
+        request_meta = record.get("request") if isinstance(record.get("request"), dict) else {}
+        progress_meta = record.get("progress") if isinstance(record.get("progress"), dict) else {}
+        results = record.get("results") if isinstance(record.get("results"), list) else []
+        errors = record.get("errors") if isinstance(record.get("errors"), list) else []
+        rows = [item for item in results if isinstance(item, dict)]
+
+        successes = [item for item in rows if item.get("success") is True]
+        failures = [item for item in rows if item.get("success") is False]
+        latency_values = [
+            value
+            for value in (first_number(item.get("latency_ms"), item.get("latency_s")) for item in rows)
+            if value is not None
+        ]
+        total_time_values = [
+            value
+            for value in (first_number(item.get("total_time_ms"), item.get("total_time_s")) for item in rows)
+            if value is not None
+        ]
+        ttft_values = [
+            value
+            for value in (number(item.get("ttft_ms")) for item in rows)
+            if value is not None
+        ]
+        decode_tps_values = [
+            value
+            for value in (first_number(item.get("decode_tps"), item.get("tokens_per_second")) for item in rows)
+            if value is not None
+        ]
+        total_prompt_tokens = sum(
+            int(value)
+            for value in (first_number(item.get("prompt_tokens"), item.get("input_tokens")) for item in rows)
+            if value is not None
+        )
+        total_completion_tokens = sum(
+            int(value)
+            for value in (first_number(item.get("completion_tokens"), item.get("output_tokens")) for item in rows)
+            if value is not None
+        )
+        total_cost = round(sum(
+            value
+            for value in (number(item.get("cost")) for item in rows)
+            if value is not None
+        ), 8)
+
+        by_model: Dict[str, Dict[str, Any]] = {}
+        for item in rows:
+            model = str(item.get("model") or "unknown")
+            bucket = by_model.setdefault(model, {
+                "count": 0,
+                "pass_count": 0,
+                "fail_count": 0,
+                "latency_ms_values": [],
+                "total_cost": 0.0,
+            })
+            bucket["count"] += 1
+            if item.get("success") is True:
+                bucket["pass_count"] += 1
+            elif item.get("success") is False:
+                bucket["fail_count"] += 1
+            latency = first_number(item.get("latency_ms"), item.get("latency_s"))
+            if latency is not None:
+                bucket["latency_ms_values"].append(latency)
+            cost = number(item.get("cost"))
+            if cost is not None:
+                bucket["total_cost"] += cost
+
+        model_summary: Dict[str, Dict[str, Any]] = {}
+        for model, bucket in sorted(by_model.items()):
+            count = bucket["count"]
+            model_summary[model] = {
+                "count": count,
+                "pass_count": bucket["pass_count"],
+                "fail_count": bucket["fail_count"],
+                "pass_rate": round(bucket["pass_count"] / count, 4) if count else None,
+                "avg_latency_ms": average(bucket["latency_ms_values"]),
+                "total_cost": round(bucket["total_cost"], 8),
+            }
+
+        result_count = len(rows)
+        summary = {
+            "schema_version": 1,
+            "generated_at": ts_utc(),
+            "job_id": record.get("job_id"),
+            "status": record.get("status"),
+            "benchmark_type": request_meta.get("benchmark_type"),
+            "request": request_meta,
+            "progress": progress_meta,
+            "result_count": result_count,
+            "pass_count": len(successes),
+            "fail_count": len(failures),
+            "pass_rate": round(len(successes) / result_count, 4) if result_count else None,
+            "error_count": len(errors),
+            "latency": {
+                "avg_latency_ms": average(latency_values),
+                "avg_total_time_ms": average(total_time_values),
+                "avg_ttft_ms": average(ttft_values),
+                "avg_decode_tps": average(decode_tps_values),
+            },
+            "tokens": {
+                "prompt_tokens": total_prompt_tokens,
+                "completion_tokens": total_completion_tokens,
+                "total_tokens": total_prompt_tokens + total_completion_tokens,
+            },
+            "cost": {
+                "total": total_cost,
+            },
+            "models": model_summary,
+        }
+        return json.dumps(summary, ensure_ascii=False, indent=2) + "\n"
 
     @staticmethod
     def json_error(message: str, *, code: str = "bad_request", status: int = 400) -> web.Response:
@@ -1100,6 +1305,20 @@ class BenchmarkServer:
 
         text = self._build_run_manifest(record)
         filename = f"{job_id}.manifest.json"
+        return web.Response(
+            text=text,
+            content_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    async def benchmark_summary(self, request: web.Request) -> web.Response:
+        job_id = request.match_info["job_id"]
+        record = await self._load_job_record(job_id, log_label="summary")
+        if record is None:
+            return self.json_error("Unknown job_id", code="not_found", status=404)
+
+        text = self._build_run_summary(record)
+        filename = f"{job_id}.summary.json"
         return web.Response(
             text=text,
             content_type="application/json",
@@ -2081,6 +2300,7 @@ async def create_app() -> web.Application:
     app.router.add_get("/api/benchmark/{job_id}/results.csv", server.benchmark_results_csv)
     app.router.add_get("/api/benchmark/{job_id}/results.tsv", server.benchmark_results_tsv)
     app.router.add_get("/api/benchmark/{job_id}/manifest.json", server.benchmark_manifest)
+    app.router.add_get("/api/benchmark/{job_id}/summary.json", server.benchmark_summary)
     app.router.add_get("/api/benchmark/{job_id}", server.benchmark_status)
     app.router.add_post("/api/benchmark/{job_id}/stop", server.benchmark_stop)
     return app

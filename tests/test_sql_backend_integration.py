@@ -25,6 +25,13 @@ def test_benchmark_module_registry_exposes_current_and_planned_modules():
     assert by_id["sql"]["status"] == "implemented"
     assert by_id["bfcl"]["startable"] is False
     assert by_id["terminal-bench"]["status"] == "planned"
+    assert by_id["bigcodebench"]["status"] == "planned"
+    assert by_id["multi-swe-bench"]["status"] == "planned"
+    assert by_id["codeclash"]["status"] == "planned"
+    assert by_id["gaia"]["status"] == "planned"
+    assert by_id["webarena"]["status"] == "planned"
+    assert by_id["osworld"]["status"] == "planned"
+    assert by_id["tau-bench"]["status"] == "planned"
     assert "tool-calling" in by_id["sql"]["capabilities"]
 
 
@@ -39,6 +46,7 @@ def test_benchmark_modules_endpoint_returns_registry_metadata():
     assert payload["status"] == "ok"
     assert payload["startable"] == ["speed", "sql"]
     assert by_id["livecodebench"]["status"] == "planned"
+    assert by_id["swe-rebench"]["status"] == "planned"
     assert by_id["speed"]["result_schema"]
 
 
@@ -232,7 +240,73 @@ def test_run_manifest_export_summarizes_record_without_results_array():
     assert manifest["providers"] == ["Local"]
     assert manifest["outcomes"] == {"pass": 1, "fail": 1}
     assert manifest["export_endpoints"]["tsv"] == "/api/benchmark/job-123/results.tsv"
+    assert manifest["export_endpoints"]["summary"] == "/api/benchmark/job-123/summary.json"
     assert "results" not in manifest
+
+
+def test_run_summary_export_builds_dashboard_metrics_by_model():
+    record = {
+        "job_id": "job-123",
+        "status": "completed",
+        "request": {"benchmark_type": "sql", "models": ["sql-a", "sql-b"]},
+        "progress": {"completed": 3, "total": 3},
+        "errors": ["warning"],
+        "results": [
+            {
+                "model": "sql-a",
+                "success": True,
+                "latency_ms": 100,
+                "total_time_ms": 150,
+                "ttft_ms": 25,
+                "decode_tps": 40,
+                "input_tokens": 10,
+                "output_tokens": 5,
+                "cost": 0.01,
+            },
+            {
+                "model": "sql-a",
+                "success": False,
+                "latency_ms": 300,
+                "total_time_ms": 450,
+                "ttft_ms": 75,
+                "decode_tps": 20,
+                "prompt_tokens": 12,
+                "completion_tokens": 6,
+                "cost": 0.02,
+            },
+            {
+                "model": "sql-b",
+                "success": True,
+                "latency_ms": 200,
+                "total_time_ms": 300,
+                "ttft_ms": 50,
+                "decode_tps": 30,
+                "input_tokens": 14,
+                "output_tokens": 7,
+                "cost": 0.03,
+            },
+        ],
+    }
+
+    summary = json.loads(BenchmarkServer._build_run_summary(record))
+
+    assert summary["result_count"] == 3
+    assert summary["pass_count"] == 2
+    assert summary["fail_count"] == 1
+    assert summary["pass_rate"] == 0.6667
+    assert summary["error_count"] == 1
+    assert summary["latency"]["avg_latency_ms"] == 200
+    assert summary["latency"]["avg_total_time_ms"] == 300
+    assert summary["latency"]["avg_ttft_ms"] == 50
+    assert summary["latency"]["avg_decode_tps"] == 30
+    assert summary["tokens"]["prompt_tokens"] == 36
+    assert summary["tokens"]["completion_tokens"] == 18
+    assert summary["tokens"]["total_tokens"] == 54
+    assert summary["cost"]["total"] == 0.06
+    assert summary["models"]["sql-a"]["count"] == 2
+    assert summary["models"]["sql-a"]["pass_rate"] == 0.5
+    assert summary["models"]["sql-a"]["avg_latency_ms"] == 200
+    assert summary["models"]["sql-b"]["pass_rate"] == 1.0
 
 
 def test_sql_job_flow_builds_sql_report_tsv_and_history(tmp_path, monkeypatch):

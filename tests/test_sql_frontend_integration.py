@@ -40,10 +40,12 @@ def test_frontend_has_sql_mode_payload_and_rendering_hooks():
     assert '/results.csv' in html
     assert '/results.tsv' in html
     assert '/manifest.json' in html
+    assert '/summary.json' in html
     assert 'download="${escapeHtml(item.job_id)}.results.jsonl"' in html
     assert 'download="${escapeHtml(item.job_id)}.results.csv"' in html
     assert 'download="${escapeHtml(item.job_id)}.results.tsv"' in html
     assert 'download="${escapeHtml(item.job_id)}.manifest.json"' in html
+    assert 'download="${escapeHtml(item.job_id)}.summary.json"' in html
 
 
 def test_frontend_history_and_summary_branch_by_benchmark_type():

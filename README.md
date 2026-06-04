@@ -128,15 +128,18 @@ Keep these files and directories in the repository:
 ## Exports
 
 Saved benchmark runs can be exported from the History table as JSONL, CSV, TSV,
-or a run manifest. JSONL keeps the complete payload with one benchmark result per
-line. CSV and TSV provide common columns for spreadsheet workflows and keep the
-original result payload in the `result_json` column. The manifest records the run
-configuration and summary without embedding every result.
+summary JSON, or a run manifest. JSONL keeps the complete payload with one
+benchmark result per line. CSV and TSV provide common columns for spreadsheet
+workflows and keep the original result payload in the `result_json` column. The
+summary JSON provides pass-rate, latency, token, cost, and per-model aggregates.
+The manifest records the run configuration and summary without embedding every
+result.
 
 ```text
 GET /api/benchmark/{job_id}/results.jsonl
 GET /api/benchmark/{job_id}/results.csv
 GET /api/benchmark/{job_id}/results.tsv
+GET /api/benchmark/{job_id}/summary.json
 GET /api/benchmark/{job_id}/manifest.json
 ```
 

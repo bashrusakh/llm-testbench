@@ -2034,12 +2034,14 @@
         const csvUrl = apiUrl(`/api/benchmark/${encodeURIComponent(item.job_id)}/results.csv`);
         const tsvUrl = apiUrl(`/api/benchmark/${encodeURIComponent(item.job_id)}/results.tsv`);
         const manifestUrl = apiUrl(`/api/benchmark/${encodeURIComponent(item.job_id)}/manifest.json`);
+        const summaryUrl = apiUrl(`/api/benchmark/${encodeURIComponent(item.job_id)}/summary.json`);
         const actions = `
           <button type="button" class="btn-small" data-history-open="${escapeHtml(item.job_id)}">Open</button>
           <a class="btn-small" href="${escapeHtml(jsonlUrl)}" download="${escapeHtml(item.job_id)}.results.jsonl">JSONL</a>
           <a class="btn-small" href="${escapeHtml(csvUrl)}" download="${escapeHtml(item.job_id)}.results.csv">CSV</a>
           <a class="btn-small" href="${escapeHtml(tsvUrl)}" download="${escapeHtml(item.job_id)}.results.tsv">TSV</a>
           <a class="btn-small" href="${escapeHtml(manifestUrl)}" download="${escapeHtml(item.job_id)}.manifest.json">Manifest</a>
+          <a class="btn-small" href="${escapeHtml(summaryUrl)}" download="${escapeHtml(item.job_id)}.summary.json">Summary</a>
         `;
         row.innerHTML = `
           <td><input type="checkbox" data-job-id="${escapeHtml(item.job_id)}" ${checked}></td>
