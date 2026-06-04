@@ -33,6 +33,9 @@ def test_benchmark_module_registry_exposes_current_and_planned_modules():
     assert by_id["osworld"]["status"] == "planned"
     assert by_id["tau-bench"]["status"] == "planned"
     assert "tool-calling" in by_id["sql"]["capabilities"]
+    assert "DuckDB" in by_id["sql"]["setup_requirements"]
+    assert by_id["sql"]["task_selection"]["strategy"] == "question_ids"
+    assert by_id["swe-bench"]["task_selection"]["splits"] == ["verified", "lite", "full"]
 
 
 def test_benchmark_modules_endpoint_returns_registry_metadata():
@@ -48,6 +51,7 @@ def test_benchmark_modules_endpoint_returns_registry_metadata():
     assert by_id["livecodebench"]["status"] == "planned"
     assert by_id["swe-rebench"]["status"] == "planned"
     assert by_id["speed"]["result_schema"]
+    assert by_id["speed"]["task_selection"]["fields"] == ["models", "prompt", "repeat_count", "warmup_runs"]
 
 
 def test_benchmark_module_detail_endpoint_returns_single_module():
@@ -62,6 +66,8 @@ def test_benchmark_module_detail_endpoint_returns_single_module():
     assert payload["module"]["id"] == "bfcl"
     assert payload["module"]["startable"] is False
     assert "tool-calling" in payload["module"]["capabilities"]
+    assert payload["module"]["task_selection"]["categories"] == ["single", "parallel", "multi-call", "rest", "sql", "relevance"]
+    assert "BFCL dataset" in payload["module"]["setup_requirements"]
 
 
 def test_benchmark_module_detail_endpoint_rejects_unknown_module():

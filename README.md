@@ -26,6 +26,8 @@ GET /api/benchmark/presets
 Implemented modules are marked `startable: true`; planned modules are visible in
 the registry but cannot be started until their adapters exist. Presets describe
 small local smoke runs, balanced comparisons, and fuller leaderboard-style runs.
+Module metadata includes setup requirements and task-selection hints so future
+adapters and UI panels can share one contract.
 
 ## Planned Modules
 

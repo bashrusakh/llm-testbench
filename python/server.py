@@ -82,6 +82,8 @@ class BenchmarkModule:
     capabilities: List[str]
     result_schema: List[str]
     startable: bool
+    setup_requirements: List[str] = field(default_factory=list)
+    task_selection: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -92,6 +94,8 @@ class BenchmarkModule:
             "capabilities": self.capabilities,
             "result_schema": self.result_schema,
             "startable": self.startable,
+            "setup_requirements": self.setup_requirements,
+            "task_selection": self.task_selection,
         }
 
 
@@ -122,6 +126,12 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["latency", "throughput", "multi-provider", "multi-model"],
         result_schema=["latency_ms", "total_time_ms", "ttft_ms", "prefill_tps", "decode_tps"],
         startable=True,
+        setup_requirements=["OpenAI-compatible or Ollama-compatible inference endpoint", "At least one discovered model"],
+        task_selection={
+            "strategy": "payload",
+            "fields": ["models", "prompt", "repeat_count", "warmup_runs"],
+            "supports_question_ids": False,
+        },
     ),
     BenchmarkModule(
         module_id="sql",
@@ -131,6 +141,12 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["tool-calling", "grammar", "thinking-mode", "reasoning-effort", "sql-execution"],
         result_schema=["question_id", "success", "generated_sql", "expected_sql", "row_count_match", "columns_match"],
         startable=True,
+        setup_requirements=["DuckDB", "sql_benchmark_data tables and questions", "OpenAI-compatible inference endpoint"],
+        task_selection={
+            "strategy": "question_ids",
+            "fields": ["question_ids", "sql_mode", "thinking_mode", "reasoning_effort"],
+            "default": "all_questions",
+        },
     ),
     BenchmarkModule(
         module_id="bfcl",
@@ -140,6 +156,11 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["tool-calling", "multi-call", "parallel-call", "api-selection"],
         result_schema=["task_id", "success", "tool_calls", "error"],
         startable=False,
+        setup_requirements=["BFCL dataset", "tool-call compatible chat endpoint"],
+        task_selection={
+            "strategy": "case_categories",
+            "categories": ["single", "parallel", "multi-call", "rest", "sql", "relevance"],
+        },
     ),
     BenchmarkModule(
         module_id="terminal-bench",
@@ -149,6 +170,11 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["terminal-agent", "sandbox", "command-log"],
         result_schema=["task_id", "success", "commands", "wall_time_ms", "logs"],
         startable=False,
+        setup_requirements=["Sandboxed shell runner", "Terminal-Bench task bundle"],
+        task_selection={
+            "strategy": "task_subset",
+            "fields": ["task_ids", "difficulty", "tags"],
+        },
     ),
     BenchmarkModule(
         module_id="livecodebench",
@@ -158,6 +184,12 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["code-generation", "self-repair", "unit-tests"],
         result_schema=["task_id", "success", "language", "tests_passed", "tests_total"],
         startable=False,
+        setup_requirements=["LiveCodeBench task bundle", "Language runtimes for selected tasks"],
+        task_selection={
+            "strategy": "subset",
+            "subsets": ["code_generation", "self_repair"],
+            "fields": ["task_ids", "languages", "date_range"],
+        },
     ),
     BenchmarkModule(
         module_id="bigcodebench",
@@ -167,6 +199,11 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["code-generation", "library-use", "unit-tests"],
         result_schema=["task_id", "success", "language", "tests_passed", "tests_total"],
         startable=False,
+        setup_requirements=["BigCodeBench task bundle", "Python execution sandbox"],
+        task_selection={
+            "strategy": "task_subset",
+            "fields": ["task_ids", "difficulty", "library_tags"],
+        },
     ),
     BenchmarkModule(
         module_id="swe-rebench",
@@ -176,6 +213,11 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["repo-agent", "decontaminated-tasks", "repeated-runs", "test-execution"],
         result_schema=["instance_id", "resolved", "patch", "test_log", "run_index"],
         startable=False,
+        setup_requirements=["Container runtime", "SWE-rebench task bundle", "Git checkout/cache"],
+        task_selection={
+            "strategy": "instance_subset",
+            "fields": ["instance_ids", "repositories", "date_range", "repeat_count"],
+        },
     ),
     BenchmarkModule(
         module_id="swe-bench",
@@ -185,6 +227,12 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["repo-agent", "patch-generation", "test-execution"],
         result_schema=["instance_id", "resolved", "patch", "test_log"],
         startable=False,
+        setup_requirements=["Container runtime", "SWE-bench task bundle", "Git checkout/cache"],
+        task_selection={
+            "strategy": "instance_subset",
+            "fields": ["instance_ids", "repositories", "split"],
+            "splits": ["verified", "lite", "full"],
+        },
     ),
     BenchmarkModule(
         module_id="multi-swe-bench",
@@ -194,6 +242,11 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["repo-agent", "multilingual", "patch-generation", "test-execution"],
         result_schema=["instance_id", "language", "resolved", "patch", "test_log"],
         startable=False,
+        setup_requirements=["Container runtime", "Multi-SWE-bench task bundle", "Language-specific toolchains"],
+        task_selection={
+            "strategy": "language_subset",
+            "fields": ["instance_ids", "languages", "repositories"],
+        },
     ),
     BenchmarkModule(
         module_id="codeclash",
@@ -203,6 +256,11 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["multi-round", "repo-agent", "goal-oriented", "test-execution"],
         result_schema=["task_id", "rounds", "success", "score", "transcript"],
         startable=False,
+        setup_requirements=["CodeClash task bundle", "Repository sandbox", "Multi-round transcript store"],
+        task_selection={
+            "strategy": "task_subset",
+            "fields": ["task_ids", "round_limit", "repositories"],
+        },
     ),
     BenchmarkModule(
         module_id="gaia",
@@ -212,6 +270,11 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["tool-use", "reasoning", "multi-step"],
         result_schema=["task_id", "success", "answer", "tool_calls"],
         startable=False,
+        setup_requirements=["GAIA task bundle", "Tool execution adapters"],
+        task_selection={
+            "strategy": "level_subset",
+            "fields": ["task_ids", "levels"],
+        },
     ),
     BenchmarkModule(
         module_id="webarena",
@@ -221,6 +284,11 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["browser-agent", "web-navigation", "tool-use"],
         result_schema=["task_id", "success", "steps", "final_state"],
         startable=False,
+        setup_requirements=["Browser automation runtime", "WebArena environment"],
+        task_selection={
+            "strategy": "site_subset",
+            "fields": ["task_ids", "sites"],
+        },
     ),
     BenchmarkModule(
         module_id="osworld",
@@ -230,6 +298,11 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["computer-use", "desktop-agent", "tool-use"],
         result_schema=["task_id", "success", "steps", "final_state"],
         startable=False,
+        setup_requirements=["Desktop automation runtime", "OSWorld environment"],
+        task_selection={
+            "strategy": "task_subset",
+            "fields": ["task_ids", "domains"],
+        },
     ),
     BenchmarkModule(
         module_id="tau-bench",
@@ -239,6 +312,11 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         capabilities=["tool-use", "business-workflow", "policy-following"],
         result_schema=["task_id", "success", "reward", "tool_calls"],
         startable=False,
+        setup_requirements=["tau-bench task bundle", "Business workflow tool adapters"],
+        task_selection={
+            "strategy": "domain_subset",
+            "fields": ["task_ids", "domains"],
+        },
     ),
 )
 STARTABLE_BENCHMARK_TYPES = {module.module_id for module in BENCHMARK_MODULES if module.startable}
