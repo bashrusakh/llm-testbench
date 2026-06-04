@@ -80,5 +80,6 @@ first modules; the items below are not implemented yet unless noted.
 - [ ] Cost, token, latency, and pass-rate dashboards across modules.
 - [x] JSONL result export for saved benchmark runs.
 - [x] CSV result export for saved benchmark runs.
-- [ ] TSV result exports and reproducible run manifests.
+- [x] TSV result export for saved benchmark runs.
+- [x] Reproducible run manifest export.
 - [ ] Presets for small local smoke tests versus full leaderboard-style runs.

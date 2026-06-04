@@ -644,7 +644,7 @@ class BenchmarkServer:
         return "\n".join(lines) + ("\n" if lines else "")
 
     @staticmethod
-    def _build_results_csv(record: Dict[str, Any]) -> str:
+    def _build_results_table(record: Dict[str, Any], *, delimiter: str = ",") -> str:
         request_meta = record.get("request") if isinstance(record.get("request"), dict) else {}
         results = record.get("results") if isinstance(record.get("results"), list) else []
         fieldnames = [
@@ -674,7 +674,7 @@ class BenchmarkServer:
             "result_json",
         ]
         buffer = io.StringIO()
-        writer = csv.DictWriter(buffer, fieldnames=fieldnames, lineterminator="\n")
+        writer = csv.DictWriter(buffer, fieldnames=fieldnames, delimiter=delimiter, lineterminator="\n")
         writer.writeheader()
         for index, result in enumerate(results):
             item = result if isinstance(result, dict) else {}
@@ -705,6 +705,61 @@ class BenchmarkServer:
                 "result_json": json.dumps(result, ensure_ascii=False, separators=(",", ":")),
             })
         return buffer.getvalue()
+
+    @staticmethod
+    def _build_results_csv(record: Dict[str, Any]) -> str:
+        return BenchmarkServer._build_results_table(record, delimiter=",")
+
+    @staticmethod
+    def _build_results_tsv(record: Dict[str, Any]) -> str:
+        return BenchmarkServer._build_results_table(record, delimiter="\t")
+
+    @staticmethod
+    def _build_run_manifest(record: Dict[str, Any]) -> str:
+        request_meta = record.get("request") if isinstance(record.get("request"), dict) else {}
+        progress_meta = record.get("progress") if isinstance(record.get("progress"), dict) else {}
+        results = record.get("results") if isinstance(record.get("results"), list) else []
+        errors = record.get("errors") if isinstance(record.get("errors"), list) else []
+        models = sorted({
+            str(item.get("model"))
+            for item in results
+            if isinstance(item, dict) and item.get("model")
+        })
+        providers = sorted({
+            str(item.get("provider_label") or item.get("provider") or item.get("endpoint"))
+            for item in results
+            if isinstance(item, dict) and (item.get("provider_label") or item.get("provider") or item.get("endpoint"))
+        })
+        outcomes: Dict[str, int] = {}
+        for item in results:
+            if not isinstance(item, dict):
+                continue
+            key = str(item.get("outcome") or item.get("status") or "unknown")
+            outcomes[key] = outcomes.get(key, 0) + 1
+        manifest = {
+            "schema_version": 1,
+            "generated_at": ts_utc(),
+            "job_id": record.get("job_id"),
+            "status": record.get("status"),
+            "created_at": record.get("created_at"),
+            "started_at": record.get("started_at"),
+            "finished_at": record.get("finished_at"),
+            "benchmark_type": request_meta.get("benchmark_type"),
+            "request": request_meta,
+            "progress": progress_meta,
+            "result_count": len(results),
+            "error_count": len(errors),
+            "models": models,
+            "providers": providers,
+            "outcomes": outcomes,
+            "export_endpoints": {
+                "jsonl": f"/api/benchmark/{record.get('job_id')}/results.jsonl",
+                "csv": f"/api/benchmark/{record.get('job_id')}/results.csv",
+                "tsv": f"/api/benchmark/{record.get('job_id')}/results.tsv",
+                "manifest": f"/api/benchmark/{record.get('job_id')}/manifest.json",
+            },
+        }
+        return json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
 
     @staticmethod
     def json_error(message: str, *, code: str = "bad_request", status: int = 400) -> web.Response:
@@ -794,22 +849,24 @@ class BenchmarkServer:
             return self.json_error("Unknown job_id", code="not_found", status=404)
         return web.json_response({"status": "ok", "job": job.to_dict(), "timestamp": ts_utc()})
 
-    async def benchmark_results_jsonl(self, request: web.Request) -> web.Response:
-        job_id = request.match_info["job_id"]
-        record: Optional[Dict[str, Any]] = None
+    async def _load_job_record(self, job_id: str, *, log_label: str) -> Optional[Dict[str, Any]]:
         live_job = self.jobs.get(job_id)
         if live_job is not None:
-            record = live_job.to_dict()
-        else:
-            path = self._find_record_path(job_id)
-            if path and path.exists():
-                try:
-                    content = await asyncio.to_thread(path.read_text, "utf-8")
-                    loaded = json.loads(content)
-                    if isinstance(loaded, dict):
-                        record = loaded
-                except Exception as exc:
-                    LOG.warning("Failed reading JSONL export record %s: %s", path, exc)
+            return live_job.to_dict()
+        path = self._find_record_path(job_id)
+        if path and path.exists():
+            try:
+                content = await asyncio.to_thread(path.read_text, "utf-8")
+                loaded = json.loads(content)
+                if isinstance(loaded, dict):
+                    return loaded
+            except Exception as exc:
+                LOG.warning("Failed reading %s export record %s: %s", log_label, path, exc)
+        return None
+
+    async def benchmark_results_jsonl(self, request: web.Request) -> web.Response:
+        job_id = request.match_info["job_id"]
+        record = await self._load_job_record(job_id, log_label="JSONL")
         if record is None:
             return self.json_error("Unknown job_id", code="not_found", status=404)
 
@@ -823,20 +880,7 @@ class BenchmarkServer:
 
     async def benchmark_results_csv(self, request: web.Request) -> web.Response:
         job_id = request.match_info["job_id"]
-        record: Optional[Dict[str, Any]] = None
-        live_job = self.jobs.get(job_id)
-        if live_job is not None:
-            record = live_job.to_dict()
-        else:
-            path = self._find_record_path(job_id)
-            if path and path.exists():
-                try:
-                    content = await asyncio.to_thread(path.read_text, "utf-8")
-                    loaded = json.loads(content)
-                    if isinstance(loaded, dict):
-                        record = loaded
-                except Exception as exc:
-                    LOG.warning("Failed reading CSV export record %s: %s", path, exc)
+        record = await self._load_job_record(job_id, log_label="CSV")
         if record is None:
             return self.json_error("Unknown job_id", code="not_found", status=404)
 
@@ -845,6 +889,34 @@ class BenchmarkServer:
         return web.Response(
             text=text,
             content_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    async def benchmark_results_tsv(self, request: web.Request) -> web.Response:
+        job_id = request.match_info["job_id"]
+        record = await self._load_job_record(job_id, log_label="TSV")
+        if record is None:
+            return self.json_error("Unknown job_id", code="not_found", status=404)
+
+        text = self._build_results_tsv(record)
+        filename = f"{job_id}.results.tsv"
+        return web.Response(
+            text=text,
+            content_type="text/tab-separated-values",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    async def benchmark_manifest(self, request: web.Request) -> web.Response:
+        job_id = request.match_info["job_id"]
+        record = await self._load_job_record(job_id, log_label="manifest")
+        if record is None:
+            return self.json_error("Unknown job_id", code="not_found", status=404)
+
+        text = self._build_run_manifest(record)
+        filename = f"{job_id}.manifest.json"
+        return web.Response(
+            text=text,
+            content_type="application/json",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
@@ -1819,6 +1891,8 @@ async def create_app() -> web.Application:
     app.router.add_post("/api/benchmark/results/clear", server.benchmark_results_clear)
     app.router.add_get("/api/benchmark/{job_id}/results.jsonl", server.benchmark_results_jsonl)
     app.router.add_get("/api/benchmark/{job_id}/results.csv", server.benchmark_results_csv)
+    app.router.add_get("/api/benchmark/{job_id}/results.tsv", server.benchmark_results_tsv)
+    app.router.add_get("/api/benchmark/{job_id}/manifest.json", server.benchmark_manifest)
     app.router.add_get("/api/benchmark/{job_id}", server.benchmark_status)
     app.router.add_post("/api/benchmark/{job_id}/stop", server.benchmark_stop)
     return app

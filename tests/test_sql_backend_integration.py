@@ -115,6 +115,67 @@ def test_results_csv_export_builds_spreadsheet_rows():
     assert result_payload["generated_sql"] == "SELECT 1"
 
 
+def test_results_tsv_export_uses_tab_delimited_rows():
+    record = {
+        "job_id": "job-123",
+        "status": "completed",
+        "request": {"benchmark_type": "sql", "models": ["sql-model"]},
+        "results": [
+            {
+                "benchmark_type": "sql",
+                "model": "sql-model",
+                "provider": "openai-compatible",
+                "outcome": "pass",
+                "success": True,
+                "question_id": 7,
+                "generated_sql": "SELECT 1",
+            },
+        ],
+    }
+
+    text = BenchmarkServer._build_results_tsv(record)
+    rows = list(csv.DictReader(io.StringIO(text), delimiter="\t"))
+
+    assert text.splitlines()[0].startswith("job_id\tstatus\tbenchmark_type\tresult_index")
+    assert len(rows) == 1
+    assert rows[0]["job_id"] == "job-123"
+    assert rows[0]["benchmark_type"] == "sql"
+    assert rows[0]["model"] == "sql-model"
+    assert rows[0]["generated_sql"] == "SELECT 1"
+    assert json.loads(rows[0]["result_json"])["success"] is True
+
+
+def test_run_manifest_export_summarizes_record_without_results_array():
+    record = {
+        "job_id": "job-123",
+        "status": "completed",
+        "created_at": "2026-06-04T00:00:00+00:00",
+        "started_at": "2026-06-04T00:00:01+00:00",
+        "finished_at": "2026-06-04T00:00:02+00:00",
+        "request": {"benchmark_type": "sql", "models": ["sql-model"]},
+        "progress": {"completed": 2, "total": 2},
+        "errors": ["one warning"],
+        "results": [
+            {"benchmark_type": "sql", "model": "sql-model", "provider_label": "Local", "outcome": "pass"},
+            {"benchmark_type": "sql", "model": "sql-model", "provider_label": "Local", "outcome": "fail"},
+        ],
+    }
+
+    manifest = json.loads(BenchmarkServer._build_run_manifest(record))
+
+    assert manifest["schema_version"] == 1
+    assert manifest["job_id"] == "job-123"
+    assert manifest["benchmark_type"] == "sql"
+    assert manifest["request"]["models"] == ["sql-model"]
+    assert manifest["result_count"] == 2
+    assert manifest["error_count"] == 1
+    assert manifest["models"] == ["sql-model"]
+    assert manifest["providers"] == ["Local"]
+    assert manifest["outcomes"] == {"pass": 1, "fail": 1}
+    assert manifest["export_endpoints"]["tsv"] == "/api/benchmark/job-123/results.tsv"
+    assert "results" not in manifest
+
+
 def test_sql_job_flow_builds_sql_report_tsv_and_history(tmp_path, monkeypatch):
     captured = {}
 
