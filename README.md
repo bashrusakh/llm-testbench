@@ -9,11 +9,17 @@ engineering, terminal-agent, and tool-calling evaluations.
 
 ## Current Modules
 
-- Speed benchmark: measures latency, total generation time, prompt throughput,
-  and decode throughput.
-- SQL Accuracy: asks models to solve AdventureWorks-style analytical SQL tasks,
-  executes generated SQL against DuckDB, and checks row count, columns, and first
-  row values.
+- **Speed** — measures latency, total generation time, prompt throughput, and
+  decode throughput.
+- **SQL Accuracy** — asks models to solve AdventureWorks-style analytical SQL
+  tasks, executes generated SQL against DuckDB, and checks row count, columns,
+  and first row values.
+- **BFCL** — Berkeley Function Calling Leaderboard adapter (v1/v2 single-turn
+  subset). Loads tasks from a local `bfcl_data/` directory and evaluates four
+  call categories: single, parallel, multiple, and relevance (no-call) via AST
+  comparison. No external dependencies; runs entirely from local data files.
+  Multi-turn (v3), agentic (v4), and `/api/benchmark/start` wiring are not yet
+  supported.
 
 The backend exposes module metadata for current and planned adapters:
 
@@ -21,8 +27,10 @@ The backend exposes module metadata for current and planned adapters:
 GET /api/benchmark/contract
 GET /api/benchmark/modules
 GET /api/benchmark/modules/{module_id}
+GET /api/benchmark/modules/{module_id}/adapter
 GET /api/benchmark/presets
 GET /api/benchmark/presets/{preset_id}
+GET /api/benchmark/dashboard
 ```
 
 Implemented modules are marked `startable: true`; planned modules are visible in
@@ -34,11 +42,14 @@ renderer hints for tables, traces, detail panels, and summary cards. The contrac
 endpoint exposes schema versions, lifecycle hooks, endpoint paths, and export
 formats for integrations.
 
+The `/api/benchmark/dashboard` endpoint aggregates pass-rate, latency, cost, and
+token counts across all saved runs, broken down by module and model. Supports
+`?module=`, `?model=`, and `?since=` query filters.
+
 ## Planned Modules
 
 The next representative benchmark families are tracked in [ROADMAP.md](ROADMAP.md):
 
-- BFCL for function/tool calling.
 - Terminal-Bench for terminal and DevOps-style agent tasks.
 - LiveCodeBench and BigCodeBench for coding ability.
 - SWE-bench, SWE-rebench, and Multi-SWE-bench for repository-level issue fixing.
@@ -128,10 +139,15 @@ Keep these files and directories in the repository:
 - `run.bat` / `run.sh` - launchers.
 - `python/server.py` - backend API and benchmark orchestration.
 - `python/sql_benchmark.py` - SQL benchmark runner.
+- `python/adapter.py` - `BenchmarkAdapter` ABC and concrete speed/SQL/BFCL adapters.
+- `python/bfcl.py` - BFCL adapter: loader, scorer, argument comparator.
 - `python/requirements.txt` - Python dependencies.
 - `python/__init__.py` - backend package marker.
 - `sql_benchmark_data/` - SQL benchmark questions and AdventureWorks tables.
-- `tests/` - backend, SQL, and frontend regression tests.
+- `bfcl_data/` - BFCL task files (`questions.jsonl`, `answers.jsonl`). The
+  included stub dataset covers all four categories and is used by the test suite.
+  Replace or extend with the full BFCL dataset for leaderboard-style runs.
+- `tests/` - backend, SQL, BFCL, adapter, dashboard, and frontend regression tests.
 
 ## Exports
 
@@ -154,6 +170,25 @@ GET /api/benchmark/summaries
 
 Do not commit local environments, caches, saved benchmark output, or old archived
 experiments.
+
+## Changelog
+
+### [Unreleased]
+
+- **BFCL adapter** (`python/bfcl.py`): evaluates single, parallel, multiple, and
+  relevance tool-calling categories using local task files. Includes argument
+  comparator with numeric type coercion and float tolerance. Stub dataset in
+  `bfcl_data/` covers all four categories; no external dependencies required.
+- **Benchmark adapter API** (`python/adapter.py`): `BenchmarkAdapter` abstract
+  base class with six lifecycle hooks (`prepare`, `select_tasks`, `run_task`,
+  `score`, `render`, `cleanup`). Concrete adapters for speed, SQL, and BFCL
+  registered in `ADAPTER_REGISTRY`. New endpoint
+  `GET /api/benchmark/modules/{module_id}/adapter` returns adapter description or
+  a planned-adapter stub. Contract endpoint now lists `adapter_implemented` modules.
+- **Cross-module dashboard** (`GET /api/benchmark/dashboard`): aggregates
+  pass-rate, latency, cost, and token counts across all saved runs, broken down by
+  module and model. Supports `?module=`, `?model=`, and `?since=` query filters.
+- 85 new tests; total 157.
 
 ## Development
 

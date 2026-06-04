@@ -24,6 +24,7 @@ import httpx
 from aiohttp import web
 
 from python.sql_benchmark import SqlBenchmarkRunner, ToolLlmCallback
+from python.adapter import ADAPTER_REGISTRY, get_adapter
 
 LOG = logging.getLogger("llm_testbench")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -199,7 +200,7 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
     BenchmarkModule(
         module_id="bfcl",
         label="BFCL",
-        status="planned",
+        status="adapter_ready",
         description="Berkeley Function Calling Leaderboard adapter for tool/function-calling.",
         capabilities=["tool-calling", "multi-call", "parallel-call", "api-selection"],
         result_schema=["task_id", "success", "tool_calls", "error"],
@@ -219,6 +220,11 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
             "kind": "tool_call_table",
             "summary_cards": ["accuracy", "valid_tool_call_rate"],
             "columns": ["task_id", "category", "success", "tool_calls", "error"],
+        },
+        adapter_lifecycle={
+            "status": "concrete_adapter",
+            "hooks": ADAPTER_LIFECYCLE_HOOKS,
+            "entrypoint": "python.bfcl.BfclAdapter",
         },
     ),
     BenchmarkModule(
@@ -1454,7 +1460,8 @@ class BenchmarkServer:
             "modules": {
                 "count": len(BENCHMARK_MODULES),
                 "startable": sorted(STARTABLE_BENCHMARK_TYPES),
-                "planned": sorted(module.module_id for module in BENCHMARK_MODULES if not module.startable),
+                "planned": sorted(module.module_id for module in BENCHMARK_MODULES if module.status == "planned"),
+                "adapter_implemented": sorted(ADAPTER_REGISTRY.keys()),
             },
             "presets": {
                 "count": len(BENCHMARK_PRESETS),
@@ -1464,12 +1471,14 @@ class BenchmarkServer:
             "endpoints": {
                 "modules": "/api/benchmark/modules",
                 "module_detail": "/api/benchmark/modules/{module_id}",
+                "module_adapter": "/api/benchmark/modules/{module_id}/adapter",
                 "presets": "/api/benchmark/presets",
                 "preset_detail": "/api/benchmark/presets/{preset_id}",
                 "start": "/api/benchmark/start",
                 "active": "/api/benchmark/active",
                 "results": "/api/benchmark/results",
                 "summaries": "/api/benchmark/summaries",
+                "dashboard": "/api/benchmark/dashboard",
                 "status": "/api/benchmark/{job_id}",
                 "stop": "/api/benchmark/{job_id}/stop",
             },
@@ -1498,6 +1507,200 @@ class BenchmarkServer:
         return web.json_response({
             "status": "ok",
             "preset": preset.to_dict(),
+            "timestamp": ts_utc(),
+        })
+
+    async def benchmark_adapter_detail(self, request: web.Request) -> web.Response:
+        """Return the concrete adapter description for a module, or a planned stub."""
+        module_id = str(request.match_info["module_id"]).strip().lower()
+        module = BENCHMARK_MODULES_BY_ID.get(module_id)
+        if module is None:
+            return self.json_error("Unknown benchmark module", code="not_found", status=404)
+        adapter = get_adapter(module_id)
+        if adapter is None:
+            return web.json_response({
+                "status": "ok",
+                "module_id": module_id,
+                "adapter": {
+                    "module_id": module_id,
+                    "hooks": ["prepare", "select_tasks", "run_task", "score", "render", "cleanup"],
+                    "status": "planned_adapter",
+                    "class": None,
+                },
+                "timestamp": ts_utc(),
+            })
+        return web.json_response({
+            "status": "ok",
+            "module_id": module_id,
+            "adapter": adapter.describe(),
+            "timestamp": ts_utc(),
+        })
+
+    async def benchmark_dashboard(self, _request: web.Request) -> web.Response:
+        """Aggregate pass-rate, latency, token, and cost metrics across all saved runs.
+
+        Optional query parameters:
+          - module: filter by benchmark_type (e.g. "sql", "speed")
+          - model:  filter by model name
+          - since:  ISO-8601 timestamp; only include runs created at or after this time
+
+        Response shape::
+
+            {
+              "status": "ok",
+              "dashboard": {
+                "total_runs": <int>,
+                "by_module": {
+                  "<module_id>": {
+                    "run_count": <int>,
+                    "result_count": <int>,
+                    "pass_count": <int>,
+                    "fail_count": <int>,
+                    "pass_rate": <float|null>,
+                    "avg_latency_ms": <float|null>,
+                    "total_cost": <float>,
+                    "total_tokens": <int>,
+                    "by_model": {
+                      "<model>": { pass_rate, avg_latency_ms, total_cost, count, pass_count }
+                    }
+                  }
+                }
+              }
+            }
+        """
+        from urllib.parse import parse_qs
+        qs = dict(_request.rel_url.query)
+        filter_module = qs.get("module", "").strip().lower() or None
+        filter_model = qs.get("model", "").strip() or None
+        filter_since = qs.get("since", "").strip() or None
+
+        items = await self._load_results_store()
+
+        def _avg(values: list) -> Optional[float]:
+            return round(sum(values) / len(values), 4) if values else None
+
+        def _number(v: Any) -> Optional[float]:
+            if v in (None, ""):
+                return None
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+
+        # Bucket structure: by_module[module_id][model] -> {counts, values}
+        by_module: Dict[str, Dict[str, Any]] = {}
+        total_runs = 0
+
+        for record in items:
+            if not isinstance(record, dict):
+                continue
+            request_meta = record.get("request") or {}
+            module_id = str(request_meta.get("benchmark_type") or "unknown").lower()
+            created_at = record.get("created_at") or ""
+
+            # Apply filters
+            if filter_module and module_id != filter_module:
+                continue
+            if filter_since and created_at and created_at < filter_since:
+                continue
+
+            results = record.get("results") or []
+            filtered_results = [
+                row
+                for row in results
+                if isinstance(row, dict)
+                and (not filter_model or str(row.get("model") or "unknown") == filter_model)
+            ]
+            if filter_model and not filtered_results:
+                continue
+
+            total_runs += 1
+
+            module_bucket = by_module.setdefault(module_id, {
+                "run_count": 0,
+                "result_count": 0,
+                "pass_count": 0,
+                "fail_count": 0,
+                "_latency_values": [],
+                "_cost_sum": 0.0,
+                "_token_sum": 0,
+                "by_model": {},
+            })
+            module_bucket["run_count"] += 1
+
+            for row in filtered_results:
+                model = str(row.get("model") or "unknown")
+
+                module_bucket["result_count"] += 1
+                success = row.get("success")
+                if success is True:
+                    module_bucket["pass_count"] += 1
+                elif success is False:
+                    module_bucket["fail_count"] += 1
+
+                latency = _number(row.get("latency_ms")) or _number(row.get("latency_s"))
+                if latency is not None:
+                    module_bucket["_latency_values"].append(latency)
+
+                cost = _number(row.get("cost"))
+                if cost is not None:
+                    module_bucket["_cost_sum"] += cost
+
+                prompt_t = _number(row.get("prompt_tokens") or row.get("input_tokens")) or 0.0
+                compl_t = _number(row.get("completion_tokens") or row.get("output_tokens")) or 0.0
+                module_bucket["_token_sum"] += int(prompt_t + compl_t)
+
+                model_bucket = module_bucket["by_model"].setdefault(model, {
+                    "count": 0,
+                    "pass_count": 0,
+                    "fail_count": 0,
+                    "_latency_values": [],
+                    "_cost_sum": 0.0,
+                })
+                model_bucket["count"] += 1
+                if success is True:
+                    model_bucket["pass_count"] += 1
+                elif success is False:
+                    model_bucket["fail_count"] += 1
+                if latency is not None:
+                    model_bucket["_latency_values"].append(latency)
+                cost2 = _number(row.get("cost"))
+                if cost2 is not None:
+                    model_bucket["_cost_sum"] += cost2
+
+        # Finalise — collapse private accumulator fields into public ones
+        dashboard_modules: Dict[str, Any] = {}
+        for module_id, mb in by_module.items():
+            rc = mb["result_count"]
+            by_model_out: Dict[str, Any] = {}
+            for model, model_b in sorted(mb["by_model"].items()):
+                mc = model_b["count"]
+                by_model_out[model] = {
+                    "count": mc,
+                    "pass_count": model_b["pass_count"],
+                    "fail_count": model_b["fail_count"],
+                    "pass_rate": round(model_b["pass_count"] / mc, 4) if mc else None,
+                    "avg_latency_ms": _avg(model_b["_latency_values"]),
+                    "total_cost": round(model_b["_cost_sum"], 8),
+                }
+            dashboard_modules[module_id] = {
+                "run_count": mb["run_count"],
+                "result_count": rc,
+                "pass_count": mb["pass_count"],
+                "fail_count": mb["fail_count"],
+                "pass_rate": round(mb["pass_count"] / rc, 4) if rc else None,
+                "avg_latency_ms": _avg(mb["_latency_values"]),
+                "total_cost": round(mb["_cost_sum"], 8),
+                "total_tokens": mb["_token_sum"],
+                "by_model": by_model_out,
+            }
+
+        return web.json_response({
+            "status": "ok",
+            "dashboard": {
+                "total_runs": total_runs,
+                "by_module": dashboard_modules,
+            },
             "timestamp": ts_utc(),
         })
 
@@ -2639,6 +2842,8 @@ async def create_app() -> web.Application:
     app.router.add_get("/api/benchmark/summaries", server.benchmark_summaries_list)
     app.router.add_get("/api/benchmark/results", server.benchmark_results_list)
     app.router.add_get("/api/benchmark/active", server.benchmark_active)
+    app.router.add_get("/api/benchmark/dashboard", server.benchmark_dashboard)
+    app.router.add_get("/api/benchmark/modules/{module_id}/adapter", server.benchmark_adapter_detail)
     app.router.add_post("/api/benchmark/results/clear", server.benchmark_results_clear)
     app.router.add_get("/api/benchmark/{job_id}/results.jsonl", server.benchmark_results_jsonl)
     app.router.add_get("/api/benchmark/{job_id}/results.csv", server.benchmark_results_csv)

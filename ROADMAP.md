@@ -12,11 +12,26 @@ first modules; the items below are not implemented yet unless noted.
 
 ## Near-Term TODO
 
-- [ ] BFCL adapter for function/tool calling.
-  - Evaluate single, parallel, multi-call, REST/API, SQL, and relevance-detection
-    cases.
-  - Useful next step because the project already has tool-calling infrastructure.
+- [x] BFCL adapter for function/tool calling — v1/v2 single-turn subset.
+  - Evaluates single, parallel, multiple, and relevance-detection categories
+    via AST comparison (no execution).
+  - `python/bfcl.py`: `BfclAdapter`, `score_bfcl_result`, `load_bfcl_tasks`,
+    argument comparator with numeric coercion and float tolerance.
+  - Data: `bfcl_data/questions.jsonl` + `answers.jsonl` (local BFCL format).
+  - Registered in `ADAPTER_REGISTRY`; stub dataset included for tests.
   - Source: <https://sky.cs.berkeley.edu/project/berkeley-function-calling-leaderboard/>
+
+- [ ] Wire BFCL into `/api/benchmark/start`.
+  - Adapter and scorer exist, but the generic server run loop still needs to
+    call `BfclAdapter` for live benchmark jobs.
+
+- [ ] BFCL v3 multi-turn upgrade.
+  - v3 uses state-based evaluation: functions execute against live Python API
+    backends (Gorilla File System, Vehicle Control, Trading Bots, Travel
+    Booking), and the system state after each turn is compared to ground truth —
+    not argument AST.
+  - Requires bundling the BFCL Python API simulators and a state-execution
+    runner. Blocked on container/sandbox support.
 
 - [ ] Terminal-Bench adapter for terminal-agent tasks.
   - Add a sandboxed shell execution layer.
@@ -80,12 +95,18 @@ first modules; the items below are not implemented yet unless noted.
 - [x] Preset metadata in API contract.
 - [x] Run summary export with pass-rate, latency, token, cost, and per-model aggregates.
 - [x] Saved-run summaries endpoint for dashboard-style history views.
-- [ ] Full benchmark module adapter API so each suite can provide:
+- [x] Full benchmark module adapter API so each suite can provide:
   - run loop;
   - concrete adapter lifecycle implementation.
+  - `python/adapter.py`: `BenchmarkAdapter` ABC, `SpeedAdapter`, `SqlAdapter`,
+    `BfclAdapter`, `ADAPTER_REGISTRY`, `get_adapter()`.
+  - `GET /api/benchmark/modules/{module_id}/adapter` returns adapter description.
+  - Contract endpoint exposes `adapter_implemented` list and `module_adapter` route.
 
 - [ ] Container/sandbox support for coding and terminal tasks.
-- [ ] Cost, token, latency, and pass-rate dashboards across modules.
+- [x] Cost, token, latency, and pass-rate dashboards across modules.
+  - `GET /api/benchmark/dashboard` aggregates all saved runs by module and model.
+  - Supports `?module=`, `?model=`, `?since=` query filters.
 - [x] JSONL result export for saved benchmark runs.
 - [x] CSV result export for saved benchmark runs.
 - [x] TSV result export for saved benchmark runs.

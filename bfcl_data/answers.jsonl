@@ -1,0 +1,5 @@
+{"id": "simple_1", "ground_truth": [{"get_weather": {"city": "Paris", "unit": "celsius"}}]}
+{"id": "simple_2", "ground_truth": [{"web_search": {"query": "Python tutorials"}}]}
+{"id": "parallel_1", "ground_truth": [{"get_weather": {"city": "Tokyo"}}, {"get_weather": {"city": "London"}}]}
+{"id": "multiple_1", "ground_truth": [{"add": {"a": 42, "b": 58}}]}
+{"id": "relevance_1", "ground_truth": []}

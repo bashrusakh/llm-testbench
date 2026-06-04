@@ -104,7 +104,8 @@ def test_benchmark_contract_endpoint_returns_schema_versions_and_routes():
     assert payload["schema_versions"]["module"] == server_module.MODULE_SCHEMA_VERSION
     assert payload["adapter_lifecycle_hooks"] == server_module.ADAPTER_LIFECYCLE_HOOKS
     assert payload["modules"]["startable"] == ["speed", "sql"]
-    assert "bfcl" in payload["modules"]["planned"]
+    assert "bfcl" not in payload["modules"]["planned"]
+    assert "bfcl" in payload["modules"]["adapter_implemented"]
     assert payload["presets"]["ids"] == ["local-smoke", "balanced", "leaderboard-full"]
     assert payload["presets"]["scopes"] == ["comparison", "leaderboard", "smoke"]
     assert payload["endpoints"]["module_detail"] == "/api/benchmark/modules/{module_id}"
