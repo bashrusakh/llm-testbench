@@ -1,4 +1,6 @@
 import asyncio
+import csv
+import io
 import json
 from pathlib import Path
 
@@ -76,6 +78,41 @@ def test_results_jsonl_export_builds_one_line_per_result():
     assert rows[0]["result"]["outcome"] == "pass"
     assert rows[1]["result_index"] == 1
     assert rows[1]["result"]["outcome"] == "fail"
+
+
+def test_results_csv_export_builds_spreadsheet_rows():
+    record = {
+        "job_id": "job-123",
+        "status": "completed",
+        "request": {"benchmark_type": "sql", "models": ["sql-model"]},
+        "results": [
+            {
+                "benchmark_type": "sql",
+                "model": "sql-model",
+                "provider": "openai-compatible",
+                "outcome": "pass",
+                "success": True,
+                "question_id": 7,
+                "generated_sql": "SELECT 1",
+            },
+        ],
+    }
+
+    text = BenchmarkServer._build_results_csv(record)
+    lines = text.splitlines()
+    rows = list(csv.DictReader(io.StringIO(text)))
+
+    assert lines[0].startswith("job_id,status,benchmark_type,result_index")
+    assert len(lines) == 2
+    assert rows[0]["job_id"] == "job-123"
+    assert rows[0]["benchmark_type"] == "sql"
+    assert rows[0]["model"] == "sql-model"
+    assert rows[0]["provider"] == "openai-compatible"
+    assert rows[0]["success"] == "True"
+    assert rows[0]["question_id"] == "7"
+    result_payload = json.loads(rows[0]["result_json"])
+    assert result_payload["success"] is True
+    assert result_payload["generated_sql"] == "SELECT 1"
 
 
 def test_sql_job_flow_builds_sql_report_tsv_and_history(tmp_path, monkeypatch):

@@ -2031,9 +2031,11 @@
         const endpoint = item.results?.[0]?.endpoint || item.request?.base_url || '-';
         const benchmarkType = item.request?.benchmark_type || 'speed';
         const jsonlUrl = apiUrl(`/api/benchmark/${encodeURIComponent(item.job_id)}/results.jsonl`);
+        const csvUrl = apiUrl(`/api/benchmark/${encodeURIComponent(item.job_id)}/results.csv`);
         const actions = `
           <button type="button" class="btn-small" data-history-open="${escapeHtml(item.job_id)}">Open</button>
           <a class="btn-small" href="${escapeHtml(jsonlUrl)}" download="${escapeHtml(item.job_id)}.results.jsonl">JSONL</a>
+          <a class="btn-small" href="${escapeHtml(csvUrl)}" download="${escapeHtml(item.job_id)}.results.csv">CSV</a>
         `;
         row.innerHTML = `
           <td><input type="checkbox" data-job-id="${escapeHtml(item.job_id)}" ${checked}></td>

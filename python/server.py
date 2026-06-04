@@ -6,7 +6,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextvars
+import csv
 import hashlib
+import io
 import json
 import logging
 import os
@@ -642,6 +644,69 @@ class BenchmarkServer:
         return "\n".join(lines) + ("\n" if lines else "")
 
     @staticmethod
+    def _build_results_csv(record: Dict[str, Any]) -> str:
+        request_meta = record.get("request") if isinstance(record.get("request"), dict) else {}
+        results = record.get("results") if isinstance(record.get("results"), list) else []
+        fieldnames = [
+            "job_id",
+            "status",
+            "benchmark_type",
+            "result_index",
+            "model",
+            "provider",
+            "provider_label",
+            "endpoint",
+            "outcome",
+            "success",
+            "error",
+            "latency_s",
+            "total_time_s",
+            "prompt_tokens",
+            "completion_tokens",
+            "tokens_per_second",
+            "question_id",
+            "difficulty",
+            "thinking_mode",
+            "reasoning_effort",
+            "reasoning_fallback",
+            "generated_sql",
+            "expected_sql",
+            "result_json",
+        ]
+        buffer = io.StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=fieldnames, lineterminator="\n")
+        writer.writeheader()
+        for index, result in enumerate(results):
+            item = result if isinstance(result, dict) else {}
+            writer.writerow({
+                "job_id": record.get("job_id"),
+                "status": record.get("status"),
+                "benchmark_type": request_meta.get("benchmark_type") or item.get("benchmark_type"),
+                "result_index": index,
+                "model": item.get("model"),
+                "provider": item.get("provider"),
+                "provider_label": item.get("provider_label"),
+                "endpoint": item.get("endpoint"),
+                "outcome": item.get("outcome") or item.get("status"),
+                "success": item.get("success"),
+                "error": item.get("error"),
+                "latency_s": item.get("latency_s") or item.get("latency"),
+                "total_time_s": item.get("total_time_s") or item.get("total_time"),
+                "prompt_tokens": item.get("prompt_tokens") or item.get("input_tokens"),
+                "completion_tokens": item.get("completion_tokens") or item.get("output_tokens"),
+                "tokens_per_second": item.get("tokens_per_second"),
+                "question_id": item.get("question_id"),
+                "difficulty": item.get("difficulty"),
+                "thinking_mode": item.get("thinking_mode"),
+                "reasoning_effort": item.get("reasoning_effort"),
+                "reasoning_fallback": item.get("reasoning_fallback"),
+                "generated_sql": item.get("generated_sql"),
+                "expected_sql": item.get("expected_sql"),
+                "result_json": json.dumps(result, ensure_ascii=False, separators=(",", ":")),
+            })
+        return buffer.getvalue()
+
+    @staticmethod
     def json_error(message: str, *, code: str = "bad_request", status: int = 400) -> web.Response:
         return web.json_response(
             {
@@ -753,6 +818,33 @@ class BenchmarkServer:
         return web.Response(
             text=text,
             content_type="application/x-ndjson",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    async def benchmark_results_csv(self, request: web.Request) -> web.Response:
+        job_id = request.match_info["job_id"]
+        record: Optional[Dict[str, Any]] = None
+        live_job = self.jobs.get(job_id)
+        if live_job is not None:
+            record = live_job.to_dict()
+        else:
+            path = self._find_record_path(job_id)
+            if path and path.exists():
+                try:
+                    content = await asyncio.to_thread(path.read_text, "utf-8")
+                    loaded = json.loads(content)
+                    if isinstance(loaded, dict):
+                        record = loaded
+                except Exception as exc:
+                    LOG.warning("Failed reading CSV export record %s: %s", path, exc)
+        if record is None:
+            return self.json_error("Unknown job_id", code="not_found", status=404)
+
+        text = self._build_results_csv(record)
+        filename = f"{job_id}.results.csv"
+        return web.Response(
+            text=text,
+            content_type="text/csv",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
@@ -1726,6 +1818,7 @@ async def create_app() -> web.Application:
     app.router.add_get("/api/benchmark/active", server.benchmark_active)
     app.router.add_post("/api/benchmark/results/clear", server.benchmark_results_clear)
     app.router.add_get("/api/benchmark/{job_id}/results.jsonl", server.benchmark_results_jsonl)
+    app.router.add_get("/api/benchmark/{job_id}/results.csv", server.benchmark_results_csv)
     app.router.add_get("/api/benchmark/{job_id}", server.benchmark_status)
     app.router.add_post("/api/benchmark/{job_id}/stop", server.benchmark_stop)
     return app
