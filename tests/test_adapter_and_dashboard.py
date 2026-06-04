@@ -36,7 +36,7 @@ def test_adapter_registry_contains_speed_and_sql():
 
 
 def test_get_adapter_returns_none_for_unknown_module():
-    assert get_adapter("terminal-bench") is None
+    assert get_adapter("coding-micro") is None
     assert get_adapter("nonexistent") is None
 
 
@@ -59,7 +59,11 @@ def test_adapter_describe_returns_required_fields():
         assert set(desc["hooks"]) == {
             "prepare", "select_tasks", "run_task", "score", "render", "cleanup"
         }
-        assert desc["status"] == "concrete_adapter"
+        if adapter.module_id == "speed":
+            assert desc["status"] == "metadata_only"
+            assert desc["entrypoint"] == "BenchmarkServer._run_single_benchmark"
+        else:
+            assert desc["status"] == "concrete_adapter"
         assert desc["class"] == type(adapter).__name__
 
 
@@ -127,6 +131,13 @@ def test_speed_score_sets_success_from_outcome():
 
     result2 = run(adapter.score(ctx, {"outcome": "fail"}))
     assert result2["success"] is False
+
+
+def test_speed_run_task_is_metadata_only():
+    adapter = SpeedAdapter()
+    ctx = _speed_ctx()
+    with pytest.raises(NotImplementedError, match="metadata-only"):
+        run(adapter.run_task(ctx, ("stub-model", 1)))
 
 
 def test_speed_render_shows_model_and_run_count():
@@ -276,7 +287,7 @@ def test_adapter_detail_endpoint_returns_concrete_for_speed():
     assert response.status == 200
     assert payload["status"] == "ok"
     assert payload["adapter"]["module_id"] == "speed"
-    assert payload["adapter"]["status"] == "concrete_adapter"
+    assert payload["adapter"]["status"] == "metadata_only"
     assert payload["adapter"]["class"] == "SpeedAdapter"
     assert "prepare" in payload["adapter"]["hooks"]
 
@@ -292,9 +303,9 @@ def test_adapter_detail_endpoint_returns_concrete_for_sql():
     assert payload["adapter"]["class"] == "SqlAdapter"
 
 
-def test_adapter_detail_endpoint_returns_planned_stub_for_terminal_bench():
+def test_adapter_detail_endpoint_returns_planned_stub_for_fixture_ready_module():
     server = BenchmarkServer(INDEX_HTML)
-    request = type("Request", (), {"match_info": {"module_id": "terminal-bench"}})()
+    request = type("Request", (), {"match_info": {"module_id": "coding-micro"}})()
     response = run(server.benchmark_adapter_detail(request))
     payload = json.loads(response.text)
 

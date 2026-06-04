@@ -20,8 +20,13 @@ and prompt replay.
   call categories: single, parallel, multiple, and relevance (no-call) via AST
   comparison. No external dependencies; runs entirely from local data files.
   Multi-turn (v3) and agentic (v4) categories are not yet supported.
+- **Coding Micro** - tiny Python coding fixtures with deterministic syntax and
+  static-fragment checks.
+- **JSON Schema** - local instruction-following fixtures scored by JSON parsing
+  and schema-lite validation.
+- **Prompt Replay** - fixed local prompts for fast regression checks.
 
-The backend exposes module metadata for current and planned adapters:
+The backend exposes module metadata for live and fixture-ready adapters:
 
 ```text
 GET /api/benchmark/contract
@@ -35,9 +40,10 @@ GET /api/fixtures
 GET /api/fixtures/validate
 ```
 
-Implemented modules are marked `startable: true`; planned modules are visible in
-the registry but cannot be started until their adapters exist. Presets describe
-small local smoke runs, balanced comparisons, and fuller leaderboard-style runs.
+Implemented live modules are marked `startable: true`; fixture-ready modules are
+visible in the registry and fixture endpoints but are not wired into live
+generation yet. Presets describe small local smoke runs, balanced comparisons,
+and fuller local runs.
 Module metadata includes setup requirements and task-selection hints so future
 adapters and UI panels can share one contract. It also describes scoring and UI
 renderer hints for tables, traces, detail panels, and summary cards. The contract
@@ -51,16 +57,12 @@ token counts across all saved runs, broken down by module and model. Supports
 The fixture endpoints describe and validate local benchmark data in the repo.
 They are intentionally local-only and do not download datasets.
 
-## Planned Modules
+## Scope
 
-The next representative benchmark families are tracked in [ROADMAP.md](ROADMAP.md):
-
-- Small local coding fixtures, without LiveCodeBench/BigCodeBench dependency.
-- Local instruction-following and JSON schema checks.
-- Prompt replay for fast regression comparisons.
-
-Heavy orchestrator-style suites such as SWE-bench, Terminal-Bench, WebArena,
-OSWorld, CodeClash, GAIA, and tau-bench are intentionally out of scope.
+The roadmap is deliberately narrow. Heavy orchestrator-style suites such as
+SWE-bench, Terminal-Bench, WebArena, OSWorld, CodeClash, GAIA, tau-bench,
+LiveCodeBench, and BigCodeBench are intentionally out of scope. The project
+keeps small local fixtures instead of external benchmark dependencies.
 
 ## Supported Backends
 
@@ -148,12 +150,16 @@ Keep these files and directories in the repository:
 - `python/sql_benchmark.py` - SQL benchmark runner.
 - `python/adapter.py` - `BenchmarkAdapter` ABC and concrete speed/SQL/BFCL adapters.
 - `python/bfcl.py` - BFCL adapter: loader, scorer, argument comparator.
+- `python/local_benchmarks.py` - local fixture loaders, validators, and scorer helpers.
 - `python/requirements.txt` - Python dependencies.
 - `python/__init__.py` - backend package marker.
 - `sql_benchmark_data/` - SQL benchmark questions and AdventureWorks tables.
 - `bfcl_data/` - BFCL task files (`questions.jsonl`, `answers.jsonl`). The
   included stub dataset covers all four categories and is used by the test suite.
   Replace or extend with the full BFCL dataset for leaderboard-style runs.
+- `coding_data/` - tiny Python coding tasks for local static scoring.
+- `json_schema_data/` - JSON instruction-following fixtures.
+- `prompt_replay_data/` - fixed prompt replay fixtures.
 - `tests/` - backend, SQL, BFCL, adapter, dashboard, and frontend regression tests.
 
 ## Exports
@@ -191,11 +197,16 @@ experiments.
   `score`, `render`, `cleanup`). Concrete adapters for speed, SQL, and BFCL
   registered in `ADAPTER_REGISTRY`. New endpoint
   `GET /api/benchmark/modules/{module_id}/adapter` returns adapter description or
-  a planned-adapter stub. Contract endpoint now lists `adapter_implemented` modules.
+  an adapter stub for fixture-ready modules. Contract endpoint now lists
+  `adapter_implemented` modules.
 - **Cross-module dashboard** (`GET /api/benchmark/dashboard`): aggregates
   pass-rate, latency, cost, and token counts across all saved runs, broken down by
   module and model. Supports `?module=`, `?model=`, and `?since=` query filters.
-- 85 new tests; total 157.
+- **Local fixture benchmarks** (`python/local_benchmarks.py`): adds coding micro,
+  JSON schema, and prompt replay fixture sets with deterministic validators and
+  scorer helpers. Heavy external benchmark suites are kept out of scope.
+- Speed adapter is now explicitly metadata-only; live speed runs execute through
+  `BenchmarkServer._run_single_benchmark`.
 
 ## Development
 

@@ -129,6 +129,15 @@ class SpeedAdapter(BenchmarkAdapter):
 
     module_id = "speed"
 
+    def describe(self) -> Dict[str, Any]:
+        desc = super().describe()
+        desc.update({
+            "status": "metadata_only",
+            "entrypoint": "BenchmarkServer._run_single_benchmark",
+            "note": "Live speed runs are executed inline by BenchmarkServer.",
+        })
+        return desc
+
     async def prepare(self, ctx: RunContext) -> None:
         repeat_count = int(ctx.options.get("repeat_count", 1))
         warmup_runs = int(ctx.options.get("warmup_runs", 0))
@@ -150,14 +159,10 @@ class SpeedAdapter(BenchmarkAdapter):
 
     async def run_task(self, ctx: RunContext, task: Any) -> Dict[str, Any]:
         # Placeholder — real execution delegates to BenchmarkServer helpers.
-        model, run_index = task
-        return {
-            "outcome": "pass",
-            "model": model,
-            "run_index": run_index,
-            "provider": ctx.provider,
-            "endpoint": ctx.endpoint,
-        }
+        raise NotImplementedError(
+            "SpeedAdapter is metadata-only; live speed runs use "
+            "BenchmarkServer._run_single_benchmark"
+        )
 
     async def score(self, ctx: RunContext, result: Dict[str, Any]) -> Dict[str, Any]:
         result.setdefault("success", result.get("outcome") == "pass")

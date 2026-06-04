@@ -47,31 +47,34 @@ project roadmap.
 
 - [x] Local fixture manifest and validation.
   - `/api/fixtures` reports local fixture paths, task counts, schema version, and categories.
-  - `/api/fixtures/validate` checks SQL and BFCL fixture shape without network access.
+  - `/api/fixtures/validate` checks SQL, BFCL, coding, JSON schema, and prompt replay fixture shape without network access.
 
-## Near-Term TODO
-
-- [ ] Fix SpeedAdapter to delegate to the real speed benchmark path or mark it as
-  metadata-only.
-  - Current live speed generation is in `BenchmarkServer._run_single_benchmark`,
+- [x] Speed adapter metadata is honest.
+  - Live speed generation stays in `BenchmarkServer._run_single_benchmark`,
     `_benchmark_openai`, and `_benchmark_ollama`.
-  - `SpeedAdapter.run_task()` is a placeholder shim and should not be presented
-    as a full executor until it calls the real implementation.
+  - `SpeedAdapter.run_task()` raises instead of returning a placeholder pass.
 
-- [ ] Add a small local coding micro-benchmark.
-  - Use a tiny repo-owned fixture set, for example 5-20 pure Python tasks.
+- [x] Small local coding micro-benchmark fixtures.
+  - Uses repo-owned `coding_data/tasks.jsonl`.
+  - Scores Python syntax and static required/forbidden fragments.
   - No LiveCodeBench/BigCodeBench dependency.
-  - Optional local execution only through normal Python subprocess tests, with
-    tight timeout and no network.
 
-- [ ] Add a small local instruction-following / JSON schema benchmark.
-  - Tiny fixture set in the repo.
-  - Score by deterministic JSON parsing/schema comparison.
-  - Useful for non-tool-calling model behavior without external dependencies.
+- [x] Small local instruction-following / JSON schema fixtures.
+  - Uses repo-owned `json_schema_data/tasks.jsonl`.
+  - Scores by deterministic JSON parsing and schema-lite comparison.
 
-- [ ] Add a local prompt replay benchmark for regression checks.
-  - Fixed prompts, expected structural properties, and exportable summaries.
-  - No leaderboard claim; just fast local comparison.
+- [x] Local prompt replay fixtures.
+  - Uses repo-owned `prompt_replay_data/tasks.jsonl`.
+  - Scores required, optional, forbidden, and minimum-length checks.
+
+- [x] `/api/benchmark/start` remains simple.
+  - Live startable modules stay limited to speed, SQL, and BFCL.
+  - No queue managers, distributed workers, remote sandboxes, or complex
+    orchestration.
+
+- [x] Dashboard/export code remains generic and small.
+  - Aggregates pass-rate, latency, tokens, cost, per-module, and per-model.
+  - No complex analytics, leaderboard machinery, or remote publishing.
 
 ## Explicitly Out Of Scope
 
@@ -84,13 +87,7 @@ The following were removed from the roadmap because they violate the scope rules
 - Any benchmark requiring Docker/container orchestration, browser automation,
   desktop automation, external services, or large downloaded datasets.
 
-## Platform TODO
+## Open TODO
 
-- [ ] Keep `/api/benchmark/start` simple.
-  - One local adapter job at a time is acceptable.
-  - Avoid queue managers, distributed workers, remote sandboxes, and complex
-    orchestration.
-
-- [ ] Keep dashboard/export code generic but small.
-  - Aggregates are enough: pass-rate, latency, tokens, cost, per-module, per-model.
-  - Avoid complex analytics, leaderboard machinery, or remote publishing.
+No open roadmap items. Future work should be added only if it satisfies the
+scope rules above.

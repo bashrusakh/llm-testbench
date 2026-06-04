@@ -1,0 +1,3 @@
+{"id":"json_weather","prompt":"Return compact JSON with city, unit, and forecast fields for a Paris weather answer.","schema":{"type":"object","required":["city","unit","forecast"],"properties":{"city":{"type":"string"},"unit":{"type":"string","enum":["celsius","fahrenheit"]},"forecast":{"type":"string"}}}}
+{"id":"json_math","prompt":"Return compact JSON with expression and result for 7 plus 5.","schema":{"type":"object","required":["expression","result"],"properties":{"expression":{"type":"string"},"result":{"type":"integer"}}}}
+{"id":"json_status","prompt":"Return compact JSON with ok=true and a short message.","schema":{"type":"object","required":["ok","message"],"properties":{"ok":{"type":"boolean"},"message":{"type":"string"}}}}

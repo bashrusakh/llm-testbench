@@ -24,14 +24,9 @@ def test_benchmark_module_registry_exposes_current_and_planned_modules():
     assert by_id["speed"]["startable"] is True
     assert by_id["sql"]["status"] == "implemented"
     assert by_id["bfcl"]["startable"] is True
-    assert by_id["terminal-bench"]["status"] == "planned"
-    assert by_id["bigcodebench"]["status"] == "planned"
-    assert by_id["multi-swe-bench"]["status"] == "planned"
-    assert by_id["codeclash"]["status"] == "planned"
-    assert by_id["gaia"]["status"] == "planned"
-    assert by_id["webarena"]["status"] == "planned"
-    assert by_id["osworld"]["status"] == "planned"
-    assert by_id["tau-bench"]["status"] == "planned"
+    assert by_id["coding-micro"]["status"] == "fixture_ready"
+    assert by_id["json-schema"]["status"] == "fixture_ready"
+    assert by_id["prompt-replay"]["status"] == "fixture_ready"
     assert "tool-calling" in by_id["sql"]["capabilities"]
     assert "DuckDB" in by_id["sql"]["setup_requirements"]
     assert by_id["sql"]["task_selection"]["strategy"] == "question_ids"
@@ -39,9 +34,9 @@ def test_benchmark_module_registry_exposes_current_and_planned_modules():
     assert by_id["sql"]["ui_renderer"]["detail_panel"] == "sql_diff"
     assert by_id["sql"]["adapter_lifecycle"]["status"] == "implemented_inline"
     assert by_id["sql"]["adapter_lifecycle"]["entrypoint"] == "BenchmarkServer._run_sql_job"
-    assert by_id["swe-bench"]["task_selection"]["splits"] == ["verified", "lite", "full"]
-    assert by_id["swe-bench"]["scoring"]["primary_metric"] == "resolve_rate"
-    assert by_id["swe-bench"]["adapter_lifecycle"]["status"] == "planned_adapter"
+    assert by_id["coding-micro"]["task_selection"]["strategy"] == "fixture_ids"
+    assert by_id["json-schema"]["scoring"]["primary_metric"] == "pass_rate"
+    assert by_id["prompt-replay"]["setup_requirements"] == ["prompt_replay_data/tasks.jsonl"]
 
 
 def test_benchmark_modules_endpoint_returns_registry_metadata():
@@ -54,12 +49,14 @@ def test_benchmark_modules_endpoint_returns_registry_metadata():
     assert response.status == 200
     assert payload["status"] == "ok"
     assert payload["startable"] == ["bfcl", "speed", "sql"]
-    assert by_id["livecodebench"]["status"] == "planned"
-    assert by_id["swe-rebench"]["status"] == "planned"
+    assert by_id["coding-micro"]["status"] == "fixture_ready"
+    assert by_id["json-schema"]["status"] == "fixture_ready"
+    assert by_id["prompt-replay"]["status"] == "fixture_ready"
     assert by_id["speed"]["result_schema"]
     assert by_id["speed"]["task_selection"]["fields"] == ["models", "prompt", "repeat_count", "warmup_runs"]
     assert by_id["speed"]["ui_renderer"]["kind"] == "speed_table"
     assert by_id["speed"]["adapter_lifecycle"]["hooks"] == server_module.ADAPTER_LIFECYCLE_HOOKS
+    assert by_id["speed"]["adapter_lifecycle"]["entrypoint"] == "BenchmarkServer._run_single_benchmark"
 
 
 def test_benchmark_module_detail_endpoint_returns_single_module():
@@ -178,6 +175,9 @@ def test_fixture_manifest_endpoint_reports_local_fixture_counts():
     assert payload["manifest"]["fixtures"]["bfcl"]["task_count"] == 5
     assert payload["manifest"]["fixtures"]["bfcl"]["answer_count"] == 5
     assert payload["manifest"]["fixtures"]["bfcl"]["categories"] == ["multiple", "parallel", "relevance", "single"]
+    assert payload["manifest"]["fixtures"]["coding-micro"]["task_count"] == 3
+    assert payload["manifest"]["fixtures"]["json-schema"]["task_count"] == 3
+    assert payload["manifest"]["fixtures"]["prompt-replay"]["task_count"] == 3
 
 
 def test_fixture_validation_endpoint_accepts_repo_fixtures():
@@ -195,7 +195,7 @@ def test_fixture_validation_endpoint_accepts_repo_fixtures():
 def test_benchmark_request_rejects_planned_modules_until_adapter_exists():
     with pytest.raises(ValueError, match="benchmark_type"):
         BenchmarkRequest.from_dict({
-            "benchmark_type": "terminal-bench",
+            "benchmark_type": "coding-micro",
             "base_url": "http://127.0.0.1:1234",
             "provider": "openai-compatible",
             "model": "tool-model",

@@ -25,6 +25,7 @@ from aiohttp import web
 
 from python.sql_benchmark import SqlBenchmarkRunner, ToolLlmCallback
 from python.adapter import ADAPTER_REGISTRY, RunContext, get_adapter
+from python.local_benchmarks import LOCAL_FIXTURE_SPECS, load_local_tasks, validate_local_fixtures
 
 LOG = logging.getLogger("llm_testbench")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -163,7 +164,8 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         adapter_lifecycle={
             "status": "implemented_inline",
             "hooks": ADAPTER_LIFECYCLE_HOOKS,
-            "entrypoint": "BenchmarkServer._run_speed_job",
+            "entrypoint": "BenchmarkServer._run_single_benchmark",
+            "adapter_status": "metadata_only",
         },
     ),
     BenchmarkModule(
@@ -229,291 +231,69 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         },
     ),
     BenchmarkModule(
-        module_id="terminal-bench",
-        label="Terminal-Bench",
-        status="planned",
-        description="Terminal-agent task adapter with sandboxed shell execution.",
-        capabilities=["terminal-agent", "sandbox", "command-log"],
-        result_schema=["task_id", "success", "commands", "wall_time_ms", "logs"],
+        module_id="coding-micro",
+        label="Coding Micro",
+        status="fixture_ready",
+        description="Tiny local Python coding fixtures with deterministic static scoring.",
+        capabilities=["code-generation", "local-fixtures", "syntax-check"],
+        result_schema=["task_id", "success", "language", "error"],
         startable=False,
-        setup_requirements=["Sandboxed shell runner", "Terminal-Bench task bundle"],
-        task_selection={
-            "strategy": "task_subset",
-            "fields": ["task_ids", "difficulty", "tags"],
-        },
-        scoring={
-            "primary_metric": "success_rate",
-            "direction": "higher_is_better",
-            "secondary_metrics": ["command_count", "wall_time_ms"],
-            "aggregation": "mean_success",
-        },
-        ui_renderer={
-            "kind": "terminal_trace",
-            "summary_cards": ["success_rate", "avg_command_count", "avg_wall_time_ms"],
-            "columns": ["task_id", "success", "commands", "wall_time_ms"],
-            "detail_panel": "command_log",
-        },
-    ),
-    BenchmarkModule(
-        module_id="livecodebench",
-        label="LiveCodeBench",
-        status="planned",
-        description="Coding benchmark adapter for generation and self-repair subsets.",
-        capabilities=["code-generation", "self-repair", "unit-tests"],
-        result_schema=["task_id", "success", "language", "tests_passed", "tests_total"],
-        startable=False,
-        setup_requirements=["LiveCodeBench task bundle", "Language runtimes for selected tasks"],
-        task_selection={
-            "strategy": "subset",
-            "subsets": ["code_generation", "self_repair"],
-            "fields": ["task_ids", "languages", "date_range"],
-        },
+        setup_requirements=["coding_data/tasks.jsonl"],
+        task_selection={"strategy": "fixture_ids", "fields": ["task_ids"], "default": "all_tasks"},
         scoring={
             "primary_metric": "pass_rate",
             "direction": "higher_is_better",
-            "secondary_metrics": ["tests_passed", "tests_total"],
+            "secondary_metrics": ["syntax_valid"],
             "aggregation": "mean_success",
         },
         ui_renderer={
             "kind": "coding_table",
-            "summary_cards": ["pass_rate", "tests_passed", "tests_total"],
-            "columns": ["task_id", "language", "success", "tests_passed", "tests_total"],
-            "detail_panel": "code_and_tests",
+            "summary_cards": ["pass_rate", "pass_count", "fail_count"],
+            "columns": ["task_id", "language", "success", "error"],
         },
     ),
     BenchmarkModule(
-        module_id="bigcodebench",
-        label="BigCodeBench",
-        status="planned",
-        description="Software-engineering-oriented code generation benchmark adapter.",
-        capabilities=["code-generation", "library-use", "unit-tests"],
-        result_schema=["task_id", "success", "language", "tests_passed", "tests_total"],
+        module_id="json-schema",
+        label="JSON Schema",
+        status="fixture_ready",
+        description="Local instruction-following tasks scored by JSON parsing and schema-lite checks.",
+        capabilities=["instruction-following", "json", "schema-check", "local-fixtures"],
+        result_schema=["task_id", "success", "error"],
         startable=False,
-        setup_requirements=["BigCodeBench task bundle", "Python execution sandbox"],
-        task_selection={
-            "strategy": "task_subset",
-            "fields": ["task_ids", "difficulty", "library_tags"],
-        },
+        setup_requirements=["json_schema_data/tasks.jsonl"],
+        task_selection={"strategy": "fixture_ids", "fields": ["task_ids"], "default": "all_tasks"},
         scoring={
             "primary_metric": "pass_rate",
             "direction": "higher_is_better",
-            "secondary_metrics": ["tests_passed", "tests_total"],
+            "secondary_metrics": ["parse_error_rate"],
             "aggregation": "mean_success",
         },
         ui_renderer={
-            "kind": "coding_table",
-            "summary_cards": ["pass_rate", "tests_passed", "tests_total"],
-            "columns": ["task_id", "language", "success", "tests_passed", "tests_total"],
-            "detail_panel": "code_and_tests",
+            "kind": "schema_table",
+            "summary_cards": ["pass_rate", "valid_json_rate"],
+            "columns": ["task_id", "success", "error"],
         },
     ),
     BenchmarkModule(
-        module_id="swe-rebench",
-        label="SWE-rebench",
-        status="planned",
-        description="Fresh repository-level issue-solving tasks for current-model comparisons.",
-        capabilities=["repo-agent", "decontaminated-tasks", "repeated-runs", "test-execution"],
-        result_schema=["instance_id", "resolved", "patch", "test_log", "run_index"],
+        module_id="prompt-replay",
+        label="Prompt Replay",
+        status="fixture_ready",
+        description="Fixed local prompts for quick regression comparisons.",
+        capabilities=["regression", "instruction-following", "local-fixtures"],
+        result_schema=["task_id", "success", "error"],
         startable=False,
-        setup_requirements=["Container runtime", "SWE-rebench task bundle", "Git checkout/cache"],
-        task_selection={
-            "strategy": "instance_subset",
-            "fields": ["instance_ids", "repositories", "date_range", "repeat_count"],
-        },
+        setup_requirements=["prompt_replay_data/tasks.jsonl"],
+        task_selection={"strategy": "fixture_ids", "fields": ["task_ids"], "default": "all_tasks"},
         scoring={
-            "primary_metric": "resolve_rate",
+            "primary_metric": "pass_rate",
             "direction": "higher_is_better",
-            "secondary_metrics": ["test_pass_rate", "patch_apply_rate"],
-            "aggregation": "repeated_run_mean",
+            "secondary_metrics": ["missing_phrase_rate"],
+            "aggregation": "mean_success",
         },
         ui_renderer={
-            "kind": "repo_agent_table",
-            "summary_cards": ["resolve_rate", "patch_apply_rate", "test_pass_rate"],
-            "columns": ["instance_id", "repository", "resolved", "run_index"],
-            "detail_panel": "patch_and_test_log",
-        },
-    ),
-    BenchmarkModule(
-        module_id="swe-bench",
-        label="SWE-bench",
-        status="planned",
-        description="Repository-level issue-to-patch evaluation.",
-        capabilities=["repo-agent", "patch-generation", "test-execution"],
-        result_schema=["instance_id", "resolved", "patch", "test_log"],
-        startable=False,
-        setup_requirements=["Container runtime", "SWE-bench task bundle", "Git checkout/cache"],
-        task_selection={
-            "strategy": "instance_subset",
-            "fields": ["instance_ids", "repositories", "split"],
-            "splits": ["verified", "lite", "full"],
-        },
-        scoring={
-            "primary_metric": "resolve_rate",
-            "direction": "higher_is_better",
-            "secondary_metrics": ["test_pass_rate", "patch_apply_rate"],
-            "aggregation": "mean_resolved",
-        },
-        ui_renderer={
-            "kind": "repo_agent_table",
-            "summary_cards": ["resolve_rate", "patch_apply_rate", "test_pass_rate"],
-            "columns": ["instance_id", "repository", "resolved"],
-            "detail_panel": "patch_and_test_log",
-        },
-    ),
-    BenchmarkModule(
-        module_id="multi-swe-bench",
-        label="Multi-SWE-bench",
-        status="planned",
-        description="Multilingual repository-level issue-solving tasks.",
-        capabilities=["repo-agent", "multilingual", "patch-generation", "test-execution"],
-        result_schema=["instance_id", "language", "resolved", "patch", "test_log"],
-        startable=False,
-        setup_requirements=["Container runtime", "Multi-SWE-bench task bundle", "Language-specific toolchains"],
-        task_selection={
-            "strategy": "language_subset",
-            "fields": ["instance_ids", "languages", "repositories"],
-        },
-        scoring={
-            "primary_metric": "resolve_rate",
-            "direction": "higher_is_better",
-            "secondary_metrics": ["language_pass_rate", "test_pass_rate"],
-            "aggregation": "per_language_mean",
-        },
-        ui_renderer={
-            "kind": "repo_agent_table",
-            "summary_cards": ["resolve_rate", "language_pass_rate"],
-            "columns": ["instance_id", "language", "repository", "resolved"],
-            "detail_panel": "patch_and_test_log",
-        },
-    ),
-    BenchmarkModule(
-        module_id="codeclash",
-        label="CodeClash",
-        status="planned",
-        description="Multi-round goal-oriented software engineering evaluation.",
-        capabilities=["multi-round", "repo-agent", "goal-oriented", "test-execution"],
-        result_schema=["task_id", "rounds", "success", "score", "transcript"],
-        startable=False,
-        setup_requirements=["CodeClash task bundle", "Repository sandbox", "Multi-round transcript store"],
-        task_selection={
-            "strategy": "task_subset",
-            "fields": ["task_ids", "round_limit", "repositories"],
-        },
-        scoring={
-            "primary_metric": "score",
-            "direction": "higher_is_better",
-            "secondary_metrics": ["success_rate", "rounds"],
-            "aggregation": "mean_score",
-        },
-        ui_renderer={
-            "kind": "multi_round_trace",
-            "summary_cards": ["score", "success_rate", "avg_rounds"],
-            "columns": ["task_id", "success", "score", "rounds"],
-            "detail_panel": "transcript",
-        },
-    ),
-    BenchmarkModule(
-        module_id="gaia",
-        label="GAIA",
-        status="planned",
-        description="Assistant and tool-reasoning benchmark adapter.",
-        capabilities=["tool-use", "reasoning", "multi-step"],
-        result_schema=["task_id", "success", "answer", "tool_calls"],
-        startable=False,
-        setup_requirements=["GAIA task bundle", "Tool execution adapters"],
-        task_selection={
-            "strategy": "level_subset",
-            "fields": ["task_ids", "levels"],
-        },
-        scoring={
-            "primary_metric": "accuracy",
-            "direction": "higher_is_better",
-            "secondary_metrics": ["tool_call_count", "level_accuracy"],
-            "aggregation": "per_level_mean",
-        },
-        ui_renderer={
-            "kind": "agent_trace",
-            "summary_cards": ["accuracy", "tool_call_count"],
-            "columns": ["task_id", "level", "success", "tool_calls"],
-            "detail_panel": "reasoning_trace",
-        },
-    ),
-    BenchmarkModule(
-        module_id="webarena",
-        label="WebArena",
-        status="planned",
-        description="Browser-agent benchmark adapter.",
-        capabilities=["browser-agent", "web-navigation", "tool-use"],
-        result_schema=["task_id", "success", "steps", "final_state"],
-        startable=False,
-        setup_requirements=["Browser automation runtime", "WebArena environment"],
-        task_selection={
-            "strategy": "site_subset",
-            "fields": ["task_ids", "sites"],
-        },
-        scoring={
-            "primary_metric": "success_rate",
-            "direction": "higher_is_better",
-            "secondary_metrics": ["step_count", "site_success_rate"],
-            "aggregation": "per_site_mean",
-        },
-        ui_renderer={
-            "kind": "agent_trace",
-            "summary_cards": ["success_rate", "avg_step_count"],
-            "columns": ["task_id", "site", "success", "steps"],
-            "detail_panel": "browser_trace",
-        },
-    ),
-    BenchmarkModule(
-        module_id="osworld",
-        label="OSWorld",
-        status="planned",
-        description="Desktop/computer-use agent benchmark adapter.",
-        capabilities=["computer-use", "desktop-agent", "tool-use"],
-        result_schema=["task_id", "success", "steps", "final_state"],
-        startable=False,
-        setup_requirements=["Desktop automation runtime", "OSWorld environment"],
-        task_selection={
-            "strategy": "task_subset",
-            "fields": ["task_ids", "domains"],
-        },
-        scoring={
-            "primary_metric": "success_rate",
-            "direction": "higher_is_better",
-            "secondary_metrics": ["step_count", "domain_success_rate"],
-            "aggregation": "per_domain_mean",
-        },
-        ui_renderer={
-            "kind": "agent_trace",
-            "summary_cards": ["success_rate", "avg_step_count"],
-            "columns": ["task_id", "domain", "success", "steps"],
-            "detail_panel": "desktop_trace",
-        },
-    ),
-    BenchmarkModule(
-        module_id="tau-bench",
-        label="tau-bench",
-        status="planned",
-        description="Business workflow tool-use benchmark adapter.",
-        capabilities=["tool-use", "business-workflow", "policy-following"],
-        result_schema=["task_id", "success", "reward", "tool_calls"],
-        startable=False,
-        setup_requirements=["tau-bench task bundle", "Business workflow tool adapters"],
-        task_selection={
-            "strategy": "domain_subset",
-            "fields": ["task_ids", "domains"],
-        },
-        scoring={
-            "primary_metric": "reward",
-            "direction": "higher_is_better",
-            "secondary_metrics": ["success_rate", "tool_call_count"],
-            "aggregation": "mean_reward",
-        },
-        ui_renderer={
-            "kind": "tool_workflow_trace",
-            "summary_cards": ["reward", "success_rate", "tool_call_count"],
-            "columns": ["task_id", "domain", "success", "reward"],
-            "detail_panel": "tool_trace",
+            "kind": "prompt_replay_table",
+            "summary_cards": ["pass_rate", "pass_count", "fail_count"],
+            "columns": ["task_id", "success", "error"],
         },
     ),
 )
@@ -1560,25 +1340,36 @@ class BenchmarkServer:
         bfcl_answers = self._read_jsonl(bfcl_answers_path) if bfcl_answers_path.exists() else []
         bfcl_categories = sorted({str(item.get("category") or "unknown") for item in bfcl_questions})
 
+        fixtures = {
+            "sql": {
+                "path": str(SQL_BENCHMARK_DATA_DIR.relative_to(PROJECT_ROOT)),
+                "questions_file": "questions.json",
+                "task_count": len(sql_questions),
+                "local_only": True,
+            },
+            "bfcl": {
+                "path": str(BFCL_DATA_DIR.relative_to(PROJECT_ROOT)),
+                "questions_file": "questions.jsonl",
+                "answers_file": "answers.jsonl",
+                "task_count": len(bfcl_questions),
+                "answer_count": len(bfcl_answers),
+                "categories": bfcl_categories,
+                "local_only": True,
+            },
+        }
+        for module_id, spec in LOCAL_FIXTURE_SPECS.items():
+            tasks = load_local_tasks(PROJECT_ROOT, module_id)
+            fixture_path = PROJECT_ROOT / str(spec["path"])
+            fixtures[module_id] = {
+                "path": str(fixture_path.parent.relative_to(PROJECT_ROOT)),
+                "tasks_file": fixture_path.name,
+                "task_count": len(tasks),
+                "local_only": True,
+            }
+
         return {
             "schema_version": 1,
-            "fixtures": {
-                "sql": {
-                    "path": str(SQL_BENCHMARK_DATA_DIR.relative_to(PROJECT_ROOT)),
-                    "questions_file": "questions.json",
-                    "task_count": len(sql_questions),
-                    "local_only": True,
-                },
-                "bfcl": {
-                    "path": str(BFCL_DATA_DIR.relative_to(PROJECT_ROOT)),
-                    "questions_file": "questions.jsonl",
-                    "answers_file": "answers.jsonl",
-                    "task_count": len(bfcl_questions),
-                    "answer_count": len(bfcl_answers),
-                    "categories": bfcl_categories,
-                    "local_only": True,
-                },
-            },
+            "fixtures": fixtures,
         }
 
     def _validate_fixtures(self) -> Dict[str, Any]:
@@ -1617,6 +1408,8 @@ class BenchmarkServer:
                     errors.append(f"bfcl: missing answer for {task_id}")
         except Exception as exc:
             errors.append(f"bfcl: {exc}")
+
+        errors.extend(validate_local_fixtures(PROJECT_ROOT))
 
         return {
             "ok": not errors,
