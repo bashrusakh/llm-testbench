@@ -35,7 +35,10 @@ def test_benchmark_module_registry_exposes_current_and_planned_modules():
     assert "tool-calling" in by_id["sql"]["capabilities"]
     assert "DuckDB" in by_id["sql"]["setup_requirements"]
     assert by_id["sql"]["task_selection"]["strategy"] == "question_ids"
+    assert by_id["sql"]["scoring"]["primary_metric"] == "pass_rate"
+    assert by_id["sql"]["ui_renderer"]["detail_panel"] == "sql_diff"
     assert by_id["swe-bench"]["task_selection"]["splits"] == ["verified", "lite", "full"]
+    assert by_id["swe-bench"]["scoring"]["primary_metric"] == "resolve_rate"
 
 
 def test_benchmark_modules_endpoint_returns_registry_metadata():
@@ -52,6 +55,7 @@ def test_benchmark_modules_endpoint_returns_registry_metadata():
     assert by_id["swe-rebench"]["status"] == "planned"
     assert by_id["speed"]["result_schema"]
     assert by_id["speed"]["task_selection"]["fields"] == ["models", "prompt", "repeat_count", "warmup_runs"]
+    assert by_id["speed"]["ui_renderer"]["kind"] == "speed_table"
 
 
 def test_benchmark_module_detail_endpoint_returns_single_module():
@@ -68,6 +72,8 @@ def test_benchmark_module_detail_endpoint_returns_single_module():
     assert "tool-calling" in payload["module"]["capabilities"]
     assert payload["module"]["task_selection"]["categories"] == ["single", "parallel", "multi-call", "rest", "sql", "relevance"]
     assert "BFCL dataset" in payload["module"]["setup_requirements"]
+    assert payload["module"]["scoring"]["primary_metric"] == "accuracy"
+    assert payload["module"]["ui_renderer"]["kind"] == "tool_call_table"
 
 
 def test_benchmark_module_detail_endpoint_rejects_unknown_module():

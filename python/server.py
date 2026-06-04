@@ -84,6 +84,8 @@ class BenchmarkModule:
     startable: bool
     setup_requirements: List[str] = field(default_factory=list)
     task_selection: Dict[str, Any] = field(default_factory=dict)
+    scoring: Dict[str, Any] = field(default_factory=dict)
+    ui_renderer: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -96,6 +98,8 @@ class BenchmarkModule:
             "startable": self.startable,
             "setup_requirements": self.setup_requirements,
             "task_selection": self.task_selection,
+            "scoring": self.scoring,
+            "ui_renderer": self.ui_renderer,
         }
 
 
@@ -132,6 +136,17 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
             "fields": ["models", "prompt", "repeat_count", "warmup_runs"],
             "supports_question_ids": False,
         },
+        scoring={
+            "primary_metric": "decode_tps",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["ttft_ms", "total_time_ms", "prefill_tps"],
+            "aggregation": "per_model_average",
+        },
+        ui_renderer={
+            "kind": "speed_table",
+            "summary_cards": ["avg_decode_tps", "avg_ttft_ms", "avg_total_time_ms"],
+            "columns": ["model", "provider_label", "ttft_ms", "decode_tps", "total_time_ms"],
+        },
     ),
     BenchmarkModule(
         module_id="sql",
@@ -147,6 +162,18 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
             "fields": ["question_ids", "sql_mode", "thinking_mode", "reasoning_effort"],
             "default": "all_questions",
         },
+        scoring={
+            "primary_metric": "pass_rate",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["row_count_match", "columns_match", "first_row_match"],
+            "aggregation": "mean_success",
+        },
+        ui_renderer={
+            "kind": "sql_results",
+            "summary_cards": ["pass_rate", "pass_count", "fail_count"],
+            "columns": ["question_id", "model", "success", "difficulty", "generated_sql"],
+            "detail_panel": "sql_diff",
+        },
     ),
     BenchmarkModule(
         module_id="bfcl",
@@ -161,6 +188,17 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
             "strategy": "case_categories",
             "categories": ["single", "parallel", "multi-call", "rest", "sql", "relevance"],
         },
+        scoring={
+            "primary_metric": "accuracy",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["valid_tool_call_rate", "argument_match_rate"],
+            "aggregation": "category_weighted_mean",
+        },
+        ui_renderer={
+            "kind": "tool_call_table",
+            "summary_cards": ["accuracy", "valid_tool_call_rate"],
+            "columns": ["task_id", "category", "success", "tool_calls", "error"],
+        },
     ),
     BenchmarkModule(
         module_id="terminal-bench",
@@ -174,6 +212,18 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         task_selection={
             "strategy": "task_subset",
             "fields": ["task_ids", "difficulty", "tags"],
+        },
+        scoring={
+            "primary_metric": "success_rate",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["command_count", "wall_time_ms"],
+            "aggregation": "mean_success",
+        },
+        ui_renderer={
+            "kind": "terminal_trace",
+            "summary_cards": ["success_rate", "avg_command_count", "avg_wall_time_ms"],
+            "columns": ["task_id", "success", "commands", "wall_time_ms"],
+            "detail_panel": "command_log",
         },
     ),
     BenchmarkModule(
@@ -190,6 +240,18 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
             "subsets": ["code_generation", "self_repair"],
             "fields": ["task_ids", "languages", "date_range"],
         },
+        scoring={
+            "primary_metric": "pass_rate",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["tests_passed", "tests_total"],
+            "aggregation": "mean_success",
+        },
+        ui_renderer={
+            "kind": "coding_table",
+            "summary_cards": ["pass_rate", "tests_passed", "tests_total"],
+            "columns": ["task_id", "language", "success", "tests_passed", "tests_total"],
+            "detail_panel": "code_and_tests",
+        },
     ),
     BenchmarkModule(
         module_id="bigcodebench",
@@ -204,6 +266,18 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
             "strategy": "task_subset",
             "fields": ["task_ids", "difficulty", "library_tags"],
         },
+        scoring={
+            "primary_metric": "pass_rate",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["tests_passed", "tests_total"],
+            "aggregation": "mean_success",
+        },
+        ui_renderer={
+            "kind": "coding_table",
+            "summary_cards": ["pass_rate", "tests_passed", "tests_total"],
+            "columns": ["task_id", "language", "success", "tests_passed", "tests_total"],
+            "detail_panel": "code_and_tests",
+        },
     ),
     BenchmarkModule(
         module_id="swe-rebench",
@@ -217,6 +291,18 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         task_selection={
             "strategy": "instance_subset",
             "fields": ["instance_ids", "repositories", "date_range", "repeat_count"],
+        },
+        scoring={
+            "primary_metric": "resolve_rate",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["test_pass_rate", "patch_apply_rate"],
+            "aggregation": "repeated_run_mean",
+        },
+        ui_renderer={
+            "kind": "repo_agent_table",
+            "summary_cards": ["resolve_rate", "patch_apply_rate", "test_pass_rate"],
+            "columns": ["instance_id", "repository", "resolved", "run_index"],
+            "detail_panel": "patch_and_test_log",
         },
     ),
     BenchmarkModule(
@@ -233,6 +319,18 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
             "fields": ["instance_ids", "repositories", "split"],
             "splits": ["verified", "lite", "full"],
         },
+        scoring={
+            "primary_metric": "resolve_rate",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["test_pass_rate", "patch_apply_rate"],
+            "aggregation": "mean_resolved",
+        },
+        ui_renderer={
+            "kind": "repo_agent_table",
+            "summary_cards": ["resolve_rate", "patch_apply_rate", "test_pass_rate"],
+            "columns": ["instance_id", "repository", "resolved"],
+            "detail_panel": "patch_and_test_log",
+        },
     ),
     BenchmarkModule(
         module_id="multi-swe-bench",
@@ -246,6 +344,18 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         task_selection={
             "strategy": "language_subset",
             "fields": ["instance_ids", "languages", "repositories"],
+        },
+        scoring={
+            "primary_metric": "resolve_rate",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["language_pass_rate", "test_pass_rate"],
+            "aggregation": "per_language_mean",
+        },
+        ui_renderer={
+            "kind": "repo_agent_table",
+            "summary_cards": ["resolve_rate", "language_pass_rate"],
+            "columns": ["instance_id", "language", "repository", "resolved"],
+            "detail_panel": "patch_and_test_log",
         },
     ),
     BenchmarkModule(
@@ -261,6 +371,18 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
             "strategy": "task_subset",
             "fields": ["task_ids", "round_limit", "repositories"],
         },
+        scoring={
+            "primary_metric": "score",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["success_rate", "rounds"],
+            "aggregation": "mean_score",
+        },
+        ui_renderer={
+            "kind": "multi_round_trace",
+            "summary_cards": ["score", "success_rate", "avg_rounds"],
+            "columns": ["task_id", "success", "score", "rounds"],
+            "detail_panel": "transcript",
+        },
     ),
     BenchmarkModule(
         module_id="gaia",
@@ -274,6 +396,18 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         task_selection={
             "strategy": "level_subset",
             "fields": ["task_ids", "levels"],
+        },
+        scoring={
+            "primary_metric": "accuracy",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["tool_call_count", "level_accuracy"],
+            "aggregation": "per_level_mean",
+        },
+        ui_renderer={
+            "kind": "agent_trace",
+            "summary_cards": ["accuracy", "tool_call_count"],
+            "columns": ["task_id", "level", "success", "tool_calls"],
+            "detail_panel": "reasoning_trace",
         },
     ),
     BenchmarkModule(
@@ -289,6 +423,18 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
             "strategy": "site_subset",
             "fields": ["task_ids", "sites"],
         },
+        scoring={
+            "primary_metric": "success_rate",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["step_count", "site_success_rate"],
+            "aggregation": "per_site_mean",
+        },
+        ui_renderer={
+            "kind": "agent_trace",
+            "summary_cards": ["success_rate", "avg_step_count"],
+            "columns": ["task_id", "site", "success", "steps"],
+            "detail_panel": "browser_trace",
+        },
     ),
     BenchmarkModule(
         module_id="osworld",
@@ -303,6 +449,18 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
             "strategy": "task_subset",
             "fields": ["task_ids", "domains"],
         },
+        scoring={
+            "primary_metric": "success_rate",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["step_count", "domain_success_rate"],
+            "aggregation": "per_domain_mean",
+        },
+        ui_renderer={
+            "kind": "agent_trace",
+            "summary_cards": ["success_rate", "avg_step_count"],
+            "columns": ["task_id", "domain", "success", "steps"],
+            "detail_panel": "desktop_trace",
+        },
     ),
     BenchmarkModule(
         module_id="tau-bench",
@@ -316,6 +474,18 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         task_selection={
             "strategy": "domain_subset",
             "fields": ["task_ids", "domains"],
+        },
+        scoring={
+            "primary_metric": "reward",
+            "direction": "higher_is_better",
+            "secondary_metrics": ["success_rate", "tool_call_count"],
+            "aggregation": "mean_reward",
+        },
+        ui_renderer={
+            "kind": "tool_workflow_trace",
+            "summary_cards": ["reward", "success_rate", "tool_call_count"],
+            "columns": ["task_id", "domain", "success", "reward"],
+            "detail_panel": "tool_trace",
         },
     ),
 )
