@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/bashrusakh/llm-testbench/tags"><img alt="Release" src="https://img.shields.io/github/v/tag/bashrusakh/llm-testbench?sort=semver&label=release"></a>
+  <a href="https://github.com/bashrusakh/llm-testbench/releases"><img alt="Release" src="https://img.shields.io/github/v/release/bashrusakh/llm-testbench?sort=semver"></a>
   <img alt="Local first" src="https://img.shields.io/badge/local--first-yes-22c55e">
   <img alt="Python" src="https://img.shields.io/badge/python-3.10%2B-3776ab">
   <img alt="No Docker required" src="https://img.shields.io/badge/docker-not%20required-64748b">
