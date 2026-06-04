@@ -73,6 +73,87 @@ class BenchmarkTarget:
     models: List[str]
 
 
+@dataclass(frozen=True)
+class BenchmarkModule:
+    module_id: str
+    label: str
+    status: str
+    description: str
+    capabilities: List[str]
+    result_schema: List[str]
+    startable: bool
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.module_id,
+            "label": self.label,
+            "status": self.status,
+            "description": self.description,
+            "capabilities": self.capabilities,
+            "result_schema": self.result_schema,
+            "startable": self.startable,
+        }
+
+
+BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
+    BenchmarkModule(
+        module_id="speed",
+        label="Speed",
+        status="implemented",
+        description="Latency, total generation time, prompt throughput, and decode throughput.",
+        capabilities=["latency", "throughput", "multi-provider", "multi-model"],
+        result_schema=["latency_ms", "total_time_ms", "ttft_ms", "prefill_tps", "decode_tps"],
+        startable=True,
+    ),
+    BenchmarkModule(
+        module_id="sql",
+        label="SQL Accuracy",
+        status="implemented",
+        description="AdventureWorks-style analytical SQL generation with DuckDB result validation.",
+        capabilities=["tool-calling", "grammar", "thinking-mode", "reasoning-effort", "sql-execution"],
+        result_schema=["question_id", "success", "generated_sql", "expected_sql", "row_count_match", "columns_match"],
+        startable=True,
+    ),
+    BenchmarkModule(
+        module_id="bfcl",
+        label="BFCL",
+        status="planned",
+        description="Berkeley Function Calling Leaderboard adapter for tool/function-calling.",
+        capabilities=["tool-calling", "multi-call", "parallel-call", "api-selection"],
+        result_schema=["task_id", "success", "tool_calls", "error"],
+        startable=False,
+    ),
+    BenchmarkModule(
+        module_id="terminal-bench",
+        label="Terminal-Bench",
+        status="planned",
+        description="Terminal-agent task adapter with sandboxed shell execution.",
+        capabilities=["terminal-agent", "sandbox", "command-log"],
+        result_schema=["task_id", "success", "commands", "wall_time_ms", "logs"],
+        startable=False,
+    ),
+    BenchmarkModule(
+        module_id="livecodebench",
+        label="LiveCodeBench",
+        status="planned",
+        description="Coding benchmark adapter for generation and self-repair subsets.",
+        capabilities=["code-generation", "self-repair", "unit-tests"],
+        result_schema=["task_id", "success", "language", "tests_passed", "tests_total"],
+        startable=False,
+    ),
+    BenchmarkModule(
+        module_id="swe-bench",
+        label="SWE-bench",
+        status="planned",
+        description="Repository-level issue-to-patch evaluation.",
+        capabilities=["repo-agent", "patch-generation", "test-execution"],
+        result_schema=["instance_id", "resolved", "patch", "test_log"],
+        startable=False,
+    ),
+)
+STARTABLE_BENCHMARK_TYPES = {module.module_id for module in BENCHMARK_MODULES if module.startable}
+
+
 @dataclass
 class BenchmarkRequest:
     benchmark_type: str
@@ -110,8 +191,9 @@ class BenchmarkRequest:
             raise ValueError("Request body must be a JSON object")
 
         benchmark_type = str(data.get("benchmark_type", "speed")).strip().lower() or "speed"
-        if benchmark_type not in {"speed", "sql"}:
-            raise ValueError("benchmark_type must be 'speed' or 'sql'")
+        if benchmark_type not in STARTABLE_BENCHMARK_TYPES:
+            allowed = ", ".join(f"'{module_id}'" for module_id in sorted(STARTABLE_BENCHMARK_TYPES))
+            raise ValueError(f"benchmark_type must be one of: {allowed}")
 
         base_url = str(data.get("base_url", "")).strip().rstrip("/")
         targets_raw = data.get("targets")
@@ -774,6 +856,14 @@ class BenchmarkServer:
 
     async def health(self, _request: web.Request) -> web.Response:
         return web.json_response({"status": "ok", "timestamp": ts_utc()})
+
+    async def benchmark_modules(self, _request: web.Request) -> web.Response:
+        return web.json_response({
+            "status": "ok",
+            "modules": [module.to_dict() for module in BENCHMARK_MODULES],
+            "startable": sorted(STARTABLE_BENCHMARK_TYPES),
+            "timestamp": ts_utc(),
+        })
 
     async def index(self, _request: web.Request) -> web.Response:
         if not self.index_html_path.exists():
@@ -1883,6 +1973,7 @@ async def create_app() -> web.Application:
     app.router.add_route("OPTIONS", "/{tail:.*}", lambda _request: web.Response(status=204))
     app.router.add_get("/", server.index)
     app.router.add_get("/health", server.health)
+    app.router.add_get("/api/benchmark/modules", server.benchmark_modules)
     app.router.add_get("/api/endpoints/scan", server.scan_endpoints)
     app.router.add_post("/api/models/discover", server.discover_models)
     app.router.add_post("/api/benchmark/start", server.benchmark_start)

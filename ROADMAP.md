@@ -68,7 +68,8 @@ first modules; the items below are not implemented yet unless noted.
 
 ## Platform Work
 
-- [ ] Benchmark module API so each suite can provide:
+- [x] Benchmark module registry and metadata endpoint.
+- [ ] Full benchmark module adapter API so each suite can provide:
   - setup requirements;
   - task selection;
   - run loop;

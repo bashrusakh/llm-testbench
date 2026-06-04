@@ -15,6 +15,15 @@ engineering, terminal-agent, and tool-calling evaluations.
   executes generated SQL against DuckDB, and checks row count, columns, and first
   row values.
 
+The backend exposes module metadata for current and planned adapters:
+
+```text
+GET /api/benchmark/modules
+```
+
+Implemented modules are marked `startable: true`; planned modules are visible in
+the registry but cannot be started until their adapters exist.
+
 ## Planned Modules
 
 The next representative benchmark families are tracked in [ROADMAP.md](ROADMAP.md):

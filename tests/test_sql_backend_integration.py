@@ -17,6 +17,41 @@ def run(coro):
     return asyncio.run(coro)
 
 
+def test_benchmark_module_registry_exposes_current_and_planned_modules():
+    modules = [module.to_dict() for module in server_module.BENCHMARK_MODULES]
+    by_id = {module["id"]: module for module in modules}
+
+    assert by_id["speed"]["startable"] is True
+    assert by_id["sql"]["status"] == "implemented"
+    assert by_id["bfcl"]["startable"] is False
+    assert by_id["terminal-bench"]["status"] == "planned"
+    assert "tool-calling" in by_id["sql"]["capabilities"]
+
+
+def test_benchmark_modules_endpoint_returns_registry_metadata():
+    server = BenchmarkServer(INDEX_HTML)
+
+    response = run(server.benchmark_modules(None))
+    payload = json.loads(response.text)
+    by_id = {module["id"]: module for module in payload["modules"]}
+
+    assert response.status == 200
+    assert payload["status"] == "ok"
+    assert payload["startable"] == ["speed", "sql"]
+    assert by_id["livecodebench"]["status"] == "planned"
+    assert by_id["speed"]["result_schema"]
+
+
+def test_benchmark_request_rejects_planned_modules_until_adapter_exists():
+    with pytest.raises(ValueError, match="benchmark_type"):
+        BenchmarkRequest.from_dict({
+            "benchmark_type": "bfcl",
+            "base_url": "http://127.0.0.1:1234",
+            "provider": "openai-compatible",
+            "model": "tool-model",
+        })
+
+
 def test_benchmark_request_accepts_sql_payload_without_prompt():
     spec = BenchmarkRequest.from_dict(
         {
