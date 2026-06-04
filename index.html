@@ -2915,14 +2915,20 @@
           html += `<div class="conv-msg conv-user-msg"><div class="conv-label conv-user-label">USER</div><div class="conv-text">${escapeHtml(String(msg.content || ''))}</div></div>`;
         } else if (role === 'assistant') {
           const toolCalls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
+          const visibleToolCalls = toolCalls.filter(tc => {
+            const fn = tc.function || {};
+            const name = String(fn.name || '');
+            const rawArgs = String(fn.arguments || '{}').trim();
+            return !(name === 'results_ok' && (rawArgs === '{}' || rawArgs === ''));
+          });
           const textContent = (msg.content || '').trim();
-          if (textContent || toolCalls.length) {
+          if (textContent || visibleToolCalls.length) {
             callNum++;
             html += `<div class="conv-call-header">LLM CALL ${callNum}</div>`;
             if (textContent) {
               html += `<div class="conv-msg conv-thinking"><div class="conv-label conv-thinking-label">THINKING</div><div class="conv-text">${escapeHtml(textContent)}</div></div>`;
             }
-            for (const tc of toolCalls) {
+            for (const tc of visibleToolCalls) {
               const fn = tc.function || {};
               const args = fn.arguments || '{}';
               let argsFormatted = args;

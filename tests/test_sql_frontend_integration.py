@@ -67,6 +67,15 @@ def test_frontend_conversation_renderer_uses_cards():
     assert 'Tool call:' in html
 
 
+def test_frontend_hides_empty_results_ok_tool_call_cards():
+    html = INDEX_HTML.read_text("utf-8")
+
+    assert 'visibleToolCalls' in html
+    assert "name === 'results_ok'" in html
+    assert "rawArgs === '{}'" in html
+    assert 'textContent || visibleToolCalls.length' in html
+
+
 def test_frontend_history_shows_model_count_for_sql():
     html = INDEX_HTML.read_text("utf-8")
 
