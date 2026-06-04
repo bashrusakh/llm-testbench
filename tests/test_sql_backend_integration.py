@@ -105,7 +105,10 @@ def test_benchmark_contract_endpoint_returns_schema_versions_and_routes():
     assert payload["adapter_lifecycle_hooks"] == server_module.ADAPTER_LIFECYCLE_HOOKS
     assert payload["modules"]["startable"] == ["speed", "sql"]
     assert "bfcl" in payload["modules"]["planned"]
+    assert payload["presets"]["ids"] == ["local-smoke", "balanced", "leaderboard-full"]
+    assert payload["presets"]["scopes"] == ["comparison", "leaderboard", "smoke"]
     assert payload["endpoints"]["module_detail"] == "/api/benchmark/modules/{module_id}"
+    assert payload["endpoints"]["preset_detail"] == "/api/benchmark/presets/{preset_id}"
     assert payload["exports"]["summary"] == "/api/benchmark/{job_id}/summary.json"
 
 
@@ -131,6 +134,31 @@ def test_benchmark_presets_endpoint_returns_payload_defaults():
     assert payload["status"] == "ok"
     assert by_id["balanced"]["module_defaults"]["sql"]["thinking_mode"] == "both"
     assert by_id["leaderboard-full"]["scope"] == "leaderboard"
+
+
+def test_benchmark_preset_detail_endpoint_returns_single_preset():
+    server = BenchmarkServer(INDEX_HTML)
+    request = type("Request", (), {"match_info": {"preset_id": "local-smoke"}})()
+
+    response = run(server.benchmark_preset_detail(request))
+    payload = json.loads(response.text)
+
+    assert response.status == 200
+    assert payload["status"] == "ok"
+    assert payload["preset"]["id"] == "local-smoke"
+    assert payload["preset"]["scope"] == "smoke"
+    assert payload["preset"]["module_defaults"]["sql"]["question_ids"] == [1, 2, 3]
+
+
+def test_benchmark_preset_detail_endpoint_rejects_unknown_preset():
+    server = BenchmarkServer(INDEX_HTML)
+    request = type("Request", (), {"match_info": {"preset_id": "missing"}})()
+
+    response = run(server.benchmark_preset_detail(request))
+    payload = json.loads(response.text)
+
+    assert response.status == 404
+    assert payload["error"]["code"] == "not_found"
 
 
 def test_benchmark_request_rejects_planned_modules_until_adapter_exists():

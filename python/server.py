@@ -583,6 +583,7 @@ BENCHMARK_PRESETS: Tuple[BenchmarkPreset, ...] = (
         },
     ),
 )
+BENCHMARK_PRESETS_BY_ID = {preset.preset_id: preset for preset in BENCHMARK_PRESETS}
 
 
 @dataclass
@@ -1455,10 +1456,16 @@ class BenchmarkServer:
                 "startable": sorted(STARTABLE_BENCHMARK_TYPES),
                 "planned": sorted(module.module_id for module in BENCHMARK_MODULES if not module.startable),
             },
+            "presets": {
+                "count": len(BENCHMARK_PRESETS),
+                "ids": [preset.preset_id for preset in BENCHMARK_PRESETS],
+                "scopes": sorted({preset.scope for preset in BENCHMARK_PRESETS}),
+            },
             "endpoints": {
                 "modules": "/api/benchmark/modules",
                 "module_detail": "/api/benchmark/modules/{module_id}",
                 "presets": "/api/benchmark/presets",
+                "preset_detail": "/api/benchmark/presets/{preset_id}",
                 "start": "/api/benchmark/start",
                 "active": "/api/benchmark/active",
                 "results": "/api/benchmark/results",
@@ -1480,6 +1487,17 @@ class BenchmarkServer:
         return web.json_response({
             "status": "ok",
             "presets": [preset.to_dict() for preset in BENCHMARK_PRESETS],
+            "timestamp": ts_utc(),
+        })
+
+    async def benchmark_preset_detail(self, request: web.Request) -> web.Response:
+        preset_id = str(request.match_info["preset_id"]).strip().lower()
+        preset = BENCHMARK_PRESETS_BY_ID.get(preset_id)
+        if preset is None:
+            return self.json_error("Unknown benchmark preset", code="not_found", status=404)
+        return web.json_response({
+            "status": "ok",
+            "preset": preset.to_dict(),
             "timestamp": ts_utc(),
         })
 
@@ -2614,6 +2632,7 @@ async def create_app() -> web.Application:
     app.router.add_get("/api/benchmark/modules", server.benchmark_modules)
     app.router.add_get("/api/benchmark/modules/{module_id}", server.benchmark_module_detail)
     app.router.add_get("/api/benchmark/presets", server.benchmark_presets)
+    app.router.add_get("/api/benchmark/presets/{preset_id}", server.benchmark_preset_detail)
     app.router.add_get("/api/endpoints/scan", server.scan_endpoints)
     app.router.add_post("/api/models/discover", server.discover_models)
     app.router.add_post("/api/benchmark/start", server.benchmark_start)

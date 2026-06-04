@@ -22,6 +22,7 @@ GET /api/benchmark/contract
 GET /api/benchmark/modules
 GET /api/benchmark/modules/{module_id}
 GET /api/benchmark/presets
+GET /api/benchmark/presets/{preset_id}
 ```
 
 Implemented modules are marked `startable: true`; planned modules are visible in
