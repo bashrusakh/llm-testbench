@@ -970,3 +970,65 @@ def test_sql_grammar_mode_routes_to_run_question(tmp_path, monkeypatch):
 
     assert job.status == "completed"
     assert captured.get("called") == "run_question"
+
+
+def test_speed_job_exposes_progress_phase_before_first_result(tmp_path, monkeypatch):
+    captured = {}
+
+    async def fake_detect_provider(self, base_url, requested_provider, api_key, client=None):
+        return "openai-compatible"
+
+    async def fake_discover_models(self, base_url, provider, api_key):
+        return ["speed-model"]
+
+    async def fake_benchmark_openai(self, spec, target, model, *, job=None, run_index=None):
+        assert job is not None
+        assert run_index == 1
+        job.set_phase(
+            "waiting_first_token",
+            f"Waiting for first token from {model}",
+            model=model,
+            run_index=run_index,
+            benchmark_type="speed",
+        )
+        captured["progress_before_result"] = job.to_dict()["progress"]
+        captured["result_count_before_result"] = len(job.results)
+        return {
+            "latency_ms": 1000,
+            "total_time_ms": 2500,
+            "ttft_ms": 1000,
+            "prefill_tps": None,
+            "decode_tps": 12.5,
+            "prompt_tokens": 10,
+            "completion_tokens": 20,
+            "completion_tokens_capped": 20,
+            "decode_tokens_measured": 20,
+        }
+
+    monkeypatch.setattr(BenchmarkServer, "_detect_provider", fake_detect_provider)
+    monkeypatch.setattr(BenchmarkServer, "_discover_models", fake_discover_models)
+    monkeypatch.setattr(BenchmarkServer, "_benchmark_openai", fake_benchmark_openai)
+
+    server = BenchmarkServer(INDEX_HTML)
+    server.results_store_dir = tmp_path / "benchmarks"
+    spec = BenchmarkRequest.from_dict({
+        "benchmark_type": "speed",
+        "base_url": "http://127.0.0.1:1234",
+        "provider": "openai-compatible",
+        "model": "speed-model",
+        "prompt": "hello",
+        "repeat_count": 1,
+        "warmup_runs": 0,
+    })
+    job = JobState(request=spec)
+    job.progress_total = 1
+
+    run(server._run_job(job))
+
+    progress = captured["progress_before_result"]
+    assert captured["result_count_before_result"] == 0
+    assert progress["current_phase"] == "waiting_first_token"
+    assert progress["current_message"] == "Waiting for first token from speed-model"
+    assert progress["current_run_index"] == 1
+    assert progress["current_benchmark_type"] == "speed"
+    assert job.status == "completed"

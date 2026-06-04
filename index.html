@@ -1034,6 +1034,9 @@
     <div class="results-card">
       <div class="section-title">📈 Live Results</div>
       <div id="mainJobStatus" class="status-message info">Ready to benchmark</div>
+      <div id="currentOperation" class="status-message info hidden" style="margin-top:-8px;">
+        Current operation: idle
+      </div>
       
       <div class="progress-wrapper">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -1069,7 +1072,7 @@
       </div>
 
       <div id="resultsHint" class="text-muted" style="font-size: 0.8rem; margin-top: -8px; margin-bottom: 16px;">
-        Latency = time to first token. Total = full generation time. PP = prompt tokens per second during true prefill only.
+        TTFT = time to first token. Total = full generation time. PP = prompt tokens per second when the backend reports prompt-eval timing.
       </div>
 
       <div id="sqlResultsContainer" style="display:none;"></div>
@@ -1083,9 +1086,8 @@
                 <th>Model</th>
                 <th>Run</th>
                 <th>Status</th>
-                <th>Latency (s)</th>
-                <th>Total (ms)</th>
-                <th>TTFT (ms)</th>
+                <th>Total (s)</th>
+                <th>TTFT (s)</th>
                 <th>PP (t/s)</th>
                 <th>Decode (t/s)</th>
                 <th>Prompt Tok</th>
@@ -1094,7 +1096,7 @@
               </tr>
             </thead>
             <tbody id="resultsBody">
-              <tr><td colspan="12" class="empty-state">No benchmark results yet</td></tr>
+              <tr><td colspan="11" class="empty-state">No benchmark results yet</td></tr>
             </tbody>
           </table>
         </div>
@@ -1304,6 +1306,25 @@
       return value != null ? `${(Number(value) / 1000).toFixed(2)}s` : '-';
     }
 
+    function formatTps(value) {
+      return value != null ? Number(value).toFixed(2) : 'n/a';
+    }
+
+    function setCurrentOperation(job) {
+      const el = $('currentOperation');
+      if (!el) return;
+      const progress = job && job.progress ? job.progress : {};
+      const message = progress.current_message || '';
+      if (!message || job.status === 'completed' || job.status === 'failed' || job.status === 'stopped') {
+        el.classList.add('hidden');
+        el.textContent = 'Current operation: idle';
+        return;
+      }
+      const phase = progress.current_phase ? ` [${progress.current_phase}]` : '';
+      el.textContent = `Current operation: ${message}${phase}`;
+      el.className = 'status-message info';
+    }
+
     // Which benchmark types are checked, in run order (speed first, then sql, then bfcl).
     function selectedBenchmarkTypes() {
       const types = [];
@@ -1385,7 +1406,7 @@
       const bfclMode = benchmarkType === 'bfcl';
       const labels = [
         ['successfulRunsLabel', sqlMode ? 'Questions Passed' : bfclMode ? 'Tasks Passed' : 'Successful Runs'],
-        ['bestLatencyLabel', sqlMode ? 'Row Matches' : bfclMode ? 'Single' : 'Best Latency'],
+        ['bestLatencyLabel', sqlMode ? 'Row Matches' : bfclMode ? 'Single' : 'Best TTFT'],
         ['bestPpLabel', sqlMode ? 'Column Matches' : bfclMode ? 'Parallel' : 'Best PP'],
         ['bestDecodeLabel', sqlMode ? 'First Row Matches' : bfclMode ? 'Multiple' : 'Best Decode'],
         ['activeModelLabel', sqlMode ? 'Active SQL Model' : bfclMode ? 'Active Model' : 'Active Model'],
@@ -1398,7 +1419,7 @@
           ? 'SQL mode checks semantic correctness against AdventureWorks answers: row count, columns, and first row when available.'
           : bfclMode
           ? 'BFCL v2 scores tool-call accuracy by category: single, parallel, multiple, relevance.'
-          : 'Latency = time to first token. Total = full generation time. PP = prompt tokens per second during true prefill only.';
+          : 'TTFT = time to first token. Total = full generation time. PP = prompt tokens per second when the backend reports prompt-eval timing.';
       }
 
       ['bestLatency', 'bestPp', 'bestDecode'].forEach(id => { const el = $(id); if (el) el.textContent = '-'; });
@@ -2049,6 +2070,11 @@
         resetSummaryForMode(benchmarkType);
         setStatus($('jobStatus'), `Starting ${benchmarkTypeLabel(benchmarkType)} benchmark...${queueNote}`, 'info');
         setStatus($('mainJobStatus'), `Starting ${benchmarkTypeLabel(benchmarkType)} benchmark...${queueNote}`, 'info');
+        const op = $('currentOperation');
+        if (op) {
+          op.className = 'status-message info';
+          op.textContent = `Current operation: submitting ${benchmarkTypeLabel(benchmarkType)} request...`;
+        }
 
         const response = await fetch(apiUrl('/api/benchmark/start'), {
           method: 'POST',
@@ -2065,7 +2091,7 @@
 
         const resultsBodyEl = $('resultsBody');
         if (resultsBodyEl) {
-          const colspan = benchmarkType === 'sql' ? 10 : 12;
+          const colspan = benchmarkType === 'sql' ? 10 : benchmarkType === 'speed' ? 11 : 12;
           resultsBodyEl.innerHTML = `<tr><td colspan="${colspan}" class="empty-state">Benchmark in progress...</td></tr>`;
         }
         pollJob();
@@ -2353,11 +2379,10 @@
           <td>${escapeHtml(result.model)}</td>
           <td>${result.run_index}</td>
           <td>${statusBadge}</td>
-          <td>${formatMillisecondsAsSeconds(result.latency_ms)}</td>
-          <td>${formatNumber(result.total_time_ms)}</td>
-          <td>${formatNumber(result.ttft_ms)}</td>
-          <td>${formatNumber(result.prefill_tps)}</td>
-          <td>${formatNumber(result.decode_tps)}</td>
+          <td>${formatMillisecondsAsSeconds(result.total_time_ms)}</td>
+          <td>${formatMillisecondsAsSeconds(result.ttft_ms)}</td>
+          <td>${formatTps(result.prefill_tps)}</td>
+          <td>${formatTps(result.decode_tps)}</td>
           <td>${result.prompt_tokens || '-'}</td>
           <td>${result.completion_tokens || '-'}</td>
           <td class="text-error">${escapeHtml(result.error || '')}</td>
@@ -3261,13 +3286,13 @@
       }
 
       if (successful.length) {
-        const bestLatency = Math.min(...successful.map(r => r.latency_ms).filter(v => v != null));
+        const ttftValues = successful.map(r => r.ttft_ms).filter(v => v != null);
         const ppValues = successful.map(r => r.prefill_tps).filter(v => v != null);
         const decodeValues = successful.map(r => r.decode_tps).filter(v => v != null);
 
-        const bl = $('bestLatency'); if (bl) bl.textContent = formatMillisecondsAsSeconds(bestLatency);
-        const bp = $('bestPp'); if (bp) bp.textContent = ppValues.length ? `${formatNumber(Math.max(...ppValues), 1)} t/s` : '-';
-        const bd = $('bestDecode'); if (bd) bd.textContent = decodeValues.length ? `${formatNumber(Math.max(...decodeValues), 1)} t/s` : '-';
+        const bl = $('bestLatency'); if (bl) bl.textContent = ttftValues.length ? formatMillisecondsAsSeconds(Math.min(...ttftValues)) : 'n/a';
+        const bp = $('bestPp'); if (bp) bp.textContent = ppValues.length ? `${formatNumber(Math.max(...ppValues), 1)} t/s` : 'n/a';
+        const bd = $('bestDecode'); if (bd) bd.textContent = decodeValues.length ? `${formatNumber(Math.max(...decodeValues), 1)} t/s` : 'n/a';
       }
     }
 
@@ -3294,6 +3319,7 @@
           state.activeBenchmarkType = job.request?.benchmark_type || 'speed';
           renderResults(job.results || [], job.request?.benchmark_type || 'speed');
           updateSummary(job, job.request?.benchmark_type || 'speed');
+          setCurrentOperation(job);
 
           const progressFill = $('progressFill');
           const progressText = $('progressText');
@@ -3309,6 +3335,7 @@
         setStatus($('mainJobStatus'), `Status: ${job.status}. ${completed}/${total} complete.`, statusType);
 
         if (job.status === 'completed' || job.status === 'failed' || job.status === 'stopped') {
+          if (!viewingOther) setCurrentOperation(job);
           try { sessionStorage.removeItem('llmSpeedTest.jobId'); } catch (_) {}
           state.liveJobId = null;
           state.pollTimer = null;

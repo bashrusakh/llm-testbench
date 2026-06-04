@@ -596,6 +596,10 @@ class JobState:
     progress_total: int = 0
     progress_completed: int = 0
     current_model: Optional[str] = None
+    current_phase: str = "queued"
+    current_message: str = "Queued"
+    current_run_index: Optional[int] = None
+    current_benchmark_type: Optional[str] = None
     results: List[Dict[str, Any]] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     report_text: str = ""
@@ -616,6 +620,10 @@ class JobState:
                 "current_model": self.current_model,
                 "current_provider_id": getattr(self, "current_provider_id", None),
                 "current_provider_label": getattr(self, "current_provider_label", None),
+                "current_phase": self.current_phase,
+                "current_message": self.current_message,
+                "current_run_index": self.current_run_index,
+                "current_benchmark_type": self.current_benchmark_type or self.request.benchmark_type,
             },
             "request": {
                 "benchmark_type": self.request.benchmark_type,
@@ -635,6 +643,22 @@ class JobState:
             "errors": self.errors,
             "report_text": self.report_text,
         }
+
+    def set_phase(
+        self,
+        phase: str,
+        message: str,
+        *,
+        model: Optional[str] = None,
+        run_index: Optional[int] = None,
+        benchmark_type: Optional[str] = None,
+    ) -> None:
+        self.current_phase = phase
+        self.current_message = message
+        self.current_run_index = run_index
+        self.current_benchmark_type = benchmark_type or self.request.benchmark_type
+        if model is not None:
+            self.current_model = model
 
 
 def ts_utc() -> str:
@@ -2039,6 +2063,7 @@ class BenchmarkServer:
     async def _run_job(self, job: JobState) -> None:
         job.status = "running"
         job.started_at = ts_utc()
+        job.set_phase("starting", f"Starting {job.request.benchmark_type} benchmark")
         try:
             if job.request.benchmark_type == "sql":
                 await self._run_sql_job(job)
@@ -2046,7 +2071,11 @@ class BenchmarkServer:
                 await self._run_bfcl_job(job)
             else:
                 for target in job.request.targets:
+                    job.current_provider_id = target.provider_id
+                    job.current_provider_label = target.provider_label
+                    job.set_phase("detecting_provider", f"Detecting provider for {target.provider_label}")
                     normalized_provider = await self._detect_provider(target.base_url, target.provider, target.api_key)
+                    job.set_phase("discovering_models", f"Discovering models at {target.provider_label}")
                     available_models = await self._discover_models(target.base_url, normalized_provider, target.api_key)
                     missing = [model for model in target.models if model not in available_models]
                     if missing:
@@ -2069,13 +2098,16 @@ class BenchmarkServer:
 
             if job.stop_requested and job.status == "stopping":
                 job.status = "stopped"
+                job.set_phase("stopped", "Stopped")
             elif job.status not in {"failed", "stopped"}:
                 job.status = "completed"
+                job.set_phase("completed", "Completed")
             job.report_text = self._build_report(job)
         except Exception as exc:
             LOG.exception("Benchmark job failed")
             job.errors.append(str(exc))
             job.status = "failed"
+            job.set_phase("failed", str(exc))
             job.report_text = self._build_report(job)
         finally:
             job.finished_at = ts_utc()
@@ -2470,13 +2502,16 @@ class BenchmarkServer:
             for _ in range(job.request.warmup_runs):
                 if job.stop_requested:
                     return
+                job.set_phase("warming_up", f"Warming up {model}", model=model, run_index=0, benchmark_type="speed")
                 await self._run_single_benchmark(job, target, model, 0)
             for run_index in range(1, job.request.repeat_count + 1):
                 if job.stop_requested:
                     return
+                job.set_phase("running_request", f"Running speed test for {model} (run {run_index}/{job.request.repeat_count})", model=model, run_index=run_index, benchmark_type="speed")
                 result = await self._run_single_benchmark(job, target, model, run_index)
                 job.results.append(result)
                 job.progress_completed += 1
+                job.set_phase("result_recorded", f"Recorded speed result for {model} (run {run_index}/{job.request.repeat_count})", model=model, run_index=run_index, benchmark_type="speed")
 
     async def _run_parallel(self, job: JobState, target: BenchmarkTarget) -> None:
         job.current_provider_id = target.provider_id
@@ -2490,6 +2525,14 @@ class BenchmarkServer:
                 job.current_model = model
                 job.current_provider_id = target.provider_id
                 job.current_provider_label = target.provider_label
+                job.set_phase(
+                    "warming_up" if run_index == 0 else "running_request",
+                    f"{'Warming up' if run_index == 0 else 'Running speed test for'} {model}"
+                    + ("" if run_index == 0 else f" (run {run_index}/{job.request.repeat_count})"),
+                    model=model,
+                    run_index=run_index,
+                    benchmark_type="speed",
+                )
                 return await self._run_single_benchmark(job, target, model, run_index)
 
         tasks = [
@@ -2510,6 +2553,7 @@ class BenchmarkServer:
                 continue
             job.results.append(result)
             job.progress_completed += 1
+            job.set_phase("result_recorded", f"Recorded speed result for {result.get('model', 'model')}", model=result.get("model"), run_index=result.get("run_index"), benchmark_type="speed")
             if job.stop_requested:
                 for pending in tasks:
                     if not pending.done():
@@ -2528,9 +2572,10 @@ class BenchmarkServer:
         start_stamp = ts_utc()
         try:
             if target.provider == "openai-compatible":
-                metrics = await self._benchmark_openai(job.request, target, model)
+                metrics = await self._benchmark_openai(job.request, target, model, job=job, run_index=run_index)
             else:
-                metrics = await self._benchmark_ollama(job.request, target, model)
+                metrics = await self._benchmark_ollama(job.request, target, model, job=job, run_index=run_index)
+            job.set_phase("scoring", f"Scoring speed result for {model}", model=model, run_index=run_index, benchmark_type="speed")
             latency_ms = round((time.perf_counter() - started) * 1000.0, 2)
             return {
                 "timestamp": start_stamp,
@@ -2651,7 +2696,15 @@ class BenchmarkServer:
             "flash_attn": job.request.flash_attn,
         }
 
-    async def _benchmark_openai(self, spec: BenchmarkRequest, target: BenchmarkTarget, model: str) -> Dict[str, Any]:
+    async def _benchmark_openai(
+        self,
+        spec: BenchmarkRequest,
+        target: BenchmarkTarget,
+        model: str,
+        *,
+        job: Optional[JobState] = None,
+        run_index: Optional[int] = None,
+    ) -> Dict[str, Any]:
         headers = {"Content-Type": "application/json"}
         if target.api_key:
             headers["Authorization"] = f"Bearer {target.api_key}"
@@ -2671,6 +2724,8 @@ class BenchmarkServer:
         first_token_at: Optional[float] = None
         completion_tokens: Optional[int] = None
         prompt_tokens: Optional[int] = None
+        if job is not None:
+            job.set_phase("waiting_first_token", f"Waiting for first token from {model}", model=model, run_index=run_index, benchmark_type="speed")
         async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
             async with client.stream("POST", f"{target.base_url}{OPENAI_CHAT_PATH}", json=payload) as response:
                 if response.status_code >= 400:
@@ -2689,6 +2744,8 @@ class BenchmarkServer:
                         content = delta.get("content")
                         if content is not None and first_token_at is None:
                             first_token_at = time.perf_counter()
+                            if job is not None:
+                                job.set_phase("streaming", f"Streaming response from {model}", model=model, run_index=run_index, benchmark_type="speed")
                     usage = data.get("usage") or {}
                     if usage:
                         prompt_tokens = usage.get("prompt_tokens", prompt_tokens)
@@ -2717,7 +2774,15 @@ class BenchmarkServer:
             "decode_tokens_measured": decode_tokens_measured,
         }
 
-    async def _benchmark_ollama(self, spec: BenchmarkRequest, target: BenchmarkTarget, model: str) -> Dict[str, Any]:
+    async def _benchmark_ollama(
+        self,
+        spec: BenchmarkRequest,
+        target: BenchmarkTarget,
+        model: str,
+        *,
+        job: Optional[JobState] = None,
+        run_index: Optional[int] = None,
+    ) -> Dict[str, Any]:
         payload = {
             "model": model,
             "messages": [{"role": "user", "content": spec.prompt}],
@@ -2729,6 +2794,8 @@ class BenchmarkServer:
             "stream": False,
         }
         timeout = httpx.Timeout(spec.timeout_ms / 1000.0)
+        if job is not None:
+            job.set_phase("waiting_response", f"Waiting for Ollama response from {model}", model=model, run_index=run_index, benchmark_type="speed")
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(f"{target.base_url}{OLLAMA_CHAT_PATH}", json=payload)
             if response.status_code >= 400:

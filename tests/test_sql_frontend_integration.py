@@ -72,3 +72,21 @@ def test_frontend_history_shows_model_count_for_sql():
 
     assert 'distinctModelCount' in html
     assert "benchmark_type === 'sql'" in html
+
+
+def test_frontend_speed_table_uses_ttft_total_and_operation_status():
+    html = INDEX_HTML.read_text("utf-8")
+
+    assert 'id="currentOperation"' in html
+    assert 'Current operation:' in html
+    assert 'Latency (s)' not in html
+    assert 'Total (ms)' not in html
+    assert 'TTFT (ms)' not in html
+    assert 'Total (s)' in html
+    assert 'TTFT (s)' in html
+    assert "formatMillisecondsAsSeconds(result.total_time_ms)" in html
+    assert "formatMillisecondsAsSeconds(result.ttft_ms)" in html
+    assert "formatTps(result.prefill_tps)" in html
+    assert "formatTps(result.decode_tps)" in html
+    assert "current_message" in html
+    assert "Best TTFT" in html
