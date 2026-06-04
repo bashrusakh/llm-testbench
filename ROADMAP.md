@@ -74,11 +74,13 @@ first modules; the items below are not implemented yet unless noted.
 - [x] Benchmark module task-selection metadata.
 - [x] Benchmark module scoring metadata.
 - [x] Benchmark module UI renderer metadata.
+- [x] Benchmark adapter lifecycle metadata.
+- [x] API contract endpoint with schema versions and route map.
 - [x] Run summary export with pass-rate, latency, token, cost, and per-model aggregates.
 - [x] Saved-run summaries endpoint for dashboard-style history views.
 - [ ] Full benchmark module adapter API so each suite can provide:
   - run loop;
-  - adapter lifecycle hooks.
+  - concrete adapter lifecycle implementation.
 
 - [ ] Container/sandbox support for coding and terminal tasks.
 - [ ] Cost, token, latency, and pass-rate dashboards across modules.

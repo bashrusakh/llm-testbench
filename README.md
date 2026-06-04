@@ -18,6 +18,7 @@ engineering, terminal-agent, and tool-calling evaluations.
 The backend exposes module metadata for current and planned adapters:
 
 ```text
+GET /api/benchmark/contract
 GET /api/benchmark/modules
 GET /api/benchmark/modules/{module_id}
 GET /api/benchmark/presets
@@ -28,7 +29,9 @@ the registry but cannot be started until their adapters exist. Presets describe
 small local smoke runs, balanced comparisons, and fuller leaderboard-style runs.
 Module metadata includes setup requirements and task-selection hints so future
 adapters and UI panels can share one contract. It also describes scoring and UI
-renderer hints for tables, traces, detail panels, and summary cards.
+renderer hints for tables, traces, detail panels, and summary cards. The contract
+endpoint exposes schema versions, lifecycle hooks, endpoint paths, and export
+formats for integrations.
 
 ## Planned Modules
 

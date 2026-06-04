@@ -44,6 +44,11 @@ OPENAI_MODELS_PATH = "/v1/models"
 OPENAI_CHAT_PATH = "/v1/chat/completions"
 OLLAMA_TAGS_PATH = "/api/tags"
 OLLAMA_CHAT_PATH = "/api/chat"
+API_CONTRACT_VERSION = 1
+MODULE_SCHEMA_VERSION = 1
+RESULT_SCHEMA_VERSION = 1
+EXPORT_SCHEMA_VERSION = 1
+ADAPTER_LIFECYCLE_HOOKS = ["prepare", "select_tasks", "run_task", "score", "render", "cleanup"]
 
 @dataclass
 class EndpointCandidate:
@@ -86,8 +91,13 @@ class BenchmarkModule:
     task_selection: Dict[str, Any] = field(default_factory=dict)
     scoring: Dict[str, Any] = field(default_factory=dict)
     ui_renderer: Dict[str, Any] = field(default_factory=dict)
+    adapter_lifecycle: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
+        lifecycle = self.adapter_lifecycle or {
+            "status": "planned_adapter",
+            "hooks": ADAPTER_LIFECYCLE_HOOKS,
+        }
         return {
             "id": self.module_id,
             "label": self.label,
@@ -100,6 +110,7 @@ class BenchmarkModule:
             "task_selection": self.task_selection,
             "scoring": self.scoring,
             "ui_renderer": self.ui_renderer,
+            "adapter_lifecycle": lifecycle,
         }
 
 
@@ -147,6 +158,11 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
             "summary_cards": ["avg_decode_tps", "avg_ttft_ms", "avg_total_time_ms"],
             "columns": ["model", "provider_label", "ttft_ms", "decode_tps", "total_time_ms"],
         },
+        adapter_lifecycle={
+            "status": "implemented_inline",
+            "hooks": ADAPTER_LIFECYCLE_HOOKS,
+            "entrypoint": "BenchmarkServer._run_speed_job",
+        },
     ),
     BenchmarkModule(
         module_id="sql",
@@ -173,6 +189,11 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
             "summary_cards": ["pass_rate", "pass_count", "fail_count"],
             "columns": ["question_id", "model", "success", "difficulty", "generated_sql"],
             "detail_panel": "sql_diff",
+        },
+        adapter_lifecycle={
+            "status": "implemented_inline",
+            "hooks": ADAPTER_LIFECYCLE_HOOKS,
+            "entrypoint": "BenchmarkServer._run_sql_job",
         },
     ),
     BenchmarkModule(
@@ -1419,6 +1440,42 @@ class BenchmarkServer:
             "timestamp": ts_utc(),
         })
 
+    async def benchmark_contract(self, _request: web.Request) -> web.Response:
+        return web.json_response({
+            "status": "ok",
+            "contract_version": API_CONTRACT_VERSION,
+            "schema_versions": {
+                "module": MODULE_SCHEMA_VERSION,
+                "result": RESULT_SCHEMA_VERSION,
+                "export": EXPORT_SCHEMA_VERSION,
+            },
+            "adapter_lifecycle_hooks": ADAPTER_LIFECYCLE_HOOKS,
+            "modules": {
+                "count": len(BENCHMARK_MODULES),
+                "startable": sorted(STARTABLE_BENCHMARK_TYPES),
+                "planned": sorted(module.module_id for module in BENCHMARK_MODULES if not module.startable),
+            },
+            "endpoints": {
+                "modules": "/api/benchmark/modules",
+                "module_detail": "/api/benchmark/modules/{module_id}",
+                "presets": "/api/benchmark/presets",
+                "start": "/api/benchmark/start",
+                "active": "/api/benchmark/active",
+                "results": "/api/benchmark/results",
+                "summaries": "/api/benchmark/summaries",
+                "status": "/api/benchmark/{job_id}",
+                "stop": "/api/benchmark/{job_id}/stop",
+            },
+            "exports": {
+                "jsonl": "/api/benchmark/{job_id}/results.jsonl",
+                "csv": "/api/benchmark/{job_id}/results.csv",
+                "tsv": "/api/benchmark/{job_id}/results.tsv",
+                "summary": "/api/benchmark/{job_id}/summary.json",
+                "manifest": "/api/benchmark/{job_id}/manifest.json",
+            },
+            "timestamp": ts_utc(),
+        })
+
     async def benchmark_presets(self, _request: web.Request) -> web.Response:
         return web.json_response({
             "status": "ok",
@@ -2553,6 +2610,7 @@ async def create_app() -> web.Application:
     app.router.add_route("OPTIONS", "/{tail:.*}", lambda _request: web.Response(status=204))
     app.router.add_get("/", server.index)
     app.router.add_get("/health", server.health)
+    app.router.add_get("/api/benchmark/contract", server.benchmark_contract)
     app.router.add_get("/api/benchmark/modules", server.benchmark_modules)
     app.router.add_get("/api/benchmark/modules/{module_id}", server.benchmark_module_detail)
     app.router.add_get("/api/benchmark/presets", server.benchmark_presets)

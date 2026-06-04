@@ -37,8 +37,11 @@ def test_benchmark_module_registry_exposes_current_and_planned_modules():
     assert by_id["sql"]["task_selection"]["strategy"] == "question_ids"
     assert by_id["sql"]["scoring"]["primary_metric"] == "pass_rate"
     assert by_id["sql"]["ui_renderer"]["detail_panel"] == "sql_diff"
+    assert by_id["sql"]["adapter_lifecycle"]["status"] == "implemented_inline"
+    assert by_id["sql"]["adapter_lifecycle"]["entrypoint"] == "BenchmarkServer._run_sql_job"
     assert by_id["swe-bench"]["task_selection"]["splits"] == ["verified", "lite", "full"]
     assert by_id["swe-bench"]["scoring"]["primary_metric"] == "resolve_rate"
+    assert by_id["swe-bench"]["adapter_lifecycle"]["status"] == "planned_adapter"
 
 
 def test_benchmark_modules_endpoint_returns_registry_metadata():
@@ -56,6 +59,7 @@ def test_benchmark_modules_endpoint_returns_registry_metadata():
     assert by_id["speed"]["result_schema"]
     assert by_id["speed"]["task_selection"]["fields"] == ["models", "prompt", "repeat_count", "warmup_runs"]
     assert by_id["speed"]["ui_renderer"]["kind"] == "speed_table"
+    assert by_id["speed"]["adapter_lifecycle"]["hooks"] == server_module.ADAPTER_LIFECYCLE_HOOKS
 
 
 def test_benchmark_module_detail_endpoint_returns_single_module():
@@ -74,6 +78,7 @@ def test_benchmark_module_detail_endpoint_returns_single_module():
     assert "BFCL dataset" in payload["module"]["setup_requirements"]
     assert payload["module"]["scoring"]["primary_metric"] == "accuracy"
     assert payload["module"]["ui_renderer"]["kind"] == "tool_call_table"
+    assert payload["module"]["adapter_lifecycle"]["hooks"] == server_module.ADAPTER_LIFECYCLE_HOOKS
 
 
 def test_benchmark_module_detail_endpoint_rejects_unknown_module():
@@ -85,6 +90,23 @@ def test_benchmark_module_detail_endpoint_rejects_unknown_module():
 
     assert response.status == 404
     assert payload["error"]["code"] == "not_found"
+
+
+def test_benchmark_contract_endpoint_returns_schema_versions_and_routes():
+    server = BenchmarkServer(INDEX_HTML)
+
+    response = run(server.benchmark_contract(None))
+    payload = json.loads(response.text)
+
+    assert response.status == 200
+    assert payload["status"] == "ok"
+    assert payload["contract_version"] == server_module.API_CONTRACT_VERSION
+    assert payload["schema_versions"]["module"] == server_module.MODULE_SCHEMA_VERSION
+    assert payload["adapter_lifecycle_hooks"] == server_module.ADAPTER_LIFECYCLE_HOOKS
+    assert payload["modules"]["startable"] == ["speed", "sql"]
+    assert "bfcl" in payload["modules"]["planned"]
+    assert payload["endpoints"]["module_detail"] == "/api/benchmark/modules/{module_id}"
+    assert payload["exports"]["summary"] == "/api/benchmark/{job_id}/summary.json"
 
 
 def test_benchmark_preset_registry_exposes_smoke_and_full_profiles():
