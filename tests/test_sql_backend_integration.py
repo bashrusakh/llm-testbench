@@ -50,6 +50,31 @@ def test_benchmark_modules_endpoint_returns_registry_metadata():
     assert by_id["speed"]["result_schema"]
 
 
+def test_benchmark_module_detail_endpoint_returns_single_module():
+    server = BenchmarkServer(INDEX_HTML)
+    request = type("Request", (), {"match_info": {"module_id": "bfcl"}})()
+
+    response = run(server.benchmark_module_detail(request))
+    payload = json.loads(response.text)
+
+    assert response.status == 200
+    assert payload["status"] == "ok"
+    assert payload["module"]["id"] == "bfcl"
+    assert payload["module"]["startable"] is False
+    assert "tool-calling" in payload["module"]["capabilities"]
+
+
+def test_benchmark_module_detail_endpoint_rejects_unknown_module():
+    server = BenchmarkServer(INDEX_HTML)
+    request = type("Request", (), {"match_info": {"module_id": "missing"}})()
+
+    response = run(server.benchmark_module_detail(request))
+    payload = json.loads(response.text)
+
+    assert response.status == 404
+    assert payload["error"]["code"] == "not_found"
+
+
 def test_benchmark_preset_registry_exposes_smoke_and_full_profiles():
     presets = [preset.to_dict() for preset in server_module.BENCHMARK_PRESETS]
     by_id = {preset["id"]: preset for preset in presets}
@@ -307,6 +332,35 @@ def test_run_summary_export_builds_dashboard_metrics_by_model():
     assert summary["models"]["sql-a"]["pass_rate"] == 0.5
     assert summary["models"]["sql-a"]["avg_latency_ms"] == 200
     assert summary["models"]["sql-b"]["pass_rate"] == 1.0
+
+
+def test_benchmark_summaries_list_returns_compact_saved_run_aggregates(tmp_path):
+    server = BenchmarkServer(INDEX_HTML)
+    server.results_store_dir = tmp_path / "benchmarks"
+    record = {
+        "job_id": "job-123",
+        "created_at": "2026-06-04T00:00:00+00:00",
+        "status": "completed",
+        "request": {"benchmark_type": "sql", "models": ["sql-model"]},
+        "progress": {"completed": 2, "total": 2},
+        "results": [
+            {"model": "sql-model", "success": True, "latency_ms": 100},
+            {"model": "sql-model", "success": False, "latency_ms": 300},
+        ],
+        "errors": [],
+    }
+
+    run(server._save_job_record("job-123", record))
+    response = run(server.benchmark_summaries_list(None))
+    payload = json.loads(response.text)
+
+    assert response.status == 200
+    assert payload["status"] == "ok"
+    assert len(payload["summaries"]) == 1
+    assert payload["summaries"][0]["job_id"] == "job-123"
+    assert payload["summaries"][0]["pass_rate"] == 0.5
+    assert payload["summaries"][0]["latency"]["avg_latency_ms"] == 200
+    assert "results" not in payload["summaries"][0]
 
 
 def test_sql_job_flow_builds_sql_report_tsv_and_history(tmp_path, monkeypatch):

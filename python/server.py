@@ -242,6 +242,7 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
     ),
 )
 STARTABLE_BENCHMARK_TYPES = {module.module_id for module in BENCHMARK_MODULES if module.startable}
+BENCHMARK_MODULES_BY_ID = {module.module_id: module for module in BENCHMARK_MODULES}
 BENCHMARK_PRESETS: Tuple[BenchmarkPreset, ...] = (
     BenchmarkPreset(
         preset_id="local-smoke",
@@ -1159,6 +1160,17 @@ class BenchmarkServer:
             "timestamp": ts_utc(),
         })
 
+    async def benchmark_module_detail(self, request: web.Request) -> web.Response:
+        module_id = str(request.match_info["module_id"]).strip().lower()
+        module = BENCHMARK_MODULES_BY_ID.get(module_id)
+        if module is None:
+            return self.json_error("Unknown benchmark module", code="not_found", status=404)
+        return web.json_response({
+            "status": "ok",
+            "module": module.to_dict(),
+            "timestamp": ts_utc(),
+        })
+
     async def benchmark_presets(self, _request: web.Request) -> web.Response:
         return web.json_response({
             "status": "ok",
@@ -1337,6 +1349,11 @@ class BenchmarkServer:
     async def benchmark_results_list(self, _request: web.Request) -> web.Response:
         items = await self._load_results_store()
         return web.json_response({"status": "ok", "results": items, "timestamp": ts_utc()})
+
+    async def benchmark_summaries_list(self, _request: web.Request) -> web.Response:
+        items = await self._load_results_store()
+        summaries = [json.loads(self._build_run_summary(item)) for item in items]
+        return web.json_response({"status": "ok", "summaries": summaries, "timestamp": ts_utc()})
 
     async def benchmark_active(self, _request: web.Request) -> web.Response:
         """List in-memory jobs that are still live (queued/running/stopping).
@@ -2289,10 +2306,12 @@ async def create_app() -> web.Application:
     app.router.add_get("/", server.index)
     app.router.add_get("/health", server.health)
     app.router.add_get("/api/benchmark/modules", server.benchmark_modules)
+    app.router.add_get("/api/benchmark/modules/{module_id}", server.benchmark_module_detail)
     app.router.add_get("/api/benchmark/presets", server.benchmark_presets)
     app.router.add_get("/api/endpoints/scan", server.scan_endpoints)
     app.router.add_post("/api/models/discover", server.discover_models)
     app.router.add_post("/api/benchmark/start", server.benchmark_start)
+    app.router.add_get("/api/benchmark/summaries", server.benchmark_summaries_list)
     app.router.add_get("/api/benchmark/results", server.benchmark_results_list)
     app.router.add_get("/api/benchmark/active", server.benchmark_active)
     app.router.add_post("/api/benchmark/results/clear", server.benchmark_results_clear)

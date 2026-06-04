@@ -69,7 +69,9 @@ first modules; the items below are not implemented yet unless noted.
 ## Platform Work
 
 - [x] Benchmark module registry and metadata endpoint.
+- [x] Benchmark module detail endpoint.
 - [x] Run summary export with pass-rate, latency, token, cost, and per-model aggregates.
+- [x] Saved-run summaries endpoint for dashboard-style history views.
 - [ ] Full benchmark module adapter API so each suite can provide:
   - setup requirements;
   - task selection;

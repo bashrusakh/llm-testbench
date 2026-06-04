@@ -19,6 +19,7 @@ The backend exposes module metadata for current and planned adapters:
 
 ```text
 GET /api/benchmark/modules
+GET /api/benchmark/modules/{module_id}
 GET /api/benchmark/presets
 ```
 
@@ -141,6 +142,7 @@ GET /api/benchmark/{job_id}/results.csv
 GET /api/benchmark/{job_id}/results.tsv
 GET /api/benchmark/{job_id}/summary.json
 GET /api/benchmark/{job_id}/manifest.json
+GET /api/benchmark/summaries
 ```
 
 Do not commit local environments, caches, saved benchmark output, or old archived
