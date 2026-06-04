@@ -65,6 +65,20 @@
 
     h1 { font-size: 1.5rem; margin-bottom: 8px; font-weight: 700; letter-spacing: -0.5px; }
     .subtitle { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; }
+    .sidebar-actions {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: linear-gradient(180deg, var(--sidebar-bg) 0%, rgba(17,24,39,0.96) 100%);
+      border-bottom: 1px solid rgba(55,65,81,0.85);
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+    }
+    .sidebar-actions-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
 
     main {
       flex: 1;
@@ -835,6 +849,15 @@
     <h1>LLM Testbench</h1>
     <div class="subtitle">Local multi-benchmark workbench for LLM evaluation</div>
 
+    <div class="sidebar-section sidebar-actions">
+      <div class="sidebar-section-title">Start / Stop</div>
+      <div class="sidebar-actions-row">
+        <button id="startBtn" class="btn-primary" disabled>Start</button>
+        <button id="stopBtn" class="btn-danger" disabled>Stop</button>
+      </div>
+      <div id="jobStatus" class="status-message info" style="margin-top:8px; margin-bottom:0;">Ready to benchmark</div>
+    </div>
+
     <!-- Endpoint Configuration -->
     <div class="sidebar-section">
       <div class="sidebar-section-title">⚡ Endpoint Configuration</div>
@@ -968,16 +991,6 @@
           <span>ms</span>
         </div>
       </div>
-    </div>
-
-    <!-- Actions: Start / Stop (moved up, centered, above Model Selection) -->
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">▶️ Actions</div>
-      <div style="display:flex; gap:8px;">
-        <button id="startBtn" class="btn-primary" style="flex:1;" disabled>Start</button>
-        <button id="stopBtn" class="btn-danger" style="flex:1;" disabled>Stop</button>
-      </div>
-      <div id="jobStatus" class="status-message info" style="margin-top:8px;">Ready to benchmark</div>
     </div>
 
   </aside>
