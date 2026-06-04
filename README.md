@@ -31,6 +31,8 @@ GET /api/benchmark/modules/{module_id}/adapter
 GET /api/benchmark/presets
 GET /api/benchmark/presets/{preset_id}
 GET /api/benchmark/dashboard
+GET /api/fixtures
+GET /api/fixtures/validate
 ```
 
 Implemented modules are marked `startable: true`; planned modules are visible in
@@ -45,6 +47,9 @@ formats for integrations.
 The `/api/benchmark/dashboard` endpoint aggregates pass-rate, latency, cost, and
 token counts across all saved runs, broken down by module and model. Supports
 `?module=`, `?model=`, and `?since=` query filters.
+
+The fixture endpoints describe and validate local benchmark data in the repo.
+They are intentionally local-only and do not download datasets.
 
 ## Planned Modules
 

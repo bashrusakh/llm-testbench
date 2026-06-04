@@ -110,6 +110,8 @@ def test_benchmark_contract_endpoint_returns_schema_versions_and_routes():
     assert payload["presets"]["scopes"] == ["comparison", "leaderboard", "smoke"]
     assert payload["endpoints"]["module_detail"] == "/api/benchmark/modules/{module_id}"
     assert payload["endpoints"]["preset_detail"] == "/api/benchmark/presets/{preset_id}"
+    assert payload["endpoints"]["fixtures"] == "/api/fixtures"
+    assert payload["endpoints"]["fixture_validation"] == "/api/fixtures/validate"
     assert payload["exports"]["summary"] == "/api/benchmark/{job_id}/summary.json"
 
 
@@ -160,6 +162,34 @@ def test_benchmark_preset_detail_endpoint_rejects_unknown_preset():
 
     assert response.status == 404
     assert payload["error"]["code"] == "not_found"
+
+
+def test_fixture_manifest_endpoint_reports_local_fixture_counts():
+    server = BenchmarkServer(INDEX_HTML)
+
+    response = run(server.fixture_manifest(None))
+    payload = json.loads(response.text)
+
+    assert response.status == 200
+    assert payload["status"] == "ok"
+    assert payload["manifest"]["schema_version"] == 1
+    assert payload["manifest"]["fixtures"]["sql"]["task_count"] > 0
+    assert payload["manifest"]["fixtures"]["sql"]["local_only"] is True
+    assert payload["manifest"]["fixtures"]["bfcl"]["task_count"] == 5
+    assert payload["manifest"]["fixtures"]["bfcl"]["answer_count"] == 5
+    assert payload["manifest"]["fixtures"]["bfcl"]["categories"] == ["multiple", "parallel", "relevance", "single"]
+
+
+def test_fixture_validation_endpoint_accepts_repo_fixtures():
+    server = BenchmarkServer(INDEX_HTML)
+
+    response = run(server.fixture_validation(None))
+    payload = json.loads(response.text)
+
+    assert response.status == 200
+    assert payload["status"] == "ok"
+    assert payload["validation"]["ok"] is True
+    assert payload["validation"]["errors"] == []
 
 
 def test_benchmark_request_rejects_planned_modules_until_adapter_exists():

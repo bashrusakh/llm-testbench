@@ -45,6 +45,10 @@ project roadmap.
   - JSONL, CSV, TSV, summary JSON, and manifest JSON.
   - Dashboard endpoint aggregates pass-rate, latency, cost, and token totals.
 
+- [x] Local fixture manifest and validation.
+  - `/api/fixtures` reports local fixture paths, task counts, schema version, and categories.
+  - `/api/fixtures/validate` checks SQL and BFCL fixture shape without network access.
+
 ## Near-Term TODO
 
 - [ ] Fix SpeedAdapter to delegate to the real speed benchmark path or mark it as
@@ -86,14 +90,6 @@ The following were removed from the roadmap because they violate the scope rules
   - One local adapter job at a time is acceptable.
   - Avoid queue managers, distributed workers, remote sandboxes, and complex
     orchestration.
-
-- [ ] Add a local fixture manifest.
-  - Document fixture file paths, task counts, and schema versions.
-  - Use it to make smoke tests predictable.
-
-- [ ] Add a lightweight benchmark data validation command.
-  - Validate JSONL fixtures and required fields.
-  - Run locally with pytest or a simple Python module.
 
 - [ ] Keep dashboard/export code generic but small.
   - Aggregates are enough: pass-rate, latency, tokens, cost, per-module, per-model.

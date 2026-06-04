@@ -1508,6 +1508,8 @@ class BenchmarkServer:
                 "results": "/api/benchmark/results",
                 "summaries": "/api/benchmark/summaries",
                 "dashboard": "/api/benchmark/dashboard",
+                "fixtures": "/api/fixtures",
+                "fixture_validation": "/api/fixtures/validate",
                 "status": "/api/benchmark/{job_id}",
                 "stop": "/api/benchmark/{job_id}/stop",
             },
@@ -1520,6 +1522,114 @@ class BenchmarkServer:
             },
             "timestamp": ts_utc(),
         })
+
+    @staticmethod
+    def _read_jsonl(path: Path) -> List[Dict[str, Any]]:
+        rows: List[Dict[str, Any]] = []
+        for line_number, line in enumerate(path.read_text("utf-8").splitlines(), start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"{path.name}:{line_number}: invalid JSON: {exc.msg}") from exc
+            if not isinstance(item, dict):
+                raise ValueError(f"{path.name}:{line_number}: expected JSON object")
+            rows.append(item)
+        return rows
+
+    def _build_fixture_manifest(self) -> Dict[str, Any]:
+        sql_questions_path = SQL_BENCHMARK_DATA_DIR / "questions.json"
+        bfcl_questions_path = BFCL_DATA_DIR / "questions.jsonl"
+        bfcl_answers_path = BFCL_DATA_DIR / "answers.jsonl"
+
+        def sql_questions_from_loaded(loaded: Any) -> List[Dict[str, Any]]:
+            if isinstance(loaded, list):
+                return [item for item in loaded if isinstance(item, dict)]
+            if isinstance(loaded, dict) and isinstance(loaded.get("questions"), list):
+                return [item for item in loaded["questions"] if isinstance(item, dict)]
+            return []
+
+        sql_questions: List[Dict[str, Any]] = []
+        if sql_questions_path.exists():
+            loaded = json.loads(sql_questions_path.read_text("utf-8"))
+            sql_questions = sql_questions_from_loaded(loaded)
+
+        bfcl_questions = self._read_jsonl(bfcl_questions_path) if bfcl_questions_path.exists() else []
+        bfcl_answers = self._read_jsonl(bfcl_answers_path) if bfcl_answers_path.exists() else []
+        bfcl_categories = sorted({str(item.get("category") or "unknown") for item in bfcl_questions})
+
+        return {
+            "schema_version": 1,
+            "fixtures": {
+                "sql": {
+                    "path": str(SQL_BENCHMARK_DATA_DIR.relative_to(PROJECT_ROOT)),
+                    "questions_file": "questions.json",
+                    "task_count": len(sql_questions),
+                    "local_only": True,
+                },
+                "bfcl": {
+                    "path": str(BFCL_DATA_DIR.relative_to(PROJECT_ROOT)),
+                    "questions_file": "questions.jsonl",
+                    "answers_file": "answers.jsonl",
+                    "task_count": len(bfcl_questions),
+                    "answer_count": len(bfcl_answers),
+                    "categories": bfcl_categories,
+                    "local_only": True,
+                },
+            },
+        }
+
+    def _validate_fixtures(self) -> Dict[str, Any]:
+        errors: List[str] = []
+        manifest = self._build_fixture_manifest()
+
+        sql_path = SQL_BENCHMARK_DATA_DIR / "questions.json"
+        if not sql_path.exists():
+            errors.append("sql: missing questions.json")
+        else:
+            try:
+                loaded = json.loads(sql_path.read_text("utf-8"))
+                questions = loaded if isinstance(loaded, list) else loaded.get("questions") if isinstance(loaded, dict) else None
+                if not isinstance(questions, list):
+                    errors.append("sql: questions.json must be an array or object with questions array")
+                for item in questions or []:
+                    if not isinstance(item, dict) or not {"id", "question", "sql"}.issubset(item):
+                        errors.append("sql: each question needs id, question, and sql")
+                        break
+            except Exception as exc:
+                errors.append(f"sql: {exc}")
+
+        try:
+            bfcl_questions = self._read_jsonl(BFCL_DATA_DIR / "questions.jsonl")
+            bfcl_answers = self._read_jsonl(BFCL_DATA_DIR / "answers.jsonl")
+            answer_ids = {str(item.get("id")) for item in bfcl_answers}
+            valid_categories = {"single", "parallel", "multiple", "relevance"}
+            for item in bfcl_questions:
+                task_id = str(item.get("id") or "")
+                if not task_id or "question" not in item or "function" not in item:
+                    errors.append("bfcl: each question needs id, question, and function")
+                    break
+                if item.get("category") not in valid_categories:
+                    errors.append(f"bfcl: unknown category for {task_id}: {item.get('category')}")
+                if task_id not in answer_ids:
+                    errors.append(f"bfcl: missing answer for {task_id}")
+        except Exception as exc:
+            errors.append(f"bfcl: {exc}")
+
+        return {
+            "ok": not errors,
+            "errors": errors,
+            "manifest": manifest,
+        }
+
+    async def fixture_manifest(self, _request: web.Request) -> web.Response:
+        return web.json_response({"status": "ok", "manifest": self._build_fixture_manifest(), "timestamp": ts_utc()})
+
+    async def fixture_validation(self, _request: web.Request) -> web.Response:
+        validation = self._validate_fixtures()
+        return web.json_response({"status": "ok" if validation["ok"] else "error", "validation": validation, "timestamp": ts_utc()})
 
     async def benchmark_presets(self, _request: web.Request) -> web.Response:
         return web.json_response({
@@ -2979,6 +3089,8 @@ async def create_app() -> web.Application:
     app.router.add_route("OPTIONS", "/{tail:.*}", lambda _request: web.Response(status=204))
     app.router.add_get("/", server.index)
     app.router.add_get("/health", server.health)
+    app.router.add_get("/api/fixtures", server.fixture_manifest)
+    app.router.add_get("/api/fixtures/validate", server.fixture_validation)
     app.router.add_get("/api/benchmark/contract", server.benchmark_contract)
     app.router.add_get("/api/benchmark/modules", server.benchmark_modules)
     app.router.add_get("/api/benchmark/modules/{module_id}", server.benchmark_module_detail)
