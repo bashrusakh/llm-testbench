@@ -76,7 +76,8 @@ run.bat --host 127.0.0.1 --port 8765 --log-level INFO
 4. Discover models.
 5. Select one or more benchmark modules.
 6. Start the run and watch live results.
-7. Use history to inspect previous runs, SQL diffs, and saved reports.
+7. Use history to inspect previous runs, SQL diffs, saved reports, and JSONL
+   exports.
 
 ## SQL Accuracy Notes
 
@@ -113,6 +114,16 @@ Keep these files and directories in the repository:
 - `sql_benchmark_data/` - SQL benchmark questions and AdventureWorks tables.
 - `tests/` - backend, SQL, and frontend regression tests.
 
+## Exports
+
+Saved benchmark runs can be exported from the History table as JSONL. Each line
+contains the job metadata, request settings, progress snapshot, result index, and
+one benchmark result payload. The direct endpoint is:
+
+```text
+GET /api/benchmark/{job_id}/results.jsonl
+```
+
 Do not commit local environments, caches, saved benchmark output, or old archived
 experiments.
 
@@ -143,4 +154,3 @@ Recommended GitHub repository name:
 ```text
 llm-testbench
 ```
-

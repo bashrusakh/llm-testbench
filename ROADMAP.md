@@ -78,6 +78,6 @@ first modules; the items below are not implemented yet unless noted.
 
 - [ ] Container/sandbox support for coding and terminal tasks.
 - [ ] Cost, token, latency, and pass-rate dashboards across modules.
-- [ ] Export formats: JSONL, CSV/TSV, and reproducible run manifests.
+- [x] JSONL result export for saved benchmark runs.
+- [ ] CSV/TSV result exports and reproducible run manifests.
 - [ ] Presets for small local smoke tests versus full leaderboard-style runs.
-

@@ -48,6 +48,36 @@ def test_benchmark_request_accepts_multiple_models_for_sql_mode():
     assert sorted(spec.models) == ["model-a", "model-b"]
 
 
+def test_results_jsonl_export_builds_one_line_per_result():
+    record = {
+        "job_id": "job-123",
+        "status": "completed",
+        "created_at": "2026-06-04T00:00:00+00:00",
+        "started_at": "2026-06-04T00:00:01+00:00",
+        "finished_at": "2026-06-04T00:00:02+00:00",
+        "request": {"benchmark_type": "sql", "models": ["sql-model"]},
+        "progress": {"completed": 2, "total": 2},
+        "results": [
+            {"benchmark_type": "sql", "model": "sql-model", "outcome": "pass"},
+            {"benchmark_type": "sql", "model": "sql-model", "outcome": "fail"},
+        ],
+    }
+
+    text = BenchmarkServer._build_results_jsonl(record)
+    rows = [json.loads(line) for line in text.splitlines()]
+
+    assert text.endswith("\n")
+    assert len(rows) == 2
+    assert rows[0]["job_id"] == "job-123"
+    assert rows[0]["benchmark_type"] == "sql"
+    assert rows[0]["request"]["models"] == ["sql-model"]
+    assert rows[0]["progress"]["completed"] == 2
+    assert rows[0]["result_index"] == 0
+    assert rows[0]["result"]["outcome"] == "pass"
+    assert rows[1]["result_index"] == 1
+    assert rows[1]["result"]["outcome"] == "fail"
+
+
 def test_sql_job_flow_builds_sql_report_tsv_and_history(tmp_path, monkeypatch):
     captured = {}
 

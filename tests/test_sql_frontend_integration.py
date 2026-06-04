@@ -36,6 +36,8 @@ def test_frontend_has_sql_mode_payload_and_rendering_hooks():
     assert 'question_ids: parseQuestionIds' in html
     assert 'exactlyOneIncludedProvider' in html
     assert 'select at least one model' in html.lower()
+    assert '/results.jsonl' in html
+    assert 'download="${escapeHtml(item.job_id)}.results.jsonl"' in html
 
 
 def test_frontend_history_and_summary_branch_by_benchmark_type():

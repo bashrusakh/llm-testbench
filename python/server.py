@@ -620,6 +620,28 @@ class BenchmarkServer:
         await self._save_job_record(job.job_id, record)
 
     @staticmethod
+    def _build_results_jsonl(record: Dict[str, Any]) -> str:
+        request_meta = record.get("request") if isinstance(record.get("request"), dict) else {}
+        progress_meta = record.get("progress") if isinstance(record.get("progress"), dict) else {}
+        results = record.get("results") if isinstance(record.get("results"), list) else []
+        lines: List[str] = []
+        for index, result in enumerate(results):
+            row = {
+                "job_id": record.get("job_id"),
+                "status": record.get("status"),
+                "created_at": record.get("created_at"),
+                "started_at": record.get("started_at"),
+                "finished_at": record.get("finished_at"),
+                "benchmark_type": request_meta.get("benchmark_type") or (result.get("benchmark_type") if isinstance(result, dict) else None),
+                "request": request_meta,
+                "progress": progress_meta,
+                "result_index": index,
+                "result": result,
+            }
+            lines.append(json.dumps(row, ensure_ascii=False, separators=(",", ":")))
+        return "\n".join(lines) + ("\n" if lines else "")
+
+    @staticmethod
     def json_error(message: str, *, code: str = "bad_request", status: int = 400) -> web.Response:
         return web.json_response(
             {
@@ -706,6 +728,33 @@ class BenchmarkServer:
         if job is None:
             return self.json_error("Unknown job_id", code="not_found", status=404)
         return web.json_response({"status": "ok", "job": job.to_dict(), "timestamp": ts_utc()})
+
+    async def benchmark_results_jsonl(self, request: web.Request) -> web.Response:
+        job_id = request.match_info["job_id"]
+        record: Optional[Dict[str, Any]] = None
+        live_job = self.jobs.get(job_id)
+        if live_job is not None:
+            record = live_job.to_dict()
+        else:
+            path = self._find_record_path(job_id)
+            if path and path.exists():
+                try:
+                    content = await asyncio.to_thread(path.read_text, "utf-8")
+                    loaded = json.loads(content)
+                    if isinstance(loaded, dict):
+                        record = loaded
+                except Exception as exc:
+                    LOG.warning("Failed reading JSONL export record %s: %s", path, exc)
+        if record is None:
+            return self.json_error("Unknown job_id", code="not_found", status=404)
+
+        text = self._build_results_jsonl(record)
+        filename = f"{job_id}.results.jsonl"
+        return web.Response(
+            text=text,
+            content_type="application/x-ndjson",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     async def benchmark_stop(self, request: web.Request) -> web.Response:
         job = self.jobs.get(request.match_info["job_id"])
@@ -1676,6 +1725,7 @@ async def create_app() -> web.Application:
     app.router.add_get("/api/benchmark/results", server.benchmark_results_list)
     app.router.add_get("/api/benchmark/active", server.benchmark_active)
     app.router.add_post("/api/benchmark/results/clear", server.benchmark_results_clear)
+    app.router.add_get("/api/benchmark/{job_id}/results.jsonl", server.benchmark_results_jsonl)
     app.router.add_get("/api/benchmark/{job_id}", server.benchmark_status)
     app.router.add_post("/api/benchmark/{job_id}/stop", server.benchmark_stop)
     return app
