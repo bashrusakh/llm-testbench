@@ -29,11 +29,13 @@ project roadmap.
   - Supports grammar and tool-calling modes.
   - Includes thinking mode and provider reasoning-effort controls.
 
-- [x] BFCL local single-turn adapter.
+- [x] BFCL v2 local single-turn adapter.
   - Uses local `bfcl_data/questions.jsonl` and `answers.jsonl`.
   - Covers single, parallel, multiple, and relevance/no-call categories.
   - Scores by argument AST comparison without executing live APIs.
   - Can run through `/api/benchmark/start` with repo fixtures or a local data dir.
+  - Exposed in the web UI: checkbox alongside Speed and SQL, category and
+    task-ID filters, live per-category pass counts, and queue integration.
 
 - [x] Benchmark adapter metadata and API contract.
   - Module registry/detail endpoints.
