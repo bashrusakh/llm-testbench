@@ -33,6 +33,7 @@ project roadmap.
   - Uses local `bfcl_data/questions.jsonl` and `answers.jsonl`.
   - Covers single, parallel, multiple, and relevance/no-call categories.
   - Scores by argument AST comparison without executing live APIs.
+  - Can run through `/api/benchmark/start` with repo fixtures or a local data dir.
 
 - [x] Benchmark adapter metadata and API contract.
   - Module registry/detail endpoints.
@@ -45,12 +46,6 @@ project roadmap.
   - Dashboard endpoint aggregates pass-rate, latency, cost, and token totals.
 
 ## Near-Term TODO
-
-- [ ] Wire BFCL into `/api/benchmark/start`.
-  - Adapter and scorer exist; the server run loop still needs a lightweight path
-    for adapter-backed jobs.
-  - Keep it local-only: use repo BFCL fixtures by default, allow a local data dir
-    override, and do not download datasets.
 
 - [ ] Fix SpeedAdapter to delegate to the real speed benchmark path or mark it as
   metadata-only.

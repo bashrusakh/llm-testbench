@@ -24,12 +24,13 @@ import httpx
 from aiohttp import web
 
 from python.sql_benchmark import SqlBenchmarkRunner, ToolLlmCallback
-from python.adapter import ADAPTER_REGISTRY, get_adapter
+from python.adapter import ADAPTER_REGISTRY, RunContext, get_adapter
 
 LOG = logging.getLogger("llm_testbench")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 INDEX_HTML = PROJECT_ROOT / "index.html"
 SQL_BENCHMARK_DATA_DIR = PROJECT_ROOT / "sql_benchmark_data"
+BFCL_DATA_DIR = PROJECT_ROOT / "bfcl_data"
 DEFAULT_ALLOWED_ORIGINS = {"*"}
 DEFAULT_TIMEOUT_MS = 120_000
 DEFAULT_PORT_CANDIDATES = [1234, 8080, 11434, 5000, 5001]
@@ -204,7 +205,7 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
         description="Berkeley Function Calling Leaderboard adapter for tool/function-calling.",
         capabilities=["tool-calling", "multi-call", "parallel-call", "api-selection"],
         result_schema=["task_id", "success", "tool_calls", "error"],
-        startable=False,
+        startable=True,
         setup_requirements=["BFCL dataset", "tool-call compatible chat endpoint"],
         task_selection={
             "strategy": "case_categories",
@@ -622,6 +623,9 @@ class BenchmarkRequest:
     thinking_mode: str
     reasoning_effort: str
     question_timeout_ms: int
+    bfcl_task_ids: Optional[List[str]]
+    bfcl_categories: Optional[List[str]]
+    bfcl_data_dir: Optional[str]
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "BenchmarkRequest":
@@ -696,8 +700,8 @@ class BenchmarkRequest:
                 api_key=str(data.get("api_key", "")),
                 models=models,
             )]
-        if benchmark_type == "sql" and len(models) < 1:
-            raise ValueError("sql benchmark requires at least one model")
+        if benchmark_type in {"sql", "bfcl"} and len(models) < 1:
+            raise ValueError(f"{benchmark_type} benchmark requires at least one model")
 
         mode = str(data.get("mode", "sequential")).strip().lower()
         if mode not in {"sequential", "parallel"}:
@@ -716,6 +720,22 @@ class BenchmarkRequest:
                 question_ids = [int(question_id) for question_id in question_ids_raw]
             except (TypeError, ValueError) as exc:
                 raise ValueError("question_ids must contain integers") from exc
+
+        bfcl_task_ids_raw = data.get("bfcl_task_ids", data.get("task_ids"))
+        bfcl_task_ids: Optional[List[str]] = None
+        if bfcl_task_ids_raw is not None:
+            if not isinstance(bfcl_task_ids_raw, list):
+                raise ValueError("bfcl_task_ids must be an array")
+            bfcl_task_ids = [str(task_id).strip() for task_id in bfcl_task_ids_raw if str(task_id).strip()]
+
+        bfcl_categories_raw = data.get("bfcl_categories", data.get("categories"))
+        bfcl_categories: Optional[List[str]] = None
+        if bfcl_categories_raw is not None:
+            if not isinstance(bfcl_categories_raw, list):
+                raise ValueError("bfcl_categories must be an array")
+            bfcl_categories = [str(category).strip().lower() for category in bfcl_categories_raw if str(category).strip()]
+
+        bfcl_data_dir = str(data.get("bfcl_data_dir", data.get("data_dir", ""))).strip() or None
 
         sql_mode = str(data.get("sql_mode", "tool-calling")).strip().lower() or "tool-calling"
         if sql_mode not in {"tool-calling", "grammar"}:
@@ -778,6 +798,9 @@ class BenchmarkRequest:
             thinking_mode=thinking_mode,
             reasoning_effort=reasoning_effort,
             question_timeout_ms=question_timeout_ms,
+            bfcl_task_ids=bfcl_task_ids,
+            bfcl_categories=bfcl_categories,
+            bfcl_data_dir=bfcl_data_dir,
         )
 
 
@@ -824,6 +847,9 @@ class JobState:
                 "thinking_mode": self.request.thinking_mode,
                 "reasoning_effort": self.request.reasoning_effort,
                 "question_timeout_ms": self.request.question_timeout_ms,
+                "bfcl_task_ids": self.request.bfcl_task_ids,
+                "bfcl_categories": self.request.bfcl_categories,
+                "bfcl_data_dir": self.request.bfcl_data_dir,
             },
             "results": self.results,
             "errors": self.errors,
@@ -1127,6 +1153,9 @@ class BenchmarkServer:
                 "thinking_mode": job.request.thinking_mode,
                 "reasoning_effort": job.request.reasoning_effort,
                 "question_timeout_ms": job.request.question_timeout_ms,
+                "bfcl_task_ids": job.request.bfcl_task_ids,
+                "bfcl_categories": job.request.bfcl_categories,
+                "bfcl_data_dir": job.request.bfcl_data_dir,
             },
             "progress": {
                 "completed": job.progress_completed,
@@ -2110,6 +2139,8 @@ class BenchmarkServer:
         try:
             if job.request.benchmark_type == "sql":
                 await self._run_sql_job(job)
+            elif job.request.benchmark_type == "bfcl":
+                await self._run_bfcl_job(job)
             else:
                 for target in job.request.targets:
                     normalized_provider = await self._detect_provider(target.base_url, target.provider, target.api_key)
@@ -2147,6 +2178,77 @@ class BenchmarkServer:
             job.finished_at = ts_utc()
             if job.results or job.errors:
                 await self._append_job_to_results_store(job)
+
+    async def _run_bfcl_job(self, job: JobState) -> None:
+        target = job.request.targets[0]
+        normalized_provider = await self._detect_provider(target.base_url, target.provider, target.api_key)
+        if normalized_provider != "openai-compatible":
+            raise RuntimeError("BFCL benchmark requires an OpenAI-compatible tool-calling endpoint")
+        available_models = await self._discover_models(target.base_url, normalized_provider, target.api_key)
+
+        requested_models = target.models
+        missing = [m for m in requested_models if m not in available_models]
+        if missing:
+            raise RuntimeError(f"Requested model(s) not found for {target.provider_label}: {', '.join(missing)}")
+
+        adapter = get_adapter("bfcl")
+        if adapter is None:
+            raise RuntimeError("BFCL adapter is not registered")
+
+        runtime_target = BenchmarkTarget(
+            provider_id=target.provider_id,
+            provider_label=target.provider_label,
+            base_url=target.base_url,
+            provider=normalized_provider,
+            api_key=target.api_key,
+            models=requested_models,
+        )
+        job.current_provider_id = runtime_target.provider_id
+        job.current_provider_label = runtime_target.provider_label
+        data_dir = job.request.bfcl_data_dir or str(BFCL_DATA_DIR)
+
+        for model in requested_models:
+            if job.stop_requested:
+                return
+            job.current_model = model
+            ctx = RunContext(
+                module_id="bfcl",
+                model=model,
+                provider=runtime_target.provider,
+                endpoint=runtime_target.base_url,
+                api_key=runtime_target.api_key,
+                timeout_ms=job.request.timeout_ms,
+                options={
+                    "data_dir": data_dir,
+                    "categories": job.request.bfcl_categories,
+                    "task_ids": job.request.bfcl_task_ids,
+                    "tool_llm_callback": lambda system_prompt, messages, tools, model, provider, endpoint, timeout_ms: self._call_llm_tool_calling(
+                        system_prompt=system_prompt,
+                        messages=messages,
+                        tools=tools,
+                        target=runtime_target,
+                        model=model,
+                        timeout_ms=timeout_ms,
+                        reasoning_effort=job.request.reasoning_effort,
+                    ),
+                },
+            )
+            try:
+                await adapter.prepare(ctx)
+                task_ids = await adapter.select_tasks(ctx)
+                if job.progress_total == 0:
+                    job.progress_total = len(requested_models) * len(task_ids)
+                for task_id in task_ids:
+                    if job.stop_requested:
+                        return
+                    result = await adapter.run_task(ctx, task_id)
+                    result = await adapter.score(ctx, result)
+                    row = self._bfcl_result_row(job, runtime_target, result)
+                    job.results.append(row)
+                    job.progress_completed += 1
+                    asyncio.ensure_future(self._flush_job_record(job))
+            finally:
+                await adapter.cleanup(ctx)
 
     async def _run_sql_job(self, job: JobState) -> None:
         target = job.request.targets[0]
@@ -2424,6 +2526,20 @@ class BenchmarkServer:
             "model": data.get("model_alias") or data.get("model") or model,
             "reasoning_fallback": bool(fallback_state and fallback_state.get("used")),
         }
+
+    def _bfcl_result_row(self, job: JobState, target: BenchmarkTarget, result: Dict[str, Any]) -> Dict[str, Any]:
+        row = dict(result)
+        row.setdefault("timestamp", ts_utc())
+        row["job_id"] = job.job_id
+        row["benchmark_type"] = "bfcl"
+        row["provider_id"] = target.provider_id
+        row["provider_label"] = target.provider_label
+        row["provider_type"] = target.provider
+        row["provider"] = target.provider
+        row["endpoint"] = target.base_url
+        row["model"] = result.get("model") or job.current_model or target.models[0]
+        row["reasoning_effort"] = job.request.reasoning_effort
+        return row
 
     def _sql_result_row(self, job: JobState, target: BenchmarkTarget, result: Dict[str, Any]) -> Dict[str, Any]:
         row = dict(result)
@@ -2748,6 +2864,8 @@ class BenchmarkServer:
     def _build_report(self, job: JobState) -> str:
         if job.request.benchmark_type == "sql":
             return self._build_sql_report(job)
+        if job.request.benchmark_type == "bfcl":
+            return self._build_bfcl_report(job)
         return self._build_speed_report(job)
 
     def _build_speed_report(self, job: JobState) -> str:
@@ -2793,6 +2911,36 @@ class BenchmarkServer:
             lines.append("Failed questions:")
             for item in failed:
                 lines.append(f"- q{item.get('question_id')}: {item.get('error', '')}")
+        if job.errors:
+            lines.append("Errors:")
+            lines.extend(f"- {error}" for error in job.errors)
+        return "\n".join(lines)
+
+    def _build_bfcl_report(self, job: JobState) -> str:
+        total = len(job.results)
+        passed = [item for item in job.results if item.get("success") is True]
+        failed = [item for item in job.results if item.get("success") is False]
+        by_category: Dict[str, Dict[str, int]] = {}
+        for item in job.results:
+            category = str(item.get("category") or "unknown")
+            bucket = by_category.setdefault(category, {"pass": 0, "fail": 0, "error": 0})
+            outcome = str(item.get("outcome") or ("pass" if item.get("success") is True else "fail"))
+            bucket[outcome if outcome in bucket else "error"] += 1
+        lines = [
+            f"Job: {job.job_id}",
+            f"Status: {job.status}",
+            f"Benchmark type: {job.request.benchmark_type}",
+            f"Endpoint: {job.request.base_url}",
+            f"Models: {', '.join(job.request.models)}",
+            f"Completed: {job.progress_completed}/{job.progress_total}",
+            f"Tasks passed: {len(passed)}/{total}",
+            f"Tasks failed: {len(failed)}",
+        ]
+        if by_category:
+            lines.append("Categories:")
+            for category, bucket in sorted(by_category.items()):
+                category_total = sum(bucket.values())
+                lines.append(f"- {category}: {bucket['pass']}/{category_total}")
         if job.errors:
             lines.append("Errors:")
             lines.extend(f"- {error}" for error in job.errors)

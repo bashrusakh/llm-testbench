@@ -23,7 +23,7 @@ def test_benchmark_module_registry_exposes_current_and_planned_modules():
 
     assert by_id["speed"]["startable"] is True
     assert by_id["sql"]["status"] == "implemented"
-    assert by_id["bfcl"]["startable"] is False
+    assert by_id["bfcl"]["startable"] is True
     assert by_id["terminal-bench"]["status"] == "planned"
     assert by_id["bigcodebench"]["status"] == "planned"
     assert by_id["multi-swe-bench"]["status"] == "planned"
@@ -53,7 +53,7 @@ def test_benchmark_modules_endpoint_returns_registry_metadata():
 
     assert response.status == 200
     assert payload["status"] == "ok"
-    assert payload["startable"] == ["speed", "sql"]
+    assert payload["startable"] == ["bfcl", "speed", "sql"]
     assert by_id["livecodebench"]["status"] == "planned"
     assert by_id["swe-rebench"]["status"] == "planned"
     assert by_id["speed"]["result_schema"]
@@ -72,7 +72,7 @@ def test_benchmark_module_detail_endpoint_returns_single_module():
     assert response.status == 200
     assert payload["status"] == "ok"
     assert payload["module"]["id"] == "bfcl"
-    assert payload["module"]["startable"] is False
+    assert payload["module"]["startable"] is True
     assert "tool-calling" in payload["module"]["capabilities"]
     assert payload["module"]["task_selection"]["categories"] == ["single", "parallel", "multi-call", "rest", "sql", "relevance"]
     assert "BFCL dataset" in payload["module"]["setup_requirements"]
@@ -103,7 +103,7 @@ def test_benchmark_contract_endpoint_returns_schema_versions_and_routes():
     assert payload["contract_version"] == server_module.API_CONTRACT_VERSION
     assert payload["schema_versions"]["module"] == server_module.MODULE_SCHEMA_VERSION
     assert payload["adapter_lifecycle_hooks"] == server_module.ADAPTER_LIFECYCLE_HOOKS
-    assert payload["modules"]["startable"] == ["speed", "sql"]
+    assert payload["modules"]["startable"] == ["bfcl", "speed", "sql"]
     assert "bfcl" not in payload["modules"]["planned"]
     assert "bfcl" in payload["modules"]["adapter_implemented"]
     assert payload["presets"]["ids"] == ["local-smoke", "balanced", "leaderboard-full"]
@@ -165,11 +165,83 @@ def test_benchmark_preset_detail_endpoint_rejects_unknown_preset():
 def test_benchmark_request_rejects_planned_modules_until_adapter_exists():
     with pytest.raises(ValueError, match="benchmark_type"):
         BenchmarkRequest.from_dict({
-            "benchmark_type": "bfcl",
+            "benchmark_type": "terminal-bench",
             "base_url": "http://127.0.0.1:1234",
             "provider": "openai-compatible",
             "model": "tool-model",
         })
+
+
+def test_benchmark_request_accepts_bfcl_payload_and_filters():
+    spec = BenchmarkRequest.from_dict({
+        "benchmark_type": "bfcl",
+        "base_url": "http://127.0.0.1:1234",
+        "provider": "openai-compatible",
+        "model": "tool-model",
+        "task_ids": ["simple_1"],
+        "categories": ["single", "relevance"],
+        "data_dir": "bfcl_data",
+    })
+
+    assert spec.benchmark_type == "bfcl"
+    assert spec.bfcl_task_ids == ["simple_1"]
+    assert spec.bfcl_categories == ["single", "relevance"]
+    assert spec.bfcl_data_dir == "bfcl_data"
+
+
+def test_bfcl_job_flow_runs_adapter_tasks_and_saves_history(tmp_path, monkeypatch):
+    async def fake_detect_provider(self, base_url, requested_provider, api_key, client=None):
+        return "openai-compatible"
+
+    async def fake_discover_models(self, base_url, provider, api_key):
+        return ["tool-model"]
+
+    async def fake_tool_calling(self, *, system_prompt, messages, tools, target, model, timeout_ms, reasoning_effort="disabled", fallback_state=None):
+        content = messages[0]["content"]
+        if "weather" in content.lower():
+            return {
+                "tool_calls": [{
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "get_weather", "arguments": json.dumps({"city": "Paris", "unit": "celsius"})},
+                }],
+                "content": "",
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+                "model": model,
+            }
+        return {"tool_calls": [], "content": "Paris", "usage": {}, "model": model}
+
+    monkeypatch.setattr(BenchmarkServer, "_detect_provider", fake_detect_provider)
+    monkeypatch.setattr(BenchmarkServer, "_discover_models", fake_discover_models)
+    monkeypatch.setattr(BenchmarkServer, "_call_llm_tool_calling", fake_tool_calling)
+
+    server = BenchmarkServer(INDEX_HTML)
+    server.results_store_dir = tmp_path / "benchmarks"
+    spec = BenchmarkRequest.from_dict({
+        "benchmark_type": "bfcl",
+        "base_url": "http://127.0.0.1:1234",
+        "provider": "openai-compatible",
+        "model": "tool-model",
+        "task_ids": ["simple_1", "relevance_1"],
+        "data_dir": str(Path(__file__).resolve().parents[1] / "bfcl_data"),
+    })
+    job = JobState(request=spec)
+
+    run(server._run_job(job))
+
+    assert job.status == "completed"
+    assert job.progress_total == 2
+    assert job.progress_completed == 2
+    assert [row["task_id"] for row in job.results] == ["simple_1", "relevance_1"]
+    assert all(row["benchmark_type"] == "bfcl" for row in job.results)
+    assert all(row["success"] is True for row in job.results)
+    assert "Benchmark type: bfcl" in job.report_text
+
+    saved_files = list(server.results_store_dir.glob("*.json"))
+    assert len(saved_files) == 1
+    stored = json.loads(saved_files[0].read_text("utf-8"))
+    assert stored["request"]["benchmark_type"] == "bfcl"
+    assert stored["results"][0]["task_id"] == "simple_1"
 
 
 def test_benchmark_request_accepts_sql_payload_without_prompt():

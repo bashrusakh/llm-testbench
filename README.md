@@ -19,8 +19,7 @@ and prompt replay.
   subset). Loads tasks from a local `bfcl_data/` directory and evaluates four
   call categories: single, parallel, multiple, and relevance (no-call) via AST
   comparison. No external dependencies; runs entirely from local data files.
-  Multi-turn (v3), agentic (v4), and `/api/benchmark/start` wiring are not yet
-  supported.
+  Multi-turn (v3) and agentic (v4) categories are not yet supported.
 
 The backend exposes module metadata for current and planned adapters:
 
@@ -51,7 +50,6 @@ token counts across all saved runs, broken down by module and model. Supports
 
 The next representative benchmark families are tracked in [ROADMAP.md](ROADMAP.md):
 
-- BFCL wiring into `/api/benchmark/start`.
 - Small local coding fixtures, without LiveCodeBench/BigCodeBench dependency.
 - Local instruction-following and JSON schema checks.
 - Prompt replay for fast regression comparisons.
