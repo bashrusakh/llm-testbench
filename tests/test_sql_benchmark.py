@@ -1,0 +1,505 @@
+import asyncio
+from pathlib import Path
+
+import pytest
+
+from python.sql_benchmark import SqlBenchmarkRunner
+
+
+DATA_DIR = Path(__file__).resolve().parents[1] / 'sql_benchmark_data'
+
+
+def run(coro):
+    return asyncio.run(coro)
+
+
+# ── strip_markdown_fences ─────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("raw,expected", [
+    ("```sql\nSELECT 1\n```", "SELECT 1"),
+    ("```\nSELECT 1;```", "SELECT 1;"),
+    ("`SELECT 1`", "SELECT 1"),
+    ("SELECT 1", "SELECT 1"),
+    ("", ""),
+    (None, ""),
+    ("```sql\n\n```", ""),
+    ("```python\nprint('hello')\n```", "print('hello')"),
+    (123, "123"),
+])
+def test_strip_markdown_fences(raw, expected):
+    assert SqlBenchmarkRunner.strip_markdown_fences(raw) == expected
+
+
+# ── _convert_mssql_brackets_to_duckdb ─────────────────────────────────────────
+
+@pytest.mark.parametrize("raw,expected", [
+    ("SUM(s.[Sales Amount])", 'SUM(s."Sales Amount")'),
+    ("[user_id]", '"user_id"'),
+    ("a.[col 1], b.[col 2]", 'a."col 1", b."col 2"'),
+    ("no brackets here", "no brackets here"),
+    ("", ""),
+])
+def test_convert_mssql_brackets_to_duckdb(raw, expected):
+    assert SqlBenchmarkRunner._convert_mssql_brackets_to_duckdb(raw) == expected
+
+
+# ── combined fence stripping + bracket conversion ─────────────────────────────
+
+@pytest.mark.parametrize("raw,expected", [
+    (
+        "```sql\nSELECT SUM(s.[Sales Amount]) FROM Sales s\n```",
+        'SELECT SUM(s."Sales Amount") FROM Sales s',
+    ),
+    (
+        "```\nSELECT [user_id] FROM t\n```",
+        'SELECT "user_id" FROM t',
+    ),
+])
+def test_strip_and_bracket_convert(raw, expected):
+    result = SqlBenchmarkRunner.strip_markdown_fences(raw)
+    assert result == expected
+
+
+# ── normalize_sql ─────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("raw,expected", [
+    ("select 1", "SELECT 1"),
+    ("SELECT 1;", "SELECT 1"),
+    ("  select   42  ", "SELECT   42"),
+])
+def test_normalize_sql_uppercases_keywords(raw, expected):
+    assert SqlBenchmarkRunner.normalize_sql(raw) == expected
+
+
+def test_normalize_sql_strips_trailing_semicolon():
+    assert SqlBenchmarkRunner.normalize_sql("SELECT 1;") == "SELECT 1"
+
+
+def test_normalize_sql_strips_trailing_semicolons():
+    assert SqlBenchmarkRunner.normalize_sql("SELECT 1;;;") == "SELECT 1"
+
+
+# ── integration: full cleanup pipeline ───────────────────────────────────────
+
+def test_full_cleanup_pipeline():
+    raw = "```sql\nSELECT SUM(s.[Sales Amount]), t.[Fiscal Year]\nFROM Sales s\nJOIN Date t ON s.OrderDateKey = t.DateKey\nGROUP BY t.[Fiscal Year];\n```"
+    after_strip = SqlBenchmarkRunner.strip_markdown_fences(raw)
+    after_normalize = SqlBenchmarkRunner.normalize_sql(after_strip)
+    assert "```" not in after_normalize
+    assert "[" not in after_normalize
+    assert "]" not in after_normalize
+    assert "GROUP BY" in after_normalize
+
+
+def test_runner_accepts_fenced_sql_with_brackets():
+    captured = {}
+    runner = None
+
+    async def llm_callback(system, user, *, model, provider, endpoint, timeout_ms):
+        captured['prompt'] = user
+        expected_sql = runner.questions_by_id[1]['sql']
+        # wrap in fenced markdown with MS-SQL bracket syntax — runner must clean both
+        bracket_sql = expected_sql.replace('"Sales Amount"', '[Sales Amount]').replace('"Fiscal Year"', '[Fiscal Year]').replace('"Total Product Cost"', '[Total Product Cost]')
+        return f"```sql\n{bracket_sql}\n```"
+
+    with SqlBenchmarkRunner(llm_callback=llm_callback, data_dir=DATA_DIR) as created_runner:
+        runner = created_runner
+        result = run(
+            runner.run_question(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+            )
+        )
+
+    assert captured['prompt']
+    assert result['benchmark_type'] == 'sql'
+    assert result['question_id'] == 1
+    assert result['success'] is True
+    assert result['row_count_match'] is True
+    assert result['columns_match'] is True
+    assert result['first_row_match'] is True
+    assert result['generated_sql'].startswith('SELECT')
+    assert result['error'] == ''
+    # verify brackets were converted to double quotes
+    assert '[' not in result['generated_sql']
+    assert ']' not in result['generated_sql']
+
+
+def test_sql_runner_fails_when_generated_sql_is_empty_after_cleanup():
+    async def llm_callback(system, user, *, model, provider, endpoint, timeout_ms):
+        return '```sql\n```'
+
+    with SqlBenchmarkRunner(llm_callback=llm_callback, data_dir=DATA_DIR) as runner:
+        result = run(
+            runner.run_question(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+            )
+        )
+
+    assert result['success'] is False
+    assert 'empty' in result['error'].lower()
+    assert result['generated_sql'] == ''
+    assert result['actual_row_count'] is None
+    assert result['row_count_match'] is None
+
+
+def test_prompt_uses_only_included_table_schema_subset():
+    captured = {}
+    runner = None
+
+    async def llm_callback(system, user, *, model, provider, endpoint, timeout_ms):
+        captured['system'] = system
+        captured['user'] = user
+        return runner.questions_by_id[1]['sql']
+
+    with SqlBenchmarkRunner(llm_callback=llm_callback, data_dir=DATA_DIR) as created_runner:
+        runner = created_runner
+        run(
+            runner.run_question(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+            )
+        )
+
+    # Schema is now in system prompt, not user
+    system = captured['system']
+    assert 'Table "Sales":' in system
+    assert 'Table "Date":' in system
+    assert 'Table "Product"' not in system
+    assert 'Table "Customer"' not in system
+    # User prompt contains only the question
+    user = captured['user']
+    assert 'Show annual revenue' in user
+
+
+def test_run_all_respects_empty_question_id_list():
+    async def llm_callback(prompt, *, model, provider, endpoint, timeout_ms):
+        raise AssertionError('callback should not be called for empty question list')
+
+    with SqlBenchmarkRunner(llm_callback=llm_callback, data_dir=DATA_DIR) as runner:
+        results = run(
+            runner.run_all(
+                question_ids=[],
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+            )
+        )
+
+    assert results == []
+
+
+# ── outcome field ─────────────────────────────────────────────────────────────
+
+def _make_tool_response(func_name: str, arguments: dict, tc_id: str = "tc1") -> dict:
+    """Helper: build a minimal tool-call LLM response."""
+    import json as _json
+    return {
+        "content": "",
+        "tool_calls": [{
+            "id": tc_id,
+            "type": "function",
+            "function": {"name": func_name, "arguments": _json.dumps(arguments)},
+        }],
+        "usage": {},
+        "model": "stub-model",
+    }
+
+
+def test_tool_calling_outcome_pass_on_correct_answer():
+    """outcome='pass' when results_ok is called and validation succeeds."""
+    runner = None
+    call_count = [0]
+
+    async def tool_callback(*, system_prompt, messages, tools, model, provider, endpoint, timeout_ms):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            expected_sql = runner.questions_by_id[1]['sql']
+            return _make_tool_response("run_sql_query", {"sql": expected_sql})
+        return _make_tool_response("results_ok", {})
+
+    with SqlBenchmarkRunner(llm_callback=None, data_dir=DATA_DIR) as created_runner:
+        runner = created_runner
+        result = run(
+            runner.run_question_tool_calling(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+                tool_llm_callback=tool_callback,
+            )
+        )
+
+    assert result['outcome'] == 'pass'
+    assert result['success'] is True
+
+
+def test_tool_calling_outcome_fail_on_wrong_answer():
+    """outcome='fail' when results_ok is called but validation fails."""
+    runner = None
+    call_count = [0]
+
+    async def tool_callback(*, system_prompt, messages, tools, model, provider, endpoint, timeout_ms):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            return _make_tool_response("run_sql_query", {"sql": "SELECT 0 AS wrong_col"})
+        return _make_tool_response("results_ok", {})
+
+    with SqlBenchmarkRunner(llm_callback=None, data_dir=DATA_DIR) as created_runner:
+        runner = created_runner
+        result = run(
+            runner.run_question_tool_calling(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+                tool_llm_callback=tool_callback,
+            )
+        )
+
+    assert result['outcome'] == 'fail'
+    assert result['success'] is False
+
+
+def test_tool_calling_outcome_error_on_llm_failure():
+    """outcome='error' when LLM callback raises."""
+    runner = None
+
+    async def tool_callback(*, system_prompt, messages, tools, model, provider, endpoint, timeout_ms):
+        raise RuntimeError("LLM unavailable")
+
+    with SqlBenchmarkRunner(llm_callback=None, data_dir=DATA_DIR) as created_runner:
+        runner = created_runner
+        result = run(
+            runner.run_question_tool_calling(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+                tool_llm_callback=tool_callback,
+            )
+        )
+
+    assert result['outcome'] == 'error'
+    assert result['success'] is False
+    assert 'LLM unavailable' in result['error']
+
+
+# ── conversation persistence ──────────────────────────────────────────────────
+
+def test_tool_calling_saves_conversation_on_pass():
+    """conversation is saved and contains user + assistant + tool messages."""
+    runner = None
+    call_count = [0]
+
+    async def tool_callback(*, system_prompt, messages, tools, model, provider, endpoint, timeout_ms):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            expected_sql = runner.questions_by_id[1]['sql']
+            return _make_tool_response("run_sql_query", {"sql": expected_sql})
+        return _make_tool_response("results_ok", {})
+
+    with SqlBenchmarkRunner(llm_callback=None, data_dir=DATA_DIR) as created_runner:
+        runner = created_runner
+        result = run(
+            runner.run_question_tool_calling(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+                tool_llm_callback=tool_callback,
+            )
+        )
+
+    conv = result['conversation']
+    assert isinstance(conv, list)
+    assert len(conv) >= 1
+    roles = [m['role'] for m in conv]
+    assert 'user' in roles
+    assert 'assistant' in roles or 'tool' in roles
+
+
+def test_tool_calling_saves_conversation_on_error():
+    """conversation is saved even when LLM fails."""
+    async def tool_callback(*, system_prompt, messages, tools, model, provider, endpoint, timeout_ms):
+        raise RuntimeError("boom")
+
+    with SqlBenchmarkRunner(llm_callback=None, data_dir=DATA_DIR) as runner:
+        result = run(
+            runner.run_question_tool_calling(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+                tool_llm_callback=tool_callback,
+            )
+        )
+
+    assert isinstance(result['conversation'], list)
+
+
+# ── loop: SQL error feedback ──────────────────────────────────────────────────
+
+def test_tool_calling_loop_sends_sql_error_back_to_llm():
+    """When SQL fails, the error is fed back to LLM as a tool message, and LLM can retry."""
+    runner = None
+    received_messages = []
+    call_count = [0]
+
+    async def tool_callback(*, system_prompt, messages, tools, model, provider, endpoint, timeout_ms):
+        call_count[0] += 1
+        received_messages.append(list(messages))
+        if call_count[0] == 1:
+            # Return intentionally broken SQL
+            return _make_tool_response("run_sql_query", {"sql": "SELECT * FROM nonexistent_table_xyz"})
+        if call_count[0] == 2:
+            # Second call: return correct SQL
+            return _make_tool_response("run_sql_query", {"sql": runner.questions_by_id[1]['sql']})
+        return _make_tool_response("results_ok", {})
+
+    with SqlBenchmarkRunner(llm_callback=None, data_dir=DATA_DIR) as created_runner:
+        runner = created_runner
+        result = run(
+            runner.run_question_tool_calling(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+                tool_llm_callback=tool_callback,
+            )
+        )
+
+    # Second call must have received the SQL error as a tool message
+    assert call_count[0] >= 2
+    second_call_messages = received_messages[1]
+    tool_messages = [m for m in second_call_messages if m.get('role') == 'tool']
+    assert tool_messages, "LLM must receive a tool message with SQL error feedback"
+    error_content = tool_messages[0]['content']
+    assert 'error' in error_content.lower() or 'Error' in error_content
+
+
+# ── no-tool-call path: LLM responds with text ────────────────────────────────
+
+def test_tool_calling_no_tool_call_prompts_llm_to_use_tool():
+    """When LLM returns text without a tool call:
+    - First MAX_NO_TOOL_CALL_RETRIES (2) calls are silent retries (same messages).
+    - After retries exhausted, a follow-up message is added asking to use run_sql_query.
+    """
+    runner = None
+    received_messages = []
+    call_count = [0]
+    MAX_RETRIES = 2  # must match sql_benchmark.py MAX_NO_TOOL_CALL_RETRIES
+
+    async def tool_callback(*, system_prompt, messages, tools, model, provider, endpoint, timeout_ms):
+        call_count[0] += 1
+        received_messages.append(list(messages))
+        if call_count[0] <= MAX_RETRIES + 1:
+            # First attempt + MAX_RETRIES retries all return no tool call
+            return {"content": "I think the answer is 42", "tool_calls": [], "usage": {}, "model": "stub-model"}
+        # After retries exhausted follow-up was added: now return SQL
+        return _make_tool_response("run_sql_query", {"sql": runner.questions_by_id[1]['sql']})
+
+    with SqlBenchmarkRunner(llm_callback=None, data_dir=DATA_DIR) as created_runner:
+        runner = created_runner
+        result = run(
+            runner.run_question_tool_calling(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+                tool_llm_callback=tool_callback,
+            )
+        )
+
+    # After MAX_RETRIES silent retries, a follow-up call is made
+    assert call_count[0] > MAX_RETRIES + 1, f"Expected >{MAX_RETRIES + 1} calls, got {call_count[0]}"
+    # The call after retries exhausted must have a message containing run_sql_query
+    followup_call_messages = received_messages[MAX_RETRIES + 1]
+    contents = " ".join(
+        m.get("content", "") or "" for m in followup_call_messages if isinstance(m.get("content"), str)
+    )
+    assert "run_sql_query" in contents
+
+
+# ── grammar mode: run_question has outcome + conversation ────────────────────
+
+def test_run_question_grammar_mode_outcome_pass():
+    """run_question (grammar mode) returns outcome='pass' on success."""
+    runner = None
+
+    async def llm_callback(system, user, *, model, provider, endpoint, timeout_ms):
+        return runner.questions_by_id[1]['sql']
+
+    with SqlBenchmarkRunner(llm_callback=llm_callback, data_dir=DATA_DIR) as created_runner:
+        runner = created_runner
+        result = run(
+            runner.run_question(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+            )
+        )
+
+    assert result['outcome'] == 'pass'
+    assert result['success'] is True
+    assert result['conversation'] == []
+
+
+def test_run_question_grammar_mode_outcome_fail_on_wrong_sql():
+    """run_question returns outcome='fail' when SQL runs but results don't match."""
+    async def llm_callback(system, user, *, model, provider, endpoint, timeout_ms):
+        return "SELECT 0 AS wrong"
+
+    with SqlBenchmarkRunner(llm_callback=llm_callback, data_dir=DATA_DIR) as runner:
+        result = run(
+            runner.run_question(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+            )
+        )
+
+    assert result['outcome'] == 'fail'
+    assert result['success'] is False
+
+
+def test_run_question_grammar_mode_outcome_error_on_llm_failure():
+    """run_question returns outcome='error' when LLM raises."""
+    async def llm_callback(system, user, *, model, provider, endpoint, timeout_ms):
+        raise RuntimeError("LLM down")
+
+    with SqlBenchmarkRunner(llm_callback=llm_callback, data_dir=DATA_DIR) as runner:
+        result = run(
+            runner.run_question(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+            )
+        )
+
+    assert result['outcome'] == 'error'
+    assert result['success'] is False
