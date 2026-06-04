@@ -83,4 +83,4 @@ first modules; the items below are not implemented yet unless noted.
 - [x] CSV result export for saved benchmark runs.
 - [x] TSV result export for saved benchmark runs.
 - [x] Reproducible run manifest export.
-- [ ] Presets for small local smoke tests versus full leaderboard-style runs.
+- [x] Presets for small local smoke tests versus full leaderboard-style runs.

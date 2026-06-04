@@ -42,6 +42,30 @@ def test_benchmark_modules_endpoint_returns_registry_metadata():
     assert by_id["speed"]["result_schema"]
 
 
+def test_benchmark_preset_registry_exposes_smoke_and_full_profiles():
+    presets = [preset.to_dict() for preset in server_module.BENCHMARK_PRESETS]
+    by_id = {preset["id"]: preset for preset in presets}
+
+    assert by_id["local-smoke"]["scope"] == "smoke"
+    assert by_id["local-smoke"]["module_defaults"]["speed"]["repeat_count"] == 1
+    assert by_id["local-smoke"]["module_defaults"]["sql"]["question_ids"] == [1, 2, 3]
+    assert by_id["leaderboard-full"]["module_defaults"]["speed"]["repeat_count"] >= by_id["balanced"]["module_defaults"]["speed"]["repeat_count"]
+    assert by_id["leaderboard-full"]["module_defaults"]["sql"]["question_timeout_ms"] >= by_id["balanced"]["module_defaults"]["sql"]["question_timeout_ms"]
+
+
+def test_benchmark_presets_endpoint_returns_payload_defaults():
+    server = BenchmarkServer(INDEX_HTML)
+
+    response = run(server.benchmark_presets(None))
+    payload = json.loads(response.text)
+    by_id = {preset["id"]: preset for preset in payload["presets"]}
+
+    assert response.status == 200
+    assert payload["status"] == "ok"
+    assert by_id["balanced"]["module_defaults"]["sql"]["thinking_mode"] == "both"
+    assert by_id["leaderboard-full"]["scope"] == "leaderboard"
+
+
 def test_benchmark_request_rejects_planned_modules_until_adapter_exists():
     with pytest.raises(ValueError, match="benchmark_type"):
         BenchmarkRequest.from_dict({

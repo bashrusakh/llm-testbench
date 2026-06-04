@@ -95,6 +95,24 @@ class BenchmarkModule:
         }
 
 
+@dataclass(frozen=True)
+class BenchmarkPreset:
+    preset_id: str
+    label: str
+    description: str
+    scope: str
+    module_defaults: Dict[str, Dict[str, Any]]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.preset_id,
+            "label": self.label,
+            "description": self.description,
+            "scope": self.scope,
+            "module_defaults": self.module_defaults,
+        }
+
+
 BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
     BenchmarkModule(
         module_id="speed",
@@ -152,6 +170,77 @@ BENCHMARK_MODULES: Tuple[BenchmarkModule, ...] = (
     ),
 )
 STARTABLE_BENCHMARK_TYPES = {module.module_id for module in BENCHMARK_MODULES if module.startable}
+BENCHMARK_PRESETS: Tuple[BenchmarkPreset, ...] = (
+    BenchmarkPreset(
+        preset_id="local-smoke",
+        label="Local Smoke",
+        description="Tiny local run for wiring checks and quick model sanity tests.",
+        scope="smoke",
+        module_defaults={
+            "speed": {
+                "repeat_count": 1,
+                "warmup_runs": 0,
+                "concurrency": 1,
+                "max_tokens": 256,
+                "timeout_ms": 30000,
+            },
+            "sql": {
+                "question_ids": [1, 2, 3],
+                "sql_mode": "tool-calling",
+                "thinking_mode": "off",
+                "reasoning_effort": "disabled",
+                "timeout_ms": 120000,
+                "question_timeout_ms": 30000,
+            },
+        },
+    ),
+    BenchmarkPreset(
+        preset_id="balanced",
+        label="Balanced",
+        description="Moderate run for comparing local models without full leaderboard cost.",
+        scope="comparison",
+        module_defaults={
+            "speed": {
+                "repeat_count": 3,
+                "warmup_runs": 1,
+                "concurrency": 1,
+                "max_tokens": 1024,
+                "timeout_ms": 120000,
+            },
+            "sql": {
+                "question_ids": None,
+                "sql_mode": "tool-calling",
+                "thinking_mode": "both",
+                "reasoning_effort": "disabled",
+                "timeout_ms": 120000,
+                "question_timeout_ms": 60000,
+            },
+        },
+    ),
+    BenchmarkPreset(
+        preset_id="leaderboard-full",
+        label="Leaderboard Full",
+        description="Fuller repeated run intended for published comparisons and saved manifests.",
+        scope="leaderboard",
+        module_defaults={
+            "speed": {
+                "repeat_count": 5,
+                "warmup_runs": 1,
+                "concurrency": 1,
+                "max_tokens": 4096,
+                "timeout_ms": 300000,
+            },
+            "sql": {
+                "question_ids": None,
+                "sql_mode": "tool-calling",
+                "thinking_mode": "both",
+                "reasoning_effort": "disabled",
+                "timeout_ms": 300000,
+                "question_timeout_ms": 120000,
+            },
+        },
+    ),
+)
 
 
 @dataclass
@@ -862,6 +951,13 @@ class BenchmarkServer:
             "status": "ok",
             "modules": [module.to_dict() for module in BENCHMARK_MODULES],
             "startable": sorted(STARTABLE_BENCHMARK_TYPES),
+            "timestamp": ts_utc(),
+        })
+
+    async def benchmark_presets(self, _request: web.Request) -> web.Response:
+        return web.json_response({
+            "status": "ok",
+            "presets": [preset.to_dict() for preset in BENCHMARK_PRESETS],
             "timestamp": ts_utc(),
         })
 
@@ -1974,6 +2070,7 @@ async def create_app() -> web.Application:
     app.router.add_get("/", server.index)
     app.router.add_get("/health", server.health)
     app.router.add_get("/api/benchmark/modules", server.benchmark_modules)
+    app.router.add_get("/api/benchmark/presets", server.benchmark_presets)
     app.router.add_get("/api/endpoints/scan", server.scan_endpoints)
     app.router.add_post("/api/models/discover", server.discover_models)
     app.router.add_post("/api/benchmark/start", server.benchmark_start)

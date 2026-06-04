@@ -19,10 +19,12 @@ The backend exposes module metadata for current and planned adapters:
 
 ```text
 GET /api/benchmark/modules
+GET /api/benchmark/presets
 ```
 
 Implemented modules are marked `startable: true`; planned modules are visible in
-the registry but cannot be started until their adapters exist.
+the registry but cannot be started until their adapters exist. Presets describe
+small local smoke runs, balanced comparisons, and fuller leaderboard-style runs.
 
 ## Planned Modules
 
