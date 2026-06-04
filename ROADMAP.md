@@ -89,5 +89,11 @@ The following were removed from the roadmap because they violate the scope rules
 
 ## Open TODO
 
-No open roadmap items. Future work should be added only if it satisfies the
-scope rules above.
+- [ ] LM Studio REST API support.
+  - LM Studio exposes an extended REST API beyond the OpenAI-compatible subset
+    (model load/unload, hardware info, loaded model stats, etc.).
+  - When an endpoint is detected as LM Studio (e.g. via the `/api/v0/` routes
+    or a distinctive header/model-list response), switch to the native LM Studio
+    REST API instead of the generic OpenAI-compatible path.
+  - Use the richer metadata (GPU layers, context length, load status) to enrich
+    benchmark output and the endpoint configuration panel.

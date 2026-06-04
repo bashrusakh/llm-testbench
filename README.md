@@ -1,133 +1,147 @@
+<div align="center">
+
 # LLM Testbench
 
-<p align="center">
-  <img src="docs/screenshots/overview.png" alt="LLM Testbench overview" width="920">
-</p>
+**Local multi-benchmark workbench for LLM evaluation**
 
-<p align="center">
-  <a href="https://github.com/bashrusakh/llm-testbench/releases"><img alt="Release" src="https://img.shields.io/github/v/release/bashrusakh/llm-testbench?sort=semver"></a>
-  <img alt="Local first" src="https://img.shields.io/badge/local--first-yes-22c55e">
-  <img alt="Python" src="https://img.shields.io/badge/python-3.10%2B-3776ab">
-  <img alt="No Docker required" src="https://img.shields.io/badge/docker-not%20required-64748b">
-</p>
+[![Release](https://img.shields.io/github/v/release/bashrusakh/llm-testbench?sort=semver&style=flat-square)](https://github.com/bashrusakh/llm-testbench/releases)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Local first](https://img.shields.io/badge/local--first-yes-22c55e?style=flat-square)](https://github.com/bashrusakh/llm-testbench)
+[![Tests](https://img.shields.io/badge/tests-166%20passing-22c55e?style=flat-square)](https://github.com/bashrusakh/llm-testbench)
+[![No Docker](https://img.shields.io/badge/docker-not%20required-64748b?style=flat-square)](https://github.com/bashrusakh/llm-testbench)
 
-LLM Testbench is a small local web workbench for comparing LLMs without pulling
-in heavyweight benchmark infrastructure. It is built for quick local checks:
-generation speed, SQL accuracy, tool calling, compact coding fixtures, JSON
-schema following, and prompt replay.
+<img src="docs/screenshots/overview.png" alt="LLM Testbench — endpoint configuration and model selection" width="900" style="border-radius:8px">
 
-The project deliberately stays lightweight. It uses repository-owned fixtures,
-local model endpoints, and deterministic tests instead of containers, browser
-farms, cloud benchmark services, or large downloaded datasets.
+*Endpoint configuration · Model discovery · Benchmark selection*
 
-## Highlights
+</div>
 
-- Local web UI for OpenAI-compatible servers, LM Studio, llama.cpp, and Ollama.
-- Speed benchmark with TTFT, total time, prompt tokens, completion tokens, and
-  decode tokens per second.
-- SQL Accuracy benchmark with DuckDB execution and result validation.
-- Local BFCL single-turn tool-calling adapter.
-- Fixture-ready coding, JSON schema, and prompt replay suites.
-- Saved run history with JSONL, CSV, TSV, manifest, and summary exports.
-- Contract endpoints for modules, presets, fixtures, adapters, and dashboard data.
+---
 
-## Screenshots
+Compare local LLMs on speed, SQL accuracy, and tool calling — no cloud, no containers, no dataset downloads. Point it at any OpenAI-compatible server and get results in seconds.
 
-### Live Results
+## Contents
 
-![Live benchmark results](docs/screenshots/results.png)
+- [Features](#features)
+- [Benchmarks](#benchmarks)
+- [Quick Start](#quick-start)
+- [Screenshots](#screenshots)
+- [Workflow](#workflow)
+- [Speed Metrics](#speed-metrics)
+- [SQL Accuracy](#sql-accuracy)
+- [API](#api)
+- [Repository Layout](#repository-layout)
+- [Development](#development)
 
-### History And Exports
+---
 
-![Saved run history and exports](docs/screenshots/history.png)
+## Features
+
+| | |
+|---|---|
+| ⚡ **Speed** | TTFT, total time, prompt tokens, completion tokens, decode TPS |
+| 🗄️ **SQL Accuracy** | DuckDB execution against local AdventureWorks fixtures, tool-call and grammar modes |
+| 🔧 **Tool Calling** | Local BFCL single-turn adapter — single, parallel, multiple, and no-call categories |
+| 📦 **Coding & Schema** | Tiny Python coding tasks and JSON schema instruction-following fixtures |
+| 📼 **Prompt Replay** | Fixed prompts for fast local regressions — required / optional / forbidden checks |
+| 💾 **Exports** | JSONL, CSV, TSV, summary JSON, manifest JSON, dashboard aggregate |
+| 🔌 **Endpoints** | LM Studio, llama.cpp, Ollama, and any OpenAI-compatible server |
+
+---
 
 ## Benchmarks
 
 | Module | Status | What it measures |
-| --- | --- | --- |
-| Speed | Startable | TTFT, total time, prompt/completion tokens, prefill TPS, decode TPS |
-| SQL Accuracy | Startable | SQL generation correctness against local DuckDB fixtures |
-| BFCL | Startable | Single-turn function/tool calling against local BFCL-style fixtures |
-| Coding Micro | Fixture-ready | Tiny Python coding tasks with syntax and static checks |
-| JSON Schema | Fixture-ready | Instruction following scored by JSON parsing and schema-lite checks |
-| Prompt Replay | Fixture-ready | Fixed prompts for fast local regression comparisons |
+|---|---|---|
+| **Speed** | ✅ Startable | TTFT, total time, prompt/completion tokens, prefill TPS, decode TPS |
+| **SQL Accuracy** | ✅ Startable | SQL generation correctness against local DuckDB fixtures |
+| **BFCL** | ✅ Startable | Single-turn function/tool calling — argument AST comparison |
+| **Coding Micro** | 🔶 Fixture-ready | Python coding tasks with syntax and static checks |
+| **JSON Schema** | 🔶 Fixture-ready | Instruction following scored by JSON parsing and schema-lite checks |
+| **Prompt Replay** | 🔶 Fixture-ready | Fixed prompts for fast local regression comparisons |
 
-Fixture-ready modules are exposed in metadata and validation endpoints. They are
-kept local and deterministic; live generation wiring can be added without
-changing the fixture format.
+Fixture-ready modules are wired to the metadata and validation endpoints and can be connected to live generation without changing their fixture format.
+
+---
 
 ## Quick Start
 
-Windows:
-
+**Windows:**
 ```bat
 run.bat
 ```
 
-Linux/macOS:
-
+**Linux / macOS:**
 ```bash
 ./run.sh
 ```
 
-The launcher creates a local virtual environment when needed, installs
-`python/requirements.txt`, starts the backend, and opens:
+The launcher creates a virtual environment, installs `python/requirements.txt`, starts the backend, and opens:
 
-```text
+```
 http://127.0.0.1:8765/
 ```
 
-Useful server options:
-
+Optional flags:
 ```bash
 ./run.sh --host 127.0.0.1 --port 8765 --log-level INFO
 ```
-
 ```bat
 run.bat --host 127.0.0.1 --port 8765 --log-level INFO
 ```
 
-## Basic Workflow
+---
 
-1. Start a local inference server such as LM Studio, llama.cpp, Ollama, or
-   another OpenAI-compatible endpoint.
-2. Open LLM Testbench.
-3. Scan local endpoints or enter a base URL manually.
-4. Discover models.
-5. Select benchmark modules.
-6. Run a benchmark and watch live results.
-7. Export saved runs from history.
+## Screenshots
+
+### SQL Accuracy — Live Results & History
+
+<img src="docs/screenshots/results.png" alt="SQL accuracy benchmark — live pass/fail grid and benchmark history" width="900" style="border-radius:8px">
+
+*Per-question pass/fail grid across TRIVIAL → EASY → MEDIUM → HARD. Saved runs with one-click JSONL, CSV, TSV, and Summary JSON exports.*
+
+---
+
+## Workflow
+
+1. Start a local inference server — LM Studio, llama.cpp, Ollama, or any OpenAI-compatible endpoint.
+2. Open LLM Testbench at `http://127.0.0.1:8765/`.
+3. **Scan Local** to auto-discover endpoints, or **+ Manual** to enter a base URL.
+4. Click **Discover Models** and select the models to benchmark.
+5. Choose benchmark modules and execution mode (sequential / parallel).
+6. Hit **Start** and watch live results stream in.
+7. Export saved runs from the history panel — JSONL, CSV, TSV, or Summary.
+
+---
 
 ## Speed Metrics
 
-The live speed path runs through `BenchmarkServer._run_single_benchmark`.
-`SpeedAdapter` is metadata-only so it cannot accidentally report placeholder
-passes.
+The live speed path runs through `BenchmarkServer._run_single_benchmark`. `SpeedAdapter` is metadata-only and raises instead of returning a placeholder, so it cannot silently report phantom passes.
 
-OpenAI-compatible decode TPS is calculated from streamed completion tokens over
-post-first-token stream time. Ollama decode TPS uses `eval_count / eval_duration`,
-so model load time and prompt evaluation time are not included in decode TPS.
-Use `warmup_runs > 0` when you want cold model loading kept out of measured runs.
+**OpenAI-compatible** — decode TPS is calculated from streamed completion tokens over post-first-token stream time.
 
-## SQL Accuracy Notes
+**Ollama** — decode TPS uses `eval_count / eval_duration`, excluding model load and prompt evaluation time.
 
-SQL Accuracy supports:
+Use `warmup_runs > 0` to keep cold model-loading time out of measured runs.
 
-- tool-calling and grammar-style SQL generation modes;
-- prompt thinking mode: off, on, or both;
-- provider reasoning effort: provider default, none, minimal, low, medium, high,
-  xhigh;
-- per-question timeout;
-- stop/reload recovery;
-- mismatch details for row count, columns, first row, and generated SQL.
+---
 
-`Provider default (omit)` does not send a reasoning field. `none` sends an
-explicit provider request to disable reasoning. Unsupported servers may reject
-unknown reasoning fields, so LLM Testbench retries without the field when needed.
+## SQL Accuracy
+
+Supports tool-calling and grammar-style SQL generation modes. Additional controls:
+
+- **Thinking mode** — off, on, or both
+- **Reasoning effort** — provider default, none, minimal, low, medium, high, xhigh
+- **Per-question timeout** and stop/reload recovery
+- **Mismatch details** — row count, columns, first row, generated SQL
+
+`Provider default (omit)` does not send a reasoning field. `none` sends an explicit request to disable reasoning. Servers that reject unknown reasoning fields get an automatic retry without it.
+
+---
 
 ## API
 
-```text
+```
 GET /api/benchmark/contract
 GET /api/benchmark/modules
 GET /api/benchmark/modules/{module_id}
@@ -139,9 +153,9 @@ GET /api/fixtures
 GET /api/fixtures/validate
 ```
 
-Saved benchmark exports:
+Saved run exports:
 
-```text
+```
 GET /api/benchmark/{job_id}/results.jsonl
 GET /api/benchmark/{job_id}/results.csv
 GET /api/benchmark/{job_id}/results.tsv
@@ -150,41 +164,30 @@ GET /api/benchmark/{job_id}/manifest.json
 GET /api/benchmark/summaries
 ```
 
-## Repository Contents
+---
 
-- `index.html` - single-page browser UI.
-- `run.bat` / `run.sh` - launchers.
-- `python/server.py` - backend API and benchmark orchestration.
-- `python/adapter.py` - benchmark adapter ABC and speed/SQL/BFCL adapters.
-- `python/sql_benchmark.py` - SQL benchmark runner.
-- `python/bfcl.py` - BFCL loader, scorer, and argument comparator.
-- `python/local_benchmarks.py` - local fixture loaders, validators, and scorers.
-- `sql_benchmark_data/` - SQL questions and AdventureWorks tables.
-- `bfcl_data/` - local BFCL-style questions and answers.
-- `coding_data/` - tiny Python coding tasks.
-- `json_schema_data/` - JSON instruction-following tasks.
-- `prompt_replay_data/` - fixed regression prompts.
-- `docs/screenshots/` - README screenshots.
-- `tests/` - backend, adapter, fixture, dashboard, and frontend tests.
+## Repository Layout
 
-## Scope
+```
+llm-testbench/
+├── index.html                  # Single-page browser UI
+├── run.bat / run.sh            # Cross-platform launchers
+├── python/
+│   ├── server.py               # Backend API and benchmark orchestration
+│   ├── adapter.py              # Benchmark adapter ABC + Speed / SQL / BFCL adapters
+│   ├── sql_benchmark.py        # SQL benchmark runner
+│   ├── bfcl.py                 # BFCL loader, scorer, and argument comparator
+│   └── local_benchmarks.py     # Local fixture loaders, validators, and scorers
+├── sql_benchmark_data/         # SQL questions and AdventureWorks tables
+├── bfcl_data/                  # Local BFCL-style questions and answers
+├── coding_data/                # Tiny Python coding tasks
+├── json_schema_data/           # JSON instruction-following tasks
+├── prompt_replay_data/         # Fixed regression prompts
+├── docs/screenshots/           # README screenshots
+└── tests/                      # Backend, adapter, fixture, dashboard, and frontend tests
+```
 
-In scope:
-
-- local model endpoints;
-- small repository-owned fixtures;
-- deterministic local tests;
-- simple adapter and API contracts;
-- fast smoke and comparison runs.
-
-Out of scope:
-
-- Terminal-Bench;
-- SWE-bench, SWE-rebench, Multi-SWE-bench, SWE-agent, OpenHands, SWE-ReX;
-- WebArena, OSWorld, CodeClash, GAIA, tau-bench;
-- LiveCodeBench and BigCodeBench as external integrations;
-- Docker orchestration, browser farms, desktop VMs, remote services, or large
-  downloaded benchmark datasets.
+---
 
 ## Development
 
@@ -194,7 +197,7 @@ Install dependencies:
 python -m pip install -r python/requirements.txt pytest
 ```
 
-Run tests:
+Run the test suite (166 tests):
 
 ```bash
 python -m pytest tests -q
@@ -206,13 +209,10 @@ Run the backend directly:
 python -m python.server
 ```
 
-## Release v0.1.0
+---
 
-First public release:
+## Scope
 
-- local web UI for lightweight LLM benchmarking;
-- startable Speed, SQL Accuracy, and BFCL modules;
-- fixture-ready Coding Micro, JSON Schema, and Prompt Replay modules;
-- local fixture manifest and validation endpoints;
-- saved run exports and dashboard summaries;
-- 166 passing tests.
+**In scope** — local model endpoints, small repository-owned fixtures, deterministic local tests, simple adapter and API contracts, fast smoke and comparison runs.
+
+**Out of scope** — Terminal-Bench; SWE-bench / SWE-rebench / Multi-SWE-bench / SWE-agent / OpenHands / SWE-ReX; WebArena / OSWorld / CodeClash / GAIA / tau-bench; LiveCodeBench and BigCodeBench as external integrations; Docker orchestration, browser farms, desktop VMs, remote services, large downloaded benchmark datasets.
