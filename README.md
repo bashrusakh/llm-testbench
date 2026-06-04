@@ -94,11 +94,17 @@ run.bat --host 127.0.0.1 --port 8765 --log-level INFO
 
 ## Screenshots
 
-### SQL Accuracy — Live Results & History
+### SQL Accuracy — Live Results
 
-<img src="docs/screenshots/results.png" alt="SQL accuracy benchmark — live pass/fail grid and benchmark history" width="900" style="border-radius:8px">
+<img src="docs/screenshots/results.png" alt="SQL accuracy benchmark — live pass/fail grid" width="900" style="border-radius:8px">
 
-*Per-question pass/fail grid across TRIVIAL → EASY → MEDIUM → HARD. Saved runs with one-click JSONL, CSV, TSV, and Summary JSON exports.*
+*Per-question pass/fail grid across TRIVIAL → EASY → MEDIUM → HARD.*
+
+### History & Exports
+
+<img src="docs/screenshots/history.png" alt="Benchmark history with saved local runs and export actions" width="900" style="border-radius:8px">
+
+*Saved runs with one-click JSONL, CSV, TSV, Manifest, and Summary JSON exports.*
 
 ---
 
