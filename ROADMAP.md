@@ -1,114 +1,105 @@
 # Roadmap
 
-LLM Testbench is a multi-benchmark workbench. Speed and SQL Accuracy are the
-first modules; the items below are not implemented yet unless noted.
+LLM Testbench is a lightweight local workbench. It should stay fast to run,
+small to implement, and easy to understand.
+
+## Scope Rules
+
+Every benchmark kept in this roadmap must satisfy all of these rules:
+
+- Runs locally from repository data or user-provided local model endpoints.
+- Requires no external benchmark service, cloud API, Docker image, browser farm,
+  desktop VM, or remote repository checkout.
+- Is simple enough to implement as a small adapter, not an orchestration system.
+- Has small fixture data in the repo for tests and smoke runs.
+- Can be covered by deterministic tests without network access.
+
+If a benchmark needs containers, live APIs, web/desktop automation, large external
+datasets, or multi-repository agent orchestration, it does not belong in this
+project roadmap.
 
 ## Implemented
 
-- Speed benchmark for local and OpenAI-compatible inference endpoints.
-- SQL Accuracy benchmark with DuckDB execution and result validation.
-- SQL tool-calling fallback, duplicate-SQL loop handling, stop/reload recovery,
-  history, SQL details, thinking mode, and provider reasoning effort.
+- [x] Speed benchmark for local and OpenAI-compatible inference endpoints.
+  - Measures TTFT, total time, prompt tokens, completion tokens, and decode TPS.
+  - Sequential and parallel execution paths are implemented in `python/server.py`.
+
+- [x] SQL Accuracy benchmark with local DuckDB execution and result validation.
+  - Uses local `sql_benchmark_data/`.
+  - Supports grammar and tool-calling modes.
+  - Includes thinking mode and provider reasoning-effort controls.
+
+- [x] BFCL local single-turn adapter.
+  - Uses local `bfcl_data/questions.jsonl` and `answers.jsonl`.
+  - Covers single, parallel, multiple, and relevance/no-call categories.
+  - Scores by argument AST comparison without executing live APIs.
+
+- [x] Benchmark adapter metadata and API contract.
+  - Module registry/detail endpoints.
+  - Preset list/detail endpoints.
+  - Adapter lifecycle, scoring, task-selection, and UI-renderer metadata.
+  - API contract endpoint with schema versions and route map.
+
+- [x] Saved-run exports and summaries.
+  - JSONL, CSV, TSV, summary JSON, and manifest JSON.
+  - Dashboard endpoint aggregates pass-rate, latency, cost, and token totals.
 
 ## Near-Term TODO
 
-- [x] BFCL adapter for function/tool calling — v1/v2 single-turn subset.
-  - Evaluates single, parallel, multiple, and relevance-detection categories
-    via AST comparison (no execution).
-  - `python/bfcl.py`: `BfclAdapter`, `score_bfcl_result`, `load_bfcl_tasks`,
-    argument comparator with numeric coercion and float tolerance.
-  - Data: `bfcl_data/questions.jsonl` + `answers.jsonl` (local BFCL format).
-  - Registered in `ADAPTER_REGISTRY`; stub dataset included for tests.
-  - Source: <https://sky.cs.berkeley.edu/project/berkeley-function-calling-leaderboard/>
-
 - [ ] Wire BFCL into `/api/benchmark/start`.
-  - Adapter and scorer exist, but the generic server run loop still needs to
-    call `BfclAdapter` for live benchmark jobs.
+  - Adapter and scorer exist; the server run loop still needs a lightweight path
+    for adapter-backed jobs.
+  - Keep it local-only: use repo BFCL fixtures by default, allow a local data dir
+    override, and do not download datasets.
 
-- [ ] BFCL v3 multi-turn upgrade.
-  - v3 uses state-based evaluation: functions execute against live Python API
-    backends (Gorilla File System, Vehicle Control, Trading Bots, Travel
-    Booking), and the system state after each turn is compared to ground truth —
-    not argument AST.
-  - Requires bundling the BFCL Python API simulators and a state-execution
-    runner. Blocked on container/sandbox support.
+- [ ] Fix SpeedAdapter to delegate to the real speed benchmark path or mark it as
+  metadata-only.
+  - Current live speed generation is in `BenchmarkServer._run_single_benchmark`,
+    `_benchmark_openai`, and `_benchmark_ollama`.
+  - `SpeedAdapter.run_task()` is a placeholder shim and should not be presented
+    as a full executor until it calls the real implementation.
 
-- [ ] Terminal-Bench adapter for terminal-agent tasks.
-  - Add a sandboxed shell execution layer.
-  - Track command count, wall time, success, logs, and final answer.
-  - Source: <https://terminalbench.lol/>
+- [ ] Add a small local coding micro-benchmark.
+  - Use a tiny repo-owned fixture set, for example 5-20 pure Python tasks.
+  - No LiveCodeBench/BigCodeBench dependency.
+  - Optional local execution only through normal Python subprocess tests, with
+    tight timeout and no network.
 
-- [ ] LiveCodeBench adapter for coding tasks.
-  - Start with code generation and self-repair subsets.
-  - Keep this separate from repository-level SWE tasks because it is cheaper and
-    easier to run locally.
-  - Source: <https://github.com/LiveCodeBench/LiveCodeBench>
+- [ ] Add a small local instruction-following / JSON schema benchmark.
+  - Tiny fixture set in the repo.
+  - Score by deterministic JSON parsing/schema comparison.
+  - Useful for non-tool-calling model behavior without external dependencies.
 
-- [ ] BigCodeBench adapter.
-  - Use as a software-engineering-oriented code generation module.
-  - Source: <https://github.com/bigcode-project/bigcodebench>
+- [ ] Add a local prompt replay benchmark for regression checks.
+  - Fixed prompts, expected structural properties, and exportable summaries.
+  - No leaderboard claim; just fast local comparison.
 
-## SWE / Repository-Agent TODO
+## Explicitly Out Of Scope
 
-- [ ] SWE-rebench / SWE-rebench V2 support.
-  - Prefer fresh/decontaminated rolling tasks for current-model comparisons.
-  - Needs Docker/container orchestration and repeated-run reporting.
-  - Source: <https://swe-rebench.com/about>
+The following were removed from the roadmap because they violate the scope rules:
 
-- [ ] SWE-bench / SWE-bench Verified support.
-  - Classic issue-to-patch benchmark using real GitHub issues.
-  - Good for comparability, but contamination and runtime cost must be surfaced.
-  - Source: <https://www.swebench.com/>
+- Terminal-Bench.
+- SWE-bench, SWE-rebench, Multi-SWE-bench, SWE-agent, OpenHands, SWE-ReX.
+- WebArena, OSWorld, CodeClash, GAIA, tau-bench.
+- LiveCodeBench and BigCodeBench as external benchmark integrations.
+- Any benchmark requiring Docker/container orchestration, browser automation,
+  desktop automation, external services, or large downloaded datasets.
 
-- [ ] Multi-SWE-bench or SWE-bench Multilingual support.
-  - Add multilingual repository-level tasks across Python, JavaScript,
-    TypeScript, Go, Rust, C, C++, Java, and related ecosystems.
-  - Source: <https://github.com/multi-swe-bench/multi-swe-bench>
+## Platform TODO
 
-- [ ] Agent scaffold adapters.
-  - mini-SWE-agent / SWE-agent style issue-solving.
-  - OpenHands-style richer runtime as a future option.
-  - SWE-ReX or equivalent sandbox runtime for safer execution.
+- [ ] Keep `/api/benchmark/start` simple.
+  - One local adapter job at a time is acceptable.
+  - Avoid queue managers, distributed workers, remote sandboxes, and complex
+    orchestration.
 
-## Experimental / Longer-Term
+- [ ] Add a local fixture manifest.
+  - Document fixture file paths, task counts, and schema versions.
+  - Use it to make smoke tests predictable.
 
-- [ ] CodeClash for multi-round goal-oriented software engineering.
-  - Source: <https://arxiv.org/abs/2511.00839>
+- [ ] Add a lightweight benchmark data validation command.
+  - Validate JSONL fixtures and required fields.
+  - Run locally with pytest or a simple Python module.
 
-- [ ] General agent benchmarks.
-  - GAIA for assistant/tool reasoning.
-  - WebArena for browser agents.
-  - OSWorld for desktop/computer-use agents.
-  - tau-bench for business workflow tool use.
-
-## Platform Work
-
-- [x] Benchmark module registry and metadata endpoint.
-- [x] Benchmark module detail endpoint.
-- [x] Benchmark module setup requirements metadata.
-- [x] Benchmark module task-selection metadata.
-- [x] Benchmark module scoring metadata.
-- [x] Benchmark module UI renderer metadata.
-- [x] Benchmark adapter lifecycle metadata.
-- [x] API contract endpoint with schema versions and route map.
-- [x] Benchmark preset detail endpoint.
-- [x] Preset metadata in API contract.
-- [x] Run summary export with pass-rate, latency, token, cost, and per-model aggregates.
-- [x] Saved-run summaries endpoint for dashboard-style history views.
-- [x] Full benchmark module adapter API so each suite can provide:
-  - run loop;
-  - concrete adapter lifecycle implementation.
-  - `python/adapter.py`: `BenchmarkAdapter` ABC, `SpeedAdapter`, `SqlAdapter`,
-    `BfclAdapter`, `ADAPTER_REGISTRY`, `get_adapter()`.
-  - `GET /api/benchmark/modules/{module_id}/adapter` returns adapter description.
-  - Contract endpoint exposes `adapter_implemented` list and `module_adapter` route.
-
-- [ ] Container/sandbox support for coding and terminal tasks.
-- [x] Cost, token, latency, and pass-rate dashboards across modules.
-  - `GET /api/benchmark/dashboard` aggregates all saved runs by module and model.
-  - Supports `?module=`, `?model=`, `?since=` query filters.
-- [x] JSONL result export for saved benchmark runs.
-- [x] CSV result export for saved benchmark runs.
-- [x] TSV result export for saved benchmark runs.
-- [x] Reproducible run manifest export.
-- [x] Presets for small local smoke tests versus full leaderboard-style runs.
+- [ ] Keep dashboard/export code generic but small.
+  - Aggregates are enough: pass-rate, latency, tokens, cost, per-module, per-model.
+  - Avoid complex analytics, leaderboard machinery, or remote publishing.

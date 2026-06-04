@@ -4,8 +4,9 @@ Local web workbench for evaluating LLMs across practical benchmark modules.
 
 LLM Testbench is meant to grow beyond a single benchmark. The current build can
 run latency/throughput tests and SQL accuracy tests against local or
-OpenAI-compatible inference servers. The roadmap adds coding, software
-engineering, terminal-agent, and tool-calling evaluations.
+OpenAI-compatible inference servers. The roadmap keeps future modules local,
+small, and dependency-light: tool-calling, small coding fixtures, schema checks,
+and prompt replay.
 
 ## Current Modules
 
@@ -50,10 +51,13 @@ token counts across all saved runs, broken down by module and model. Supports
 
 The next representative benchmark families are tracked in [ROADMAP.md](ROADMAP.md):
 
-- Terminal-Bench for terminal and DevOps-style agent tasks.
-- LiveCodeBench and BigCodeBench for coding ability.
-- SWE-bench, SWE-rebench, and Multi-SWE-bench for repository-level issue fixing.
-- CodeClash and broader agent suites as longer-term experimental modules.
+- BFCL wiring into `/api/benchmark/start`.
+- Small local coding fixtures, without LiveCodeBench/BigCodeBench dependency.
+- Local instruction-following and JSON schema checks.
+- Prompt replay for fast regression comparisons.
+
+Heavy orchestrator-style suites such as SWE-bench, Terminal-Bench, WebArena,
+OSWorld, CodeClash, GAIA, and tau-bench are intentionally out of scope.
 
 ## Supported Backends
 
