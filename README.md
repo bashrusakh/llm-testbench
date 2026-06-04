@@ -1,79 +1,60 @@
 # LLM Testbench
 
-Local web workbench for evaluating LLMs across practical benchmark modules.
+<p align="center">
+  <img src="docs/screenshots/overview.png" alt="LLM Testbench overview" width="920">
+</p>
 
-LLM Testbench is meant to grow beyond a single benchmark. The current build can
-run latency/throughput tests and SQL accuracy tests against local or
-OpenAI-compatible inference servers. The roadmap keeps future modules local,
-small, and dependency-light: tool-calling, small coding fixtures, schema checks,
-and prompt replay.
+<p align="center">
+  <a href="https://github.com/bashrusakh/llm-testbench/tags"><img alt="Release" src="https://img.shields.io/github/v/tag/bashrusakh/llm-testbench?sort=semver&label=release"></a>
+  <img alt="Local first" src="https://img.shields.io/badge/local--first-yes-22c55e">
+  <img alt="Python" src="https://img.shields.io/badge/python-3.10%2B-3776ab">
+  <img alt="No Docker required" src="https://img.shields.io/badge/docker-not%20required-64748b">
+</p>
 
-## Current Modules
+LLM Testbench is a small local web workbench for comparing LLMs without pulling
+in heavyweight benchmark infrastructure. It is built for quick local checks:
+generation speed, SQL accuracy, tool calling, compact coding fixtures, JSON
+schema following, and prompt replay.
 
-- **Speed** — measures latency, total generation time, prompt throughput, and
-  decode throughput.
-- **SQL Accuracy** — asks models to solve AdventureWorks-style analytical SQL
-  tasks, executes generated SQL against DuckDB, and checks row count, columns,
-  and first row values.
-- **BFCL** — Berkeley Function Calling Leaderboard adapter (v1/v2 single-turn
-  subset). Loads tasks from a local `bfcl_data/` directory and evaluates four
-  call categories: single, parallel, multiple, and relevance (no-call) via AST
-  comparison. No external dependencies; runs entirely from local data files.
-  Multi-turn (v3) and agentic (v4) categories are not yet supported.
-- **Coding Micro** - tiny Python coding fixtures with deterministic syntax and
-  static-fragment checks.
-- **JSON Schema** - local instruction-following fixtures scored by JSON parsing
-  and schema-lite validation.
-- **Prompt Replay** - fixed local prompts for fast regression checks.
+The project deliberately stays lightweight. It uses repository-owned fixtures,
+local model endpoints, and deterministic tests instead of containers, browser
+farms, cloud benchmark services, or large downloaded datasets.
 
-The backend exposes module metadata for live and fixture-ready adapters:
+## Highlights
 
-```text
-GET /api/benchmark/contract
-GET /api/benchmark/modules
-GET /api/benchmark/modules/{module_id}
-GET /api/benchmark/modules/{module_id}/adapter
-GET /api/benchmark/presets
-GET /api/benchmark/presets/{preset_id}
-GET /api/benchmark/dashboard
-GET /api/fixtures
-GET /api/fixtures/validate
-```
+- Local web UI for OpenAI-compatible servers, LM Studio, llama.cpp, and Ollama.
+- Speed benchmark with TTFT, total time, prompt tokens, completion tokens, and
+  decode tokens per second.
+- SQL Accuracy benchmark with DuckDB execution and result validation.
+- Local BFCL single-turn tool-calling adapter.
+- Fixture-ready coding, JSON schema, and prompt replay suites.
+- Saved run history with JSONL, CSV, TSV, manifest, and summary exports.
+- Contract endpoints for modules, presets, fixtures, adapters, and dashboard data.
 
-Implemented live modules are marked `startable: true`; fixture-ready modules are
-visible in the registry and fixture endpoints but are not wired into live
-generation yet. Presets describe small local smoke runs, balanced comparisons,
-and fuller local runs.
-Module metadata includes setup requirements and task-selection hints so future
-adapters and UI panels can share one contract. It also describes scoring and UI
-renderer hints for tables, traces, detail panels, and summary cards. The contract
-endpoint exposes schema versions, lifecycle hooks, endpoint paths, and export
-formats for integrations.
+## Screenshots
 
-The `/api/benchmark/dashboard` endpoint aggregates pass-rate, latency, cost, and
-token counts across all saved runs, broken down by module and model. Supports
-`?module=`, `?model=`, and `?since=` query filters.
+### Live Results
 
-The fixture endpoints describe and validate local benchmark data in the repo.
-They are intentionally local-only and do not download datasets.
+![Live benchmark results](docs/screenshots/results.png)
 
-## Scope
+### History And Exports
 
-The roadmap is deliberately narrow. Heavy orchestrator-style suites such as
-SWE-bench, Terminal-Bench, WebArena, OSWorld, CodeClash, GAIA, tau-bench,
-LiveCodeBench, and BigCodeBench are intentionally out of scope. The project
-keeps small local fixtures instead of external benchmark dependencies.
+![Saved run history and exports](docs/screenshots/history.png)
 
-## Supported Backends
+## Benchmarks
 
-- OpenAI-compatible endpoints.
-- LM Studio and llama.cpp servers that expose OpenAI-compatible APIs.
-- Ollama for speed tests and compatible chat flows.
+| Module | Status | What it measures |
+| --- | --- | --- |
+| Speed | Startable | TTFT, total time, prompt/completion tokens, prefill TPS, decode TPS |
+| SQL Accuracy | Startable | SQL generation correctness against local DuckDB fixtures |
+| BFCL | Startable | Single-turn function/tool calling against local BFCL-style fixtures |
+| Coding Micro | Fixture-ready | Tiny Python coding tasks with syntax and static checks |
+| JSON Schema | Fixture-ready | Instruction following scored by JSON parsing and schema-lite checks |
+| Prompt Replay | Fixture-ready | Fixed prompts for fast local regression comparisons |
 
-Provider-specific behavior matters. Some servers accept provider reasoning
-payloads such as `reasoning: { "effort": "medium" }`; others reject unknown
-fields. LLM Testbench retries without that field when it sees an unsupported
-reasoning response.
+Fixture-ready modules are exposed in metadata and validation endpoints. They are
+kept local and deterministic; live generation wiring can be added without
+changing the fixture format.
 
 ## Quick Start
 
@@ -108,19 +89,29 @@ run.bat --host 127.0.0.1 --port 8765 --log-level INFO
 
 ## Basic Workflow
 
-1. Start an inference server such as LM Studio, llama.cpp, Ollama, or another
-   OpenAI-compatible endpoint.
+1. Start a local inference server such as LM Studio, llama.cpp, Ollama, or
+   another OpenAI-compatible endpoint.
 2. Open LLM Testbench.
-3. Scan endpoints or enter a base URL manually.
+3. Scan local endpoints or enter a base URL manually.
 4. Discover models.
-5. Select one or more benchmark modules.
-6. Start the run and watch live results.
-7. Use history to inspect previous runs, SQL diffs, saved reports, and JSONL
-   exports.
+5. Select benchmark modules.
+6. Run a benchmark and watch live results.
+7. Export saved runs from history.
+
+## Speed Metrics
+
+The live speed path runs through `BenchmarkServer._run_single_benchmark`.
+`SpeedAdapter` is metadata-only so it cannot accidentally report placeholder
+passes.
+
+OpenAI-compatible decode TPS is calculated from streamed completion tokens over
+post-first-token stream time. Ollama decode TPS uses `eval_count / eval_duration`,
+so model load time and prompt evaluation time are not included in decode TPS.
+Use `warmup_runs > 0` when you want cold model loading kept out of measured runs.
 
 ## SQL Accuracy Notes
 
-SQL Accuracy currently supports:
+SQL Accuracy supports:
 
 - tool-calling and grammar-style SQL generation modes;
 - prompt thinking mode: off, on, or both;
@@ -131,46 +122,24 @@ SQL Accuracy currently supports:
 - mismatch details for row count, columns, first row, and generated SQL.
 
 `Provider default (omit)` does not send a reasoning field. `none` sends an
-explicit provider request to disable reasoning. This difference matters because
-unsupported servers may reject the field entirely.
+explicit provider request to disable reasoning. Unsupported servers may reject
+unknown reasoning fields, so LLM Testbench retries without the field when needed.
 
-For llama.cpp/Qwen-style models, real thinking/no-thinking can also be controlled
-when the server is launched, for example with chat-template arguments. The UI
-reasoning selector only controls request payloads.
+## API
 
-## Repository Contents
+```text
+GET /api/benchmark/contract
+GET /api/benchmark/modules
+GET /api/benchmark/modules/{module_id}
+GET /api/benchmark/modules/{module_id}/adapter
+GET /api/benchmark/presets
+GET /api/benchmark/presets/{preset_id}
+GET /api/benchmark/dashboard
+GET /api/fixtures
+GET /api/fixtures/validate
+```
 
-Keep these files and directories in the repository:
-
-- `README.md` - project overview and quick start.
-- `ROADMAP.md` - future benchmark modules and implementation plan.
-- `index.html` - single-page browser UI.
-- `run.bat` / `run.sh` - launchers.
-- `python/server.py` - backend API and benchmark orchestration.
-- `python/sql_benchmark.py` - SQL benchmark runner.
-- `python/adapter.py` - `BenchmarkAdapter` ABC and concrete speed/SQL/BFCL adapters.
-- `python/bfcl.py` - BFCL adapter: loader, scorer, argument comparator.
-- `python/local_benchmarks.py` - local fixture loaders, validators, and scorer helpers.
-- `python/requirements.txt` - Python dependencies.
-- `python/__init__.py` - backend package marker.
-- `sql_benchmark_data/` - SQL benchmark questions and AdventureWorks tables.
-- `bfcl_data/` - BFCL task files (`questions.jsonl`, `answers.jsonl`). The
-  included stub dataset covers all four categories and is used by the test suite.
-  Replace or extend with the full BFCL dataset for leaderboard-style runs.
-- `coding_data/` - tiny Python coding tasks for local static scoring.
-- `json_schema_data/` - JSON instruction-following fixtures.
-- `prompt_replay_data/` - fixed prompt replay fixtures.
-- `tests/` - backend, SQL, BFCL, adapter, dashboard, and frontend regression tests.
-
-## Exports
-
-Saved benchmark runs can be exported from the History table as JSONL, CSV, TSV,
-summary JSON, or a run manifest. JSONL keeps the complete payload with one
-benchmark result per line. CSV and TSV provide common columns for spreadsheet
-workflows and keep the original result payload in the `result_json` column. The
-summary JSON provides pass-rate, latency, token, cost, and per-model aggregates.
-The manifest records the run configuration and summary without embedding every
-result.
+Saved benchmark exports:
 
 ```text
 GET /api/benchmark/{job_id}/results.jsonl
@@ -181,32 +150,41 @@ GET /api/benchmark/{job_id}/manifest.json
 GET /api/benchmark/summaries
 ```
 
-Do not commit local environments, caches, saved benchmark output, or old archived
-experiments.
+## Repository Contents
 
-## Changelog
+- `index.html` - single-page browser UI.
+- `run.bat` / `run.sh` - launchers.
+- `python/server.py` - backend API and benchmark orchestration.
+- `python/adapter.py` - benchmark adapter ABC and speed/SQL/BFCL adapters.
+- `python/sql_benchmark.py` - SQL benchmark runner.
+- `python/bfcl.py` - BFCL loader, scorer, and argument comparator.
+- `python/local_benchmarks.py` - local fixture loaders, validators, and scorers.
+- `sql_benchmark_data/` - SQL questions and AdventureWorks tables.
+- `bfcl_data/` - local BFCL-style questions and answers.
+- `coding_data/` - tiny Python coding tasks.
+- `json_schema_data/` - JSON instruction-following tasks.
+- `prompt_replay_data/` - fixed regression prompts.
+- `docs/screenshots/` - README screenshots.
+- `tests/` - backend, adapter, fixture, dashboard, and frontend tests.
 
-### [Unreleased]
+## Scope
 
-- **BFCL adapter** (`python/bfcl.py`): evaluates single, parallel, multiple, and
-  relevance tool-calling categories using local task files. Includes argument
-  comparator with numeric type coercion and float tolerance. Stub dataset in
-  `bfcl_data/` covers all four categories; no external dependencies required.
-- **Benchmark adapter API** (`python/adapter.py`): `BenchmarkAdapter` abstract
-  base class with six lifecycle hooks (`prepare`, `select_tasks`, `run_task`,
-  `score`, `render`, `cleanup`). Concrete adapters for speed, SQL, and BFCL
-  registered in `ADAPTER_REGISTRY`. New endpoint
-  `GET /api/benchmark/modules/{module_id}/adapter` returns adapter description or
-  an adapter stub for fixture-ready modules. Contract endpoint now lists
-  `adapter_implemented` modules.
-- **Cross-module dashboard** (`GET /api/benchmark/dashboard`): aggregates
-  pass-rate, latency, cost, and token counts across all saved runs, broken down by
-  module and model. Supports `?module=`, `?model=`, and `?since=` query filters.
-- **Local fixture benchmarks** (`python/local_benchmarks.py`): adds coding micro,
-  JSON schema, and prompt replay fixture sets with deterministic validators and
-  scorer helpers. Heavy external benchmark suites are kept out of scope.
-- Speed adapter is now explicitly metadata-only; live speed runs execute through
-  `BenchmarkServer._run_single_benchmark`.
+In scope:
+
+- local model endpoints;
+- small repository-owned fixtures;
+- deterministic local tests;
+- simple adapter and API contracts;
+- fast smoke and comparison runs.
+
+Out of scope:
+
+- Terminal-Bench;
+- SWE-bench, SWE-rebench, Multi-SWE-bench, SWE-agent, OpenHands, SWE-ReX;
+- WebArena, OSWorld, CodeClash, GAIA, tau-bench;
+- LiveCodeBench and BigCodeBench as external integrations;
+- Docker orchestration, browser farms, desktop VMs, remote services, or large
+  downloaded benchmark datasets.
 
 ## Development
 
@@ -222,16 +200,19 @@ Run tests:
 python -m pytest tests -q
 ```
 
-The backend entrypoint is:
+Run the backend directly:
 
 ```bash
 python -m python.server
 ```
 
-## Repository Name
+## Release v0.1.0
 
-Recommended GitHub repository name:
+First public release:
 
-```text
-llm-testbench
-```
+- local web UI for lightweight LLM benchmarking;
+- startable Speed, SQL Accuracy, and BFCL modules;
+- fixture-ready Coding Micro, JSON Schema, and Prompt Replay modules;
+- local fixture manifest and validation endpoints;
+- saved run exports and dashboard summaries;
+- 166 passing tests.
