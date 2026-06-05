@@ -2413,11 +2413,14 @@
 
 
     function extractQuant(modelName) {
+      // Unsloth Dynamic GGUF: UD_IQ1_S, UD_Q2_K_XL, etc.
+      const unslothDynamic = modelName.match(/\bUD_(?:I?Q\d[\w_]*|[A-Z0-9_]+)\b/i);
+      if (unslothDynamic) return unslothDynamic[0].toUpperCase();
       // GGUF: Q4_K_M, Q8_0, IQ3_M, IQ4_XS, etc.
       const gguf = modelName.match(/\b(IQ\d[\w]*|Q\d[\w]*)\b/i);
       if (gguf) return gguf[1].toUpperCase();
       // Named formats
-      const named = modelName.match(/\b(AWQ|GPTQ|QAT|EETQ|bnb|NF4)\b/i);
+      const named = modelName.match(/\b(AWQ|GPTQ|QAT|EETQ|BNB|NF4|UNSLOTH|DYNAMIC)\b/i);
       if (named) return named[1].toUpperCase();
       // Numeric bit-width: fp16, bf16, f16, f32, int4, int8, 4bit, 8bit
       const bits = modelName.match(/\b(fp16|bf16|f16|f32|int4|int8|\d+bit)\b/i);

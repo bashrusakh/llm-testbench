@@ -99,3 +99,12 @@ def test_frontend_speed_table_uses_ttft_total_and_operation_status():
     assert "formatTps(result.decode_tps)" in html
     assert "current_message" in html
     assert "Best TTFT" in html
+
+
+def test_frontend_quant_parser_recognizes_unsloth_dynamic_formats():
+    html = INDEX_HTML.read_text("utf-8")
+
+    assert "UD_IQ1_S" in html
+    assert "unslothDynamic" in html
+    assert "UNSLOTH" in html
+    assert "DYNAMIC" in html
