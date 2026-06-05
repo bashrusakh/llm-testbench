@@ -7,7 +7,7 @@
 [![Release](https://img.shields.io/github/v/release/bashrusakh/llm-testbench?sort=semver&style=flat-square)](https://github.com/bashrusakh/llm-testbench/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Local first](https://img.shields.io/badge/local--first-yes-22c55e?style=flat-square)](https://github.com/bashrusakh/llm-testbench)
-[![Tests](https://img.shields.io/badge/tests-166%20passing-22c55e?style=flat-square)](https://github.com/bashrusakh/llm-testbench)
+[![Tests](https://img.shields.io/badge/tests-115%20passing-22c55e?style=flat-square)](https://github.com/bashrusakh/llm-testbench)
 [![No Docker](https://img.shields.io/badge/docker-not%20required-64748b?style=flat-square)](https://github.com/bashrusakh/llm-testbench)
 
 <img src="docs/screenshots/overview.png" alt="LLM Testbench — endpoint configuration and model selection" width="900" style="border-radius:8px">
@@ -18,7 +18,7 @@
 
 ---
 
-Compare local LLMs on speed, SQL accuracy, and tool calling — no cloud, no containers, no dataset downloads. Point it at any OpenAI-compatible server and get results in seconds.
+Compare local LLMs on speed and SQL accuracy, with lightweight local fixture packs for future coding and instruction checks — no cloud, no containers, no dataset downloads. Point it at any OpenAI-compatible server and get results in seconds.
 
 ## Contents
 
@@ -41,7 +41,6 @@ Compare local LLMs on speed, SQL accuracy, and tool calling — no cloud, no con
 |---|---|
 | ⚡ **Speed** | TTFT, total time, prompt tokens, completion tokens, decode TPS |
 | 🗄️ **SQL Accuracy** | DuckDB execution against local AdventureWorks fixtures, tool-call and grammar modes |
-| 🔧 **Tool Calling** | Local BFCL v2 single-turn adapter — single, parallel, multiple, and no-call categories |
 | 📦 **Coding & Schema** | Tiny Python coding tasks and JSON schema instruction-following fixtures |
 | 📼 **Prompt Replay** | Fixed prompts for fast local regressions — required / optional / forbidden checks |
 | 💾 **Exports** | JSONL, CSV, TSV, summary JSON, manifest JSON, dashboard aggregate |
@@ -55,7 +54,6 @@ Compare local LLMs on speed, SQL accuracy, and tool calling — no cloud, no con
 |---|---|---|
 | **Speed** | ✅ Startable | TTFT, total time, prompt/completion tokens, prefill TPS, decode TPS |
 | **SQL Accuracy** | ✅ Startable | SQL generation correctness against local DuckDB fixtures |
-| **BFCL v2** | ✅ Startable | Single-turn function/tool calling — argument AST comparison, per-category pass counts in the UI |
 | **Coding Micro** | 🔶 Fixture-ready | Python coding tasks with syntax and static checks |
 | **JSON Schema** | 🔶 Fixture-ready | Instruction following scored by JSON parsing and schema-lite checks |
 | **Prompt Replay** | 🔶 Fixture-ready | Fixed prompts for fast local regression comparisons |
@@ -180,12 +178,10 @@ llm-testbench/
 ├── run.bat / run.sh            # Cross-platform launchers
 ├── python/
 │   ├── server.py               # Backend API and benchmark orchestration
-│   ├── adapter.py              # Benchmark adapter ABC + Speed / SQL / BFCL adapters
+│   ├── adapter.py              # Benchmark adapter ABC + Speed / SQL adapters
 │   ├── sql_benchmark.py        # SQL benchmark runner
-│   ├── bfcl.py                 # BFCL loader, scorer, and argument comparator
 │   └── local_benchmarks.py     # Local fixture loaders, validators, and scorers
 ├── sql_benchmark_data/         # SQL questions and AdventureWorks tables
-├── bfcl_data/                  # Local BFCL-style questions and answers
 ├── coding_data/                # Tiny Python coding tasks
 ├── json_schema_data/           # JSON instruction-following tasks
 ├── prompt_replay_data/         # Fixed regression prompts
@@ -203,7 +199,7 @@ Install dependencies:
 python -m pip install -r python/requirements.txt pytest
 ```
 
-Run the test suite (166 tests):
+Run the test suite (115 tests):
 
 ```bash
 python -m pytest tests -q

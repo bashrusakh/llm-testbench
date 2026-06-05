@@ -1,3 +1,3 @@
 {"id":"brief_local_scope","prompt":"In one sentence, describe why this benchmark project stays local and lightweight.","checks":{"contains_all":["local"],"contains_any":["lightweight","small","fast"],"forbidden":["docker","cloud service"],"min_length":20}}
 {"id":"sql_module_summary","prompt":"Summarize the SQL Accuracy module in one concise sentence.","checks":{"contains_all":["SQL"],"contains_any":["DuckDB","query","accuracy"],"forbidden":["browser automation"],"min_length":20}}
-{"id":"bfcl_module_summary","prompt":"Summarize the BFCL module in one concise sentence.","checks":{"contains_all":["tool"],"contains_any":["function","call"],"forbidden":["desktop VM"],"min_length":20}}
+{"id":"local_tooling_summary","prompt":"Summarize why lightweight local model tests should avoid external services.","checks":{"contains_all":["local"],"contains_any":["lightweight","fast"],"forbidden":["desktop VM"],"min_length":20}}

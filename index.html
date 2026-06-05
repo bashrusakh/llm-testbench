@@ -928,7 +928,6 @@
         <div class="chk-row">
           <label><input type="checkbox" id="typeSpeed" checked> Speed</label>
           <label><input type="checkbox" id="typeSql"> SQL Accuracy</label>
-          <label><input type="checkbox" id="typeBfcl"> BFCL v2</label>
         </div>
       </div>
       <div id="questionIdsGroup" class="form-group hidden">
@@ -961,22 +960,6 @@
           Max wall-clock per question, excluding model load (first call to each model is untimed). 0 disables.
         </div>
       </div>
-      <div id="bfclSettingsGroup" class="hidden">
-        <div class="form-group">
-          <label>BFCL Categories</label>
-          <div class="chk-row">
-            <label><input type="checkbox" id="bfclCatSingle" checked> single</label>
-            <label><input type="checkbox" id="bfclCatParallel" checked> parallel</label>
-            <label><input type="checkbox" id="bfclCatMultiple" checked> multiple</label>
-            <label><input type="checkbox" id="bfclCatRelevance" checked> relevance</label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="bfclTaskIds">Task IDs (optional)</label>
-          <input id="bfclTaskIds" type="text" placeholder="e.g. simple_1, simple_2">
-        </div>
-      </div>
-
       <div class="form-group speed-only-setting">
         <label for="mode">Execution Mode</label>
         <select id="mode">
@@ -1024,9 +1007,6 @@
       </div>
       <div id="sqlModeHint" class="status-message info hidden" style="margin-top:8px; margin-bottom:0;">
         SQL benchmark uses backend-built prompts from the AdventureWorks schema. Select one or more models.
-      </div>
-      <div id="bfclModeHint" class="status-message info hidden" style="margin-top:8px; margin-bottom:0;">
-        BFCL v2 tests function-calling accuracy using local fixtures from <code>bfcl_data/</code>. Requires an OpenAI-compatible endpoint.
       </div>
     </div>
 
@@ -1076,7 +1056,6 @@
       </div>
 
       <div id="sqlResultsContainer" style="display:none;"></div>
-      <div id="bfclResultsContainer" style="display:none;"></div>
       <div style="overflow-x: auto;">
         <div id="speedResultsContainer">
           <table>
@@ -1168,6 +1147,7 @@
       // when both tests are checked). pollJob starts the next one on completion;
       // Stop clears this so the queue does not continue.
       jobQueue: [],
+      isBenchmarkRunning: false,
     };
 
     // Single source of truth for the Start/Stop buttons, driven by job status.
@@ -1176,9 +1156,27 @@
     function applyButtonState(status) {
       const startBtn = $('startBtn');
       const stopBtn = $('stopBtn');
+      const discoverBtn = $('discoverBtn');
       const live = status === 'queued' || status === 'running' || status === 'stopping';
+      state.isBenchmarkRunning = live;
       if (startBtn) startBtn.disabled = live;
       if (stopBtn) stopBtn.disabled = !live;
+      if (discoverBtn) discoverBtn.disabled = live || !getBaseUrlValue();
+      syncModelSelectionLock();
+    }
+
+    function syncModelSelectionLock() {
+      const disabled = state.isBenchmarkRunning;
+      ['modelSearch', 'selectAllBtn', 'selectNoneBtn'].forEach(id => {
+        const node = $(id);
+        if (node) node.disabled = disabled;
+      });
+      const modelListEl = $('modelList');
+      if (modelListEl) {
+        modelListEl.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+          checkbox.disabled = disabled;
+        });
+      }
     }
 
     const MANUAL_PROVIDER_PRESETS = {
@@ -1325,12 +1323,11 @@
       el.className = 'status-message info';
     }
 
-    // Which benchmark types are checked, in run order (speed first, then sql, then bfcl).
+    // Which benchmark types are checked, in run order (speed first, then sql).
     function selectedBenchmarkTypes() {
       const types = [];
       if ($('typeSpeed') && $('typeSpeed').checked) types.push('speed');
       if ($('typeSql') && $('typeSql').checked) types.push('sql');
-      if ($('typeBfcl') && $('typeBfcl').checked) types.push('bfcl');
       return types;
     }
 
@@ -1341,10 +1338,6 @@
     // True when SQL is among the selected tests (controls SQL-specific fields).
     function isSqlBenchmarkMode() {
       return !!($('typeSql') && $('typeSql').checked);
-    }
-
-    function isBfclBenchmarkMode() {
-      return !!($('typeBfcl') && $('typeBfcl').checked);
     }
 
     // Map the two thinking checkboxes to the backend's off|on|both. Returns null
@@ -1378,38 +1371,29 @@
 
     function benchmarkTypeLabel(type) {
       if (type === 'sql') return 'SQL Accuracy';
-      if (type === 'bfcl') return 'BFCL v2';
       return 'Speed';
     }
 
     function setResultsTableMode(benchmarkType) {
       const sqlContainer = $('sqlResultsContainer');
       const speedContainer = $('speedResultsContainer');
-      const bfclContainer = $('bfclResultsContainer');
       if (benchmarkType === 'sql') {
         if (sqlContainer) sqlContainer.style.display = '';
         if (speedContainer) speedContainer.style.display = 'none';
-        if (bfclContainer) bfclContainer.style.display = 'none';
-      } else if (benchmarkType === 'bfcl') {
-        if (sqlContainer) sqlContainer.style.display = 'none';
-        if (speedContainer) speedContainer.style.display = 'none';
-        if (bfclContainer) bfclContainer.style.display = '';
       } else {
         if (sqlContainer) sqlContainer.style.display = 'none';
         if (speedContainer) speedContainer.style.display = '';
-        if (bfclContainer) bfclContainer.style.display = 'none';
       }
     }
 
     function resetSummaryForMode(benchmarkType) {
       const sqlMode = benchmarkType === 'sql';
-      const bfclMode = benchmarkType === 'bfcl';
       const labels = [
-        ['successfulRunsLabel', sqlMode ? 'Questions Passed' : bfclMode ? 'Tasks Passed' : 'Successful Runs'],
-        ['bestLatencyLabel', sqlMode ? 'Row Matches' : bfclMode ? 'Single' : 'Best TTFT'],
-        ['bestPpLabel', sqlMode ? 'Column Matches' : bfclMode ? 'Parallel' : 'Best PP'],
-        ['bestDecodeLabel', sqlMode ? 'First Row Matches' : bfclMode ? 'Multiple' : 'Best Decode'],
-        ['activeModelLabel', sqlMode ? 'Active SQL Model' : bfclMode ? 'Active Model' : 'Active Model'],
+        ['successfulRunsLabel', sqlMode ? 'Questions Passed' : 'Successful Runs'],
+        ['bestLatencyLabel', sqlMode ? 'Row Matches' : 'Best TTFT'],
+        ['bestPpLabel', sqlMode ? 'Column Matches' : 'Best PP'],
+        ['bestDecodeLabel', sqlMode ? 'First Row Matches' : 'Best Decode'],
+        ['activeModelLabel', sqlMode ? 'Active SQL Model' : 'Active Model'],
       ];
       labels.forEach(([id, text]) => { const el = $(id); if (el) el.textContent = text; });
 
@@ -1417,8 +1401,6 @@
       if (hint) {
         hint.textContent = sqlMode
           ? 'SQL mode checks semantic correctness against AdventureWorks answers: row count, columns, and first row when available.'
-          : bfclMode
-          ? 'BFCL v2 scores tool-call accuracy by category: single, parallel, multiple, relevance.'
           : 'TTFT = time to first token. Total = full generation time. PP = prompt tokens per second when the backend reports prompt-eval timing.';
       }
 
@@ -1430,9 +1412,7 @@
     function updateBenchmarkModeUi() {
       const sqlOn = isSqlBenchmarkMode();
       const speedOn = isSpeedBenchmarkMode();
-      const bfclOn = isBfclBenchmarkMode();
-      // For the results panel layout, prefer SQL > BFCL > Speed.
-      const primaryType = sqlOn ? 'sql' : bfclOn ? 'bfcl' : 'speed';
+      const primaryType = sqlOn ? 'sql' : 'speed';
       state.activeBenchmarkType = primaryType;
 
       // Speed-only settings (mode, runtime knobs) need speed to be selected.
@@ -1453,14 +1433,8 @@
       const sqlHint = $('sqlModeHint');
       if (sqlHint) sqlHint.classList.toggle('hidden', !sqlOn);
 
-      // BFCL-only fields.
-      const bfclSettings = $('bfclSettingsGroup');
-      if (bfclSettings) bfclSettings.classList.toggle('hidden', !bfclOn);
-      const bfclHint = $('bfclModeHint');
-      if (bfclHint) bfclHint.classList.toggle('hidden', !bfclOn);
-
       const panelTitle = $('benchmarkPanelTitle');
-      if (panelTitle) panelTitle.textContent = sqlOn ? '🧮 SQL Model Selection' : bfclOn ? '🔧 BFCL v2 Model Selection' : '📝 Select models to benchmark';
+      if (panelTitle) panelTitle.textContent = sqlOn ? '🧮 SQL Model Selection' : '📝 Select models to benchmark';
 
       setResultsTableMode(primaryType);
       resetSummaryForMode(primaryType);
@@ -1743,8 +1717,9 @@
         const item = document.createElement('label');
         item.className = 'model-item';
         const checked = selectedSet.has(model) ? 'checked' : '';
+        const disabled = state.isBenchmarkRunning ? 'disabled' : '';
         item.innerHTML = `
-          <input type="checkbox" value="${escapeHtml(model)}" ${checked}>
+          <input type="checkbox" value="${escapeHtml(model)}" ${checked} ${disabled}>
           <span>${escapeHtml(model)}</span>
         `;
         modelListEl.appendChild(item);
@@ -1800,18 +1775,16 @@
       const sqlReady = hasBaseUrl && exactlyOneIncludedProvider() && sqlProvider && sqlModels.length > 0;
       const speedReady = hasBaseUrl && hasIncludedProviders && hasSelectedModels;
 
-      const bfclReady = hasBaseUrl && exactlyOneIncludedProvider() && sqlProvider && sqlModels.length > 0;
-
       // Every selected test must be runnable; at least one must be selected.
       let ready = types.length > 0;
       if (types.includes('speed')) ready = ready && speedReady;
       if (types.includes('sql')) ready = ready && sqlReady;
-      if (types.includes('bfcl')) ready = ready && bfclReady;
 
       const discoverBtn = $('discoverBtn');
       const startBtn = $('startBtn');
-      if (discoverBtn) discoverBtn.disabled = !hasBaseUrl;
-      if (startBtn) startBtn.disabled = !ready;
+      if (discoverBtn) discoverBtn.disabled = state.isBenchmarkRunning || !hasBaseUrl;
+      if (startBtn) startBtn.disabled = state.isBenchmarkRunning || !ready;
+      syncModelSelectionLock();
     }
 
     function escapeHtml(text) {
@@ -2004,35 +1977,11 @@
       };
     }
 
-    // One payload per selected test, in run order (speed, sql, bfcl).
+    // One payload per selected test, in run order (speed, sql).
     function buildBenchmarkPayloads() {
       const types = selectedBenchmarkTypes();
-      if (!types.length) throw new Error('Select at least one test (Speed, SQL Accuracy, or BFCL v2)');
-      return types.map(t => t === 'sql' ? buildSqlPayload() : t === 'bfcl' ? buildBfclPayload() : buildSpeedPayload());
-    }
-
-    function buildBfclPayload() {
-      const provider = selectedSqlProvider();
-      if (!provider) throw new Error('Select a provider for BFCL benchmark');
-      if (!exactlyOneIncludedProvider()) throw new Error('BFCL benchmark requires exactly one included provider');
-      const models = getSelectedModelsForProvider(provider.id);
-      if (!models.length) throw new Error('Select at least one model for BFCL benchmark');
-      const cats = ['single', 'parallel', 'multiple', 'relevance'].filter(c => {
-        const id = 'bfclCat' + c.charAt(0).toUpperCase() + c.slice(1);
-        return $( id) && $(id).checked;
-      });
-      if (!cats.length) throw new Error('Select at least one BFCL category');
-      const rawTaskIds = $('bfclTaskIds') ? $('bfclTaskIds').value.trim() : '';
-      const taskIds = rawTaskIds ? rawTaskIds.split(',').map(s => s.trim()).filter(Boolean) : null;
-      return {
-        benchmark_type: 'bfcl',
-        base_url: provider.base_url,
-        provider: provider.provider || 'auto',
-        api_key: provider.api_key || '',
-        models,
-        bfcl_categories: cats,
-        bfcl_task_ids: taskIds,
-      };
+      if (!types.length) throw new Error('Select at least one test (Speed or SQL Accuracy)');
+      return types.map(t => t === 'sql' ? buildSqlPayload() : buildSpeedPayload());
     }
 
     async function startBenchmark() {
@@ -3175,88 +3124,24 @@
           const sqlC = $('sqlResultsContainer');
           if (sqlC) { sqlC.innerHTML = '<div class="empty-state" style="padding:32px;">No SQL benchmark results yet</div>'; sqlC.style.display = ''; }
           const speedC = $('speedResultsContainer'); if (speedC) speedC.style.display = 'none';
-          const bfclC = $('bfclResultsContainer'); if (bfclC) bfclC.style.display = 'none';
-        } else if (benchmarkType === 'bfcl') {
-          const bfclC = $('bfclResultsContainer');
-          if (bfclC) { bfclC.innerHTML = '<div class="empty-state" style="padding:32px;">No BFCL v2 results yet</div>'; bfclC.style.display = ''; }
-          const speedC = $('speedResultsContainer'); if (speedC) speedC.style.display = 'none';
-          const sqlC = $('sqlResultsContainer'); if (sqlC) sqlC.style.display = 'none';
         } else {
           if (resultsBodyEl) resultsBodyEl.innerHTML = `<tr><td colspan="12" class="empty-state">No results yet</td></tr>`;
           const speedC = $('speedResultsContainer'); if (speedC) speedC.style.display = '';
           const sqlC = $('sqlResultsContainer'); if (sqlC) sqlC.style.display = 'none';
-          const bfclC = $('bfclResultsContainer'); if (bfclC) bfclC.style.display = 'none';
         }
         return;
       }
 
       if (benchmarkType === 'sql') {
         const speedC = $('speedResultsContainer'); if (speedC) speedC.style.display = 'none';
-        const bfclC = $('bfclResultsContainer'); if (bfclC) bfclC.style.display = 'none';
         const sqlC = $('sqlResultsContainer'); if (sqlC) sqlC.style.display = '';
         renderSqlResults(results);
-      } else if (benchmarkType === 'bfcl') {
-        const sqlC = $('sqlResultsContainer'); if (sqlC) sqlC.style.display = 'none';
-        const speedC = $('speedResultsContainer'); if (speedC) speedC.style.display = 'none';
-        const bfclC = $('bfclResultsContainer'); if (bfclC) bfclC.style.display = '';
-        renderBfclResults(results);
       } else {
         const sqlC = $('sqlResultsContainer'); if (sqlC) sqlC.style.display = 'none';
-        const bfclC = $('bfclResultsContainer'); if (bfclC) bfclC.style.display = 'none';
         const speedC = $('speedResultsContainer'); if (speedC) speedC.style.display = '';
         if (resultsBodyEl) resultsBodyEl.innerHTML = '';
         renderSpeedResults(results);
       }
-    }
-
-    function renderBfclResults(results) {
-      const container = $('bfclResultsContainer');
-      if (!container) return;
-
-      // Summary by category
-      const cats = ['single', 'parallel', 'multiple', 'relevance'];
-      const catStats = {};
-      cats.forEach(c => { catStats[c] = { pass: 0, total: 0 }; });
-
-      results.forEach(r => {
-        const cat = r.category || 'unknown';
-        if (!catStats[cat]) catStats[cat] = { pass: 0, total: 0 };
-        catStats[cat].total++;
-        if (r.success) catStats[cat].pass++;
-      });
-
-      const summaryHtml = cats.filter(c => catStats[c].total > 0).map(c => {
-        const s = catStats[c];
-        const pct = s.total ? Math.round(s.pass / s.total * 100) : 0;
-        const cls = pct === 100 ? 'all-pass' : pct === 0 ? 'none' : 'partial';
-        return `<div class="metric-card"><div class="label">${escapeHtml(c)}</div><div class="value sql-result-count ${cls}">${s.pass}/${s.total}</div></div>`;
-      }).join('');
-
-      const rows = results.map(r => {
-        const success = r.success === true;
-        const outcome = r.outcome || (success ? 'pass' : 'fail');
-        const badgeCls = success ? 'success' : 'error';
-        const calls = Array.isArray(r.actual_calls) ? r.actual_calls.map(c => c.name).join(', ') : '-';
-        return `<tr>
-          <td>${escapeHtml(r.task_id || '-')}</td>
-          <td>${escapeHtml(r.model || '-')}</td>
-          <td>${escapeHtml(r.category || '-')}</td>
-          <td><span class="status-badge ${badgeCls}">${escapeHtml(outcome)}</span></td>
-          <td style="font-size:0.8rem; color:var(--text-muted);">${escapeHtml(calls)}</td>
-          <td style="font-size:0.8rem; color:var(--error);">${escapeHtml(r.error || '')}</td>
-        </tr>`;
-      }).join('');
-
-      container.innerHTML = `
-        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:16px; margin-bottom:20px;">${summaryHtml}</div>
-        <div style="overflow-x:auto;">
-          <table>
-            <thead><tr>
-              <th>Task ID</th><th>Model</th><th>Category</th><th>Result</th><th>Called Functions</th><th>Error</th>
-            </tr></thead>
-            <tbody>${rows || '<tr><td colspan="6" class="empty-state">No results yet</td></tr>'}</tbody>
-          </table>
-        </div>`;
     }
 
     function formatActiveModelDisplay(providerLabel, modelName) {
@@ -3280,14 +3165,6 @@
         const bl = $('bestLatency'); if (bl) bl.textContent = String((job.results || []).filter(r => r.row_count_match === true).length);
         const bp = $('bestPp'); if (bp) bp.textContent = String((job.results || []).filter(r => r.columns_match === true).length);
         const bd = $('bestDecode'); if (bd) bd.textContent = String((job.results || []).filter(r => r.first_row_match === true).length);
-        return;
-      }
-
-      if (benchmarkType === 'bfcl') {
-        const byCat = c => (job.results || []).filter(r => r.category === c && r.success === true).length;
-        const bl = $('bestLatency'); if (bl) bl.textContent = String(byCat('single'));
-        const bp = $('bestPp'); if (bp) bp.textContent = String(byCat('parallel'));
-        const bd = $('bestDecode'); if (bd) bd.textContent = String(byCat('multiple'));
         return;
       }
 
@@ -3465,7 +3342,7 @@
     const providerEl = $('provider');
     if (providerEl) providerEl.addEventListener('change', applyCapabilityGating);
 
-    ['typeSpeed', 'typeSql', 'typeBfcl'].forEach(id => {
+    ['typeSpeed', 'typeSql'].forEach(id => {
       const el = $(id);
       if (el) el.addEventListener('change', updateBenchmarkModeUi);
     });
@@ -3481,6 +3358,7 @@
     if (selectAllBtn) {
       selectAllBtn.addEventListener('click', (event) => {
         event.preventDefault();
+        if (state.isBenchmarkRunning) return;
         const modelListEl = $('modelList');
         if (modelListEl) modelListEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
         const selected = new Set(getSelectedModelsForProvider(state.activeProviderId));
@@ -3495,6 +3373,7 @@
     if (selectNoneBtn) {
       selectNoneBtn.addEventListener('click', (event) => {
         event.preventDefault();
+        if (state.isBenchmarkRunning) return;
         const modelListEl = $('modelList');
         if (modelListEl) modelListEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
         setSelectedModelsForProvider(state.activeProviderId, []);
@@ -3506,6 +3385,7 @@
     const modelListEl = $('modelList');
     if (modelListEl) {
       modelListEl.addEventListener('change', (event) => {
+        if (state.isBenchmarkRunning) return;
         const checkbox = event.target.closest('input[type="checkbox"]');
         if (!checkbox) return;
         setModelCheckedForActiveProvider(checkbox.value, checkbox.checked);

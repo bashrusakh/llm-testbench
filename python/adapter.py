@@ -272,12 +272,10 @@ class SqlAdapter(BenchmarkAdapter):
 # ── registry ───────────────────────────────────────────────────────────────────
 
 #: Maps module_id -> BenchmarkAdapter instance.
-# BfclAdapter is imported lazily to avoid a circular import at module load time.
 def _build_registry() -> Dict[str, BenchmarkAdapter]:
-    from python.bfcl import BfclAdapter  # noqa: PLC0415
     return {
         adapter.module_id: adapter
-        for adapter in [SpeedAdapter(), SqlAdapter(), BfclAdapter()]
+        for adapter in [SpeedAdapter(), SqlAdapter()]
     }
 
 
