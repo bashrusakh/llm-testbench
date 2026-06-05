@@ -32,6 +32,7 @@ Compare local LLMs on speed and SQL accuracy, with lightweight local fixture pac
 - [API](#api)
 - [Repository Layout](#repository-layout)
 - [Development](#development)
+- [Changelog](CHANGELOG.md)
 
 ---
 
