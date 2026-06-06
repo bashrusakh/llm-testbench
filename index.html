@@ -3401,4 +3401,59 @@
     if (selectAllBtn) {
       selectAllBtn.addEventListener('click', (event) => {
         event.preventDefault();
-        if (state.isBenchmarkRunning) retur
+        if (state.isBenchmarkRunning) return;
+        const modelListEl = $('modelList');
+        if (modelListEl) modelListEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+        const selected = new Set(getSelectedModelsForProvider(state.activeProviderId));
+        state.filteredModels.forEach(model => selected.add(model));
+        setSelectedModelsForProvider(state.activeProviderId, Array.from(selected));
+        updateModelCount();
+        updateActionButtons();
+      });
+    }
+
+    const selectNoneBtn = $('selectNoneBtn');
+    if (selectNoneBtn) {
+      selectNoneBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (state.isBenchmarkRunning) return;
+        const modelListEl = $('modelList');
+        if (modelListEl) modelListEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        setSelectedModelsForProvider(state.activeProviderId, []);
+        updateModelCount();
+        updateActionButtons();
+      });
+    }
+
+    const modelListEl = $('modelList');
+    if (modelListEl) {
+      modelListEl.addEventListener('change', (event) => {
+        if (state.isBenchmarkRunning) return;
+        const checkbox = event.target.closest('input[type="checkbox"]');
+        if (!checkbox) return;
+        setModelCheckedForActiveProvider(checkbox.value, checkbox.checked);
+        updateModelCount();
+        updateActionButtons();
+      });
+    }
+
+    window.addEventListener('resize', () => { hideSqlFloatingTooltip(); syncSqlMatrixLayout(document); });
+    window.addEventListener('scroll', hideSqlFloatingTooltip, true);
+
+    // ── Init ──
+    loadStoredManualProviders();
+    if (state.manualProviders.length) {
+      selectEndpoint(state.manualProviders[0].id);
+    } else {
+      renderEndpoints();
+    }
+    updateActionButtons();
+    applyManualPreset();
+    updateBenchmarkModeUi();
+    loadHistory();
+    restoreActiveJob();
+    scanEndpoints();
+
+  </script>
+</body>
+</html>
