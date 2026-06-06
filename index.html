@@ -961,6 +961,29 @@
         </div>
       </div>
       <div class="form-group speed-only-setting">
+        <label>Speed Preset</label>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="btn-small" type="button" onclick="applySpeedPreset('smoke')">Smoke</button>
+          <button class="btn-small" type="button" onclick="applySpeedPreset('balanced')">Balanced</button>
+          <button class="btn-small" type="button" onclick="applySpeedPreset('leaderboard')">Leaderboard</button>
+        </div>
+        <div class="status-message info" style="margin-top:6px; margin-bottom:0;">
+          Smoke: 256 tok / 1 run. Balanced: 1024 tok / 3 runs + 1 warmup. Leaderboard: 4096 tok / 5 runs + 1 warmup.
+        </div>
+      </div>
+      <div class="form-group speed-only-setting">
+        <label for="maxTokens">Max Tokens</label>
+        <input id="maxTokens" type="number" value="4096" min="1" step="256">
+      </div>
+      <div class="form-group speed-only-setting">
+        <label for="repeatCount">Repeat Count</label>
+        <input id="repeatCount" type="number" value="3" min="1" max="100">
+      </div>
+      <div class="form-group speed-only-setting">
+        <label for="warmupRuns">Warmup Runs</label>
+        <input id="warmupRuns" type="number" value="1" min="0" max="10">
+      </div>
+      <div class="form-group speed-only-setting">
         <label for="mode">Execution Mode</label>
         <select id="mode">
           <option value="sequential">Sequential</option>
@@ -1923,6 +1946,20 @@
       });
     }
 
+    function applySpeedPreset(name) {
+      const presets = {
+        smoke:       { maxTokens: 256,  repeatCount: 1, warmupRuns: 0 },
+        balanced:    { maxTokens: 1024, repeatCount: 3, warmupRuns: 1 },
+        leaderboard: { maxTokens: 4096, repeatCount: 5, warmupRuns: 1 },
+      };
+      const p = presets[name];
+      if (!p) return;
+      const set = (id, val) => { const el = $(id); if (el) el.value = val; };
+      set('maxTokens',   p.maxTokens);
+      set('repeatCount', p.repeatCount);
+      set('warmupRuns',  p.warmupRuns);
+    }
+
     function buildSpeedPayload() {
       const baseUrl = getBaseUrlValue();
       if (!baseUrl) throw new Error('Base URL is required. Scan endpoints or enter one manually.');
@@ -1952,6 +1989,9 @@
         mode: $('mode') ? $('mode').value : 'sequential',
         timeout_ms: numVal('timeoutMs', 12000000),
         prompt: $('prompt') ? $('prompt').value : '',
+        max_tokens: numVal('maxTokens', 4096),
+        repeat_count: numVal('repeatCount', 3),
+        warmup_runs: numVal('warmupRuns', 1),
       };
     }
 
