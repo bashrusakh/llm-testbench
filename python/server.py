@@ -487,7 +487,7 @@ class BenchmarkRequest:
         repeat_count = max(1, int(data.get("repeat_count", 1) or 1))
         warmup_runs = max(0, int(data.get("warmup_runs", 0) or 0))
         timeout_ms = max(1_000, int(data.get("timeout_ms", DEFAULT_TIMEOUT_MS) or DEFAULT_TIMEOUT_MS))
-        max_tokens = max(1, int(data.get("max_tokens", 65536) or 65536))
+        max_tokens = max(1, int(data.get("max_tokens", 4096) or 4096))
 
         max_concurrent_predictions = data.get("max_concurrent_predictions")
         max_concurrent_predictions = max(1, int(max_concurrent_predictions)) if max_concurrent_predictions not in (None, "") else None
