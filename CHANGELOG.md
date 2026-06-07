@@ -4,6 +4,14 @@ All notable release changes for LLM Testbench are tracked here.
 
 ## Unreleased
 
+### Security
+
+- **SSRF guard for provider endpoints** — `_validate_endpoint_url` now resolves the hostname via `socket.getaddrinfo` and rejects targets whose resolved IPs fall into `is_private`/`is_loopback`/`is_link_local`/`is_multicast`/`is_reserved`/`is_unspecified` (covering `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16` link-local incl. cloud metadata, `100.64.0.0/10` CGNAT, `0.0.0.0`, IPv6 loopback / ULA / link-local, etc.). Wired into `_benchmark_openai`, `_benchmark_ollama`, and `_probe_provider` (which catches the error and reports the target as `unreachable` instead of crashing). DNS resolution failures now raise a clear `ValueError` instead of producing a confusing `httpx.ConnectError` deeper in the stack.
+
+### Added
+
+- **`tests/test_speed_unit.py`** — Regression tests for `_compute_speed_aggregates` (single-model, multi-model, failed-only), the new SSRF guard (private IPv4/IPv6, loopback, link-local, public IPv4, public HTTPS, DNS failure), `_benchmark_openai` (reasoning-content first-token anchor, chunk-counter fallback, SSE error body), and `_benchmark_ollama` (full `eval_count` + `prompt_eval_count`, missing-fields fallback).
+
 ### Fixed
 
 - **Speed `decode_tps` is now ~2× lower for reasoning models** — `_benchmark_openai` was anchoring `first_token_at` to the first `delta.content` chunk and ignoring `delta.reasoning_content`. For thinking models (DeepSeek-R1, QwQ, gpt-oss, etc.) the entire `reasoning_content` phase was excluded from the decode window while `usage.completion_tokens` (which includes reasoning tokens) was still used as the numerator, producing a value roughly `1 + T_thinking / T_content` (≈2× when thinking time matches answer time). The TTFT/decode anchor now triggers on the first generation delta of either field, matching LM Studio's `eval_count / eval_duration`.
