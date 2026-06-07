@@ -4,13 +4,18 @@ All notable release changes for LLM Testbench are tracked here.
 
 ## v0.1.0
 
-### Removed
+### Added
 
-- Removed BFCL benchmark support from the backend, UI, fixtures, tests, README, and roadmap.
-- Removed BFCL fixture data and the dedicated BFCL adapter module.
+- **Speed benchmark: aggregated view** — Results now default to a per-model summary table (one row per model) showing averaged metrics across runs: avg/min/max decode throughput, TTFT, total time, and prefill throughput. Warmup runs (`run_index=0`) are excluded.
+- **Sparklines** — Mini bar charts in the aggregated table visualize per-run decode throughput variance, color-coded by fixed thresholds: green ≥50 tok/s, amber 20–50, red <20.
+- **Failed runs indicator** — Aggregated rows show "X/Y failed" count when applicable.
+- **Expandable detail rows** — Click the ▼ toggle to see individual run data (run index, decode/TTFT/total, tokens).
+- **View toggle** — Switch between "Aggregated" (default) and "Individual runs" views; preference persisted in `sessionStorage`.
+- **Updated summary cards** — Best avg decode, models tested, total runs, avg TTFT.
 
 ### Fixed
 
+- **Speed `latency_ms` field** — Corrected OpenAI streaming benchmark to store total elapsed time (was incorrectly storing TTFT). `total_time_ms`, `ttft_ms`, `decode_tps`, `prefill_tps` were already correct.
 - Model selection controls are now locked while a benchmark job is queued, running, or stopping.
 - SQL result rendering no longer shows empty tool-call analysis blocks for empty `results_ok` confirmation calls.
 - SQL model quantization badges now recognize Unsloth Dynamic GGUF labels such as `UD_IQ1_S` instead of falling back to an unknown format.
