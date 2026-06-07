@@ -1030,7 +1030,7 @@
         <button id="startBtn" class="btn-primary" disabled>Start</button>
         <button id="stopBtn" class="btn-danger" disabled>Stop</button>
       </div>
-      <div id="jobStatus" class="status-message info" style="margin-top:8px; margin-bottom:0;">Ready to benchmark</div>
+      <div id="jobStatus" class="status-message info" role="status" aria-live="polite" style="margin-top:8px; margin-bottom:0;">Ready to benchmark</div>
     </div>
 
     <!-- Endpoint Configuration -->
@@ -1138,9 +1138,9 @@
       <div class="form-group speed-only-setting">
         <label>Speed Preset</label>
         <div style="display:flex; gap:6px; flex-wrap:wrap;">
-          <button class="btn-small" type="button" onclick="applySpeedPreset('smoke')">Smoke</button>
-          <button class="btn-small" type="button" onclick="applySpeedPreset('balanced')">Balanced</button>
-          <button class="btn-small" type="button" onclick="applySpeedPreset('leaderboard')">Leaderboard</button>
+          <button class="btn-small" type="button" data-action="applySpeedPreset:smoke">Smoke</button>
+          <button class="btn-small" type="button" data-action="applySpeedPreset:balanced">Balanced</button>
+          <button class="btn-small" type="button" data-action="applySpeedPreset:leaderboard">Leaderboard</button>
         </div>
         <div class="status-message info" style="margin-top:6px; margin-bottom:0;">
           Smoke: 256 tok / 1 run. Balanced: 1024 tok / 3 runs + 1 warmup. Leaderboard: 4096 tok / 5 runs + 1 warmup.
@@ -1211,7 +1211,7 @@
     <!-- Live Results -->
     <div class="results-card">
       <div class="section-title">📈 Live Results</div>
-      <div id="mainJobStatus" class="status-message info">Ready to benchmark</div>
+      <div id="mainJobStatus" class="status-message info" role="status" aria-live="polite">Ready to benchmark</div>
       <div id="currentOperation" class="status-message info hidden" style="margin-top:-8px;">
         Current operation: idle
       </div>
@@ -1277,7 +1277,7 @@
                 <th>Error</th>
               </tr>
             </thead>
-            <tbody id="resultsBody">
+            <tbody id="resultsBody" aria-busy="false" aria-live="polite">
               <tr><td colspan="11" class="empty-state">No benchmark results yet</td></tr>
             </tbody>
           </table>
@@ -1354,6 +1354,64 @@
       // Speed view mode: 'aggregated' (default) or 'raw'
       speedViewMode: 'aggregated',
     };
+
+    // --- Helpers shared by renders, status updates, and event wiring ---
+
+    function setStatusBoth(message, type = 'info') {
+      setStatus($('jobStatus'), message, type);
+      setStatus($('mainJobStatus'), message, type);
+    }
+
+    function stopPolling() {
+      if (state.pollTimer) {
+        clearTimeout(state.pollTimer);
+        state.pollTimer = null;
+      }
+    }
+
+    function getActiveJobId() {
+      // Live run takes precedence; the history view only takes over when
+      // the user has explicitly opened a *finished* job.
+      return state.liveJobId || state.jobId;
+    }
+
+    function emptyState(text, opts = {}) {
+      const padding = opts.padding ? ` style="padding:${opts.padding};"` : '';
+      const cellTag = opts.colspan
+        ? `<tr><td colspan="${opts.colspan}" class="empty-state"${padding}>${text}</td></tr>`
+        : `<div class="empty-state"${padding}>${text}</div>`;
+      return cellTag;
+    }
+
+    const formatters = {
+      ms(value) {
+        return value != null ? Number(value).toFixed(2) : '—';
+      },
+      msAsSeconds(value) {
+        return value != null ? `${(Number(value) / 1000).toFixed(2)}s` : '-';
+      },
+      tps(value) {
+        return value != null ? Number(value).toFixed(2) : 'n/a';
+      },
+      tpsFixed(value) {
+        return value != null ? Number(value).toFixed(2) : '—';
+      },
+      number(value, decimals = 2) {
+        return value != null ? Number(value).toFixed(decimals) : '-';
+      },
+      percent(value) {
+        return value != null ? `${Number(value).toFixed(1)}%` : '-';
+      },
+    };
+
+    const OUTCOME_META = {
+      pass: { className: 'pass', icon: '✓', label: 'Pass' },
+      fail: { className: 'fail', icon: '✗', label: 'Fail' },
+      error: { className: 'error', icon: '!', label: 'Error' },
+    };
+    function outcomeMeta(outcome) {
+      return OUTCOME_META[outcome] || OUTCOME_META.error;
+    }
 
     // Single source of truth for the Start/Stop buttons, driven by job status.
     // status === null or a terminal status -> idle (Start on, Stop off).
@@ -1722,7 +1780,7 @@
       endpointListEl.innerHTML = '';
 
       if (!providers.length) {
-        endpointListEl.innerHTML = '<div class="empty-state">No providers available yet</div>';
+        endpointListEl.innerHTML = emptyState('No providers available yet');
         return;
       }
 
@@ -1908,7 +1966,7 @@
       modelListEl.innerHTML = '';
 
       if (!state.filteredModels.length) {
-        modelListEl.innerHTML = '<div class="empty-state">No models match your search</div>';
+        modelListEl.innerHTML = emptyState('No models match your search');
         updateModelCount();
         return;
       }
@@ -2035,7 +2093,7 @@
 
       setStatus($('discoverStatus'), `Discovering models for ${providerTargets.length} provider(s)...`, 'info');
       const modelListEl = $('modelList');
-      if (modelListEl) modelListEl.innerHTML = '<div class="empty-state">Loading models...</div>';
+      if (modelListEl) modelListEl.innerHTML = emptyState('Loading models...');
       state.models = [];
       state.filteredModels = [];
       updateModelCount();
@@ -2062,7 +2120,7 @@
       } catch (error) {
         state.models = [];
         state.filteredModels = [];
-        if (modelListEl) modelListEl.innerHTML = '<div class="empty-state">No models loaded yet</div>';
+        if (modelListEl) modelListEl.innerHTML = emptyState('No models loaded yet');
         updateModelCount();
         setStatus($('discoverStatus'), `Discovery failed: ${error.message}`, 'error');
         updateActionButtons();
@@ -2199,8 +2257,7 @@
         // before any job is launched.
         payloads = buildBenchmarkPayloads();
       } catch (error) {
-        setStatus($('jobStatus'), `Start failed: ${error.message}`, 'error');
-        setStatus($('mainJobStatus'), `Start failed: ${error.message}`, 'error');
+        setStatusBoth(`Start failed: ${error.message}`, 'error');
         return;
       }
       const startBtn = $('startBtn');
@@ -2225,8 +2282,7 @@
         state.activeBenchmarkType = benchmarkType;
         setResultsTableMode(benchmarkType);
         resetSummaryForMode(benchmarkType);
-        setStatus($('jobStatus'), `Starting ${benchmarkTypeLabel(benchmarkType)} benchmark...${queueNote}`, 'info');
-        setStatus($('mainJobStatus'), `Starting ${benchmarkTypeLabel(benchmarkType)} benchmark...${queueNote}`, 'info');
+        setStatusBoth(`Starting ${benchmarkTypeLabel(benchmarkType)} benchmark...${queueNote}`, 'info');
         const op = $('currentOperation');
         if (op) {
           op.className = 'status-message info';
@@ -2252,31 +2308,29 @@
         const resultsBodyEl = $('resultsBody');
         if (resultsBodyEl) {
           const colspan = benchmarkType === 'sql' ? 10 : benchmarkType === 'speed' ? 11 : 12;
-          resultsBodyEl.innerHTML = `<tr><td colspan="${colspan}" class="empty-state">Benchmark in progress...</td></tr>`;
+          resultsBodyEl.innerHTML = emptyState('Benchmark in progress...', { colspan });
         }
         pollJob();
       } catch (error) {
         // Abandon the rest of the queue on a launch failure.
         state.jobQueue = [];
         applyButtonState(null);
-        setStatus($('jobStatus'), `Start failed: ${error.message}`, 'error');
-        setStatus($('mainJobStatus'), `Start failed: ${error.message}`, 'error');
+        setStatusBoth(`Start failed: ${error.message}`, 'error');
       }
     }
 
     async function stopBenchmark() {
       // Cancelling means cancelling the whole run, so drop anything queued first.
       state.jobQueue = [];
-      const targetId = state.liveJobId || state.jobId;
+      const targetId = getActiveJobId();
       if (!targetId) { applyButtonState(null); return; }
       try {
         await fetch(apiUrl(`/api/benchmark/${targetId}/stop`), { method: 'POST' });
-        setStatus($('jobStatus'), 'Stop requested...', 'info');
-        setStatus($('mainJobStatus'), 'Stop requested...', 'info');
+        setStatusBoth('Stop requested...', 'info');
       } catch (error) {
-        setStatus($('jobStatus'), `Stop failed: ${error.message}`, 'error');
-        setStatus($('mainJobStatus'), `Stop failed: ${error.message}`, 'error');
+        setStatusBoth(`Start failed: ${error.message}`, 'error');
       }
+    }
     }
 
     function renderHistory() {
@@ -2286,7 +2340,7 @@
 
       historyBodyEl.innerHTML = '';
       if (!state.history.length) {
-        historyBodyEl.innerHTML = '<tr><td colspan="9" class="empty-state">No saved benchmark history yet</td></tr>';
+        historyBodyEl.innerHTML = emptyState('No saved benchmark history yet', { colspan: 9 });
         if (historyStatusEl) historyStatusEl.textContent = 'No saved benchmark history';
         updateHistorySelectionUi();
         return;
@@ -2376,8 +2430,7 @@
         state.jobId = null;
         applyButtonState(null);
       }
-      setStatus($('jobStatus'), 'Ready', 'info');
-      setStatus($('mainJobStatus'), 'Ready', 'info');
+      setStatusBoth('Ready', 'info');
     }
 
     async function openHistoryJob(jobId) {
@@ -2415,14 +2468,12 @@
             applyButtonState(liveStatus);
             try { sessionStorage.setItem('llmSpeedTest.jobId', jobId); } catch (_) {}
             if (!state.pollTimer) pollJob();
-            setStatus($('jobStatus'), `Attached to running benchmark ${jobId.slice(0,8)}… (${completed}/${total}).`, 'info');
-            setStatus($('mainJobStatus'), `Attached to running benchmark ${jobId.slice(0,8)}… (${completed}/${total}).`, 'info');
+            setStatusBoth(`Attached to running benchmark ${jobId.slice(0,8)}… (${completed}/${total}).`, 'info');
             return;
           }
         } catch (_) { /* fall through to static view */ }
       }
-      setStatus($('jobStatus'), `Loaded saved benchmark ${jobId} (${job.status || 'unknown'}).`, 'info');
-      setStatus($('mainJobStatus'), `Loaded saved benchmark ${jobId} (${job.status || 'unknown'}).`, 'info');
+      setStatusBoth(`Loaded saved benchmark ${jobId} (${job.status || 'unknown'}).`, 'info');
     }
 
     // Attach the UI to a confirmed-live job: render its progress, enable Stop,
@@ -2443,8 +2494,7 @@
       if (pt) pt.textContent = `${completed} / ${total}`;
       applyButtonState(job.status);
       try { sessionStorage.setItem('llmSpeedTest.jobId', jobId); } catch (_) {}
-      setStatus($('jobStatus'), `Restored job ${jobId.slice(0,8)}… (${completed}/${total})`, 'info');
-      setStatus($('mainJobStatus'), `Restored job ${jobId.slice(0,8)}… (${completed}/${total})`, 'info');
+      setStatusBoth(`Restored job ${jobId.slice(0,8)}… (${completed}/${total})`, 'info');
       if (!state.pollTimer) pollJob();
     }
 
@@ -2499,7 +2549,7 @@
         state.historySelection = new Set();
         renderHistory();
       } catch (error) {
-        if (historyBodyEl) historyBodyEl.innerHTML = '<tr><td colspan="9" class="empty-state">Failed to load saved benchmark history</td></tr>';
+        if (historyBodyEl) historyBodyEl.innerHTML = emptyState('Failed to load saved benchmark history', { colspan: 9 });
         if (historyStatusEl) historyStatusEl.textContent = `History load failed: ${error.message}`;
       }
     }
@@ -2523,10 +2573,45 @@
       }
     }
 
+    // Per-row diff cache for the speed results table. Keyed by
+    // (provider, model, run_index) so polls that bring back the same
+    // results produce zero DOM mutations. The cache is cleared by the
+    // outer `innerHTML = ''` resets in `renderResults`; subsequent
+    // re-renders within the same DOM lifetime are no-ops.
+    const _speedRowCache = new Map();
+    function _speedRowKey(result) {
+      return `${result.provider_id || ''}/${result.model || ''}/${result.run_index}`;
+    }
+    function _speedRowVersion(result) {
+      // Hash only the columns that appear in the row; cheaper than JSON.stringify.
+      return [
+        result.success,
+        result.total_time_ms,
+        result.ttft_ms,
+        result.prefill_tps,
+        result.decode_tps,
+        result.prompt_tokens,
+        result.completion_tokens,
+        result.error || '',
+      ].join('|');
+    }
+    function _clearSpeedRowCache() { _speedRowCache.clear(); }
+
     function renderSpeedResults(results) {
       const resultsBodyEl = $('resultsBody');
       if (!resultsBodyEl) return;
+      // The outer renderResults path may have just innerHTML=''ed the table;
+      // cached row refs would be detached. Reap stale entries.
+      for (const [k, v] of _speedRowCache) {
+        if (!v.row.isConnected) _speedRowCache.delete(k);
+      }
+      const seen = new Set();
       results.forEach(result => {
+        const key = _speedRowKey(result);
+        seen.add(key);
+        const version = _speedRowVersion(result);
+        const cached = _speedRowCache.get(key);
+        if (cached && cached.version === version) return;
         const row = document.createElement('tr');
         let statusBadge = '<span class="status-badge error" title="Failed" aria-label="Failed">✗</span>';
         if (result.success === true) {
@@ -2547,8 +2632,20 @@
           <td>${result.completion_tokens || '-'}</td>
           <td class="text-error">${escapeHtml(result.error || '')}</td>
         `;
-        resultsBodyEl.appendChild(row);
+        if (cached && cached.row.isConnected) {
+          resultsBodyEl.replaceChild(row, cached.row);
+        } else {
+          resultsBodyEl.appendChild(row);
+        }
+        _speedRowCache.set(key, { row, version });
       });
+      // Remove cached rows that are no longer in results.
+      for (const [key, cached] of _speedRowCache) {
+        if (!seen.has(key) && cached.row.isConnected) {
+          cached.row.remove();
+        }
+        if (!seen.has(key)) _speedRowCache.delete(key);
+      }
     }
 
     // --- Speed Aggregated View ---
@@ -2797,7 +2894,7 @@
       const container = $('sqlResultsContainer');
       if (!container) return;
       if (!results.length) {
-        container.innerHTML = '<div class="empty-state" style="padding:32px;">No SQL benchmark results yet</div>';
+        container.innerHTML = emptyState('No SQL benchmark results yet', { padding: '32px' });
         return;
       }
 
@@ -3458,10 +3555,10 @@
 
       if (!results.length) {
         if (benchmarkType === 'sql') {
-          if (sqlC) { sqlC.innerHTML = '<div class="empty-state" style="padding:32px;">No SQL benchmark results yet</div>'; sqlC.style.display = ''; }
+          if (sqlC) { sqlC.innerHTML = emptyState('No SQL benchmark results yet', { padding: '32px' }); sqlC.style.display = ''; }
           if (speedC) speedC.style.display = 'none';
         } else {
-          if (resultsBodyEl) resultsBodyEl.innerHTML = `<tr><td colspan="12" class="empty-state">No results yet</td></tr>`;
+          if (resultsBodyEl) resultsBodyEl.innerHTML = emptyState('No results yet', { colspan: 12 });
           if (speedC) speedC.style.display = '';
           if (sqlC) sqlC.style.display = 'none';
         }
@@ -3483,6 +3580,7 @@
         const viewMode = state.speedViewMode || 'aggregated';
         if (viewMode === 'raw') {
           if (resultsBodyEl) resultsBodyEl.innerHTML = '';
+          _clearSpeedRowCache();
           renderSpeedResults(results);
         } else if (job.aggregated_speed && job.aggregated_speed.length) {
           if (resultsBodyEl) resultsBodyEl.innerHTML = '';
@@ -3568,7 +3666,7 @@
 
     async function pollJob() {
       // Always poll the live run, not whatever the history view points at.
-      const liveId = state.liveJobId || state.jobId;
+      const liveId = getActiveJobId();
       if (!liveId) return;
 
       try {
@@ -3584,6 +3682,19 @@
         const completed = job.progress.completed || 0;
         const total = job.progress.total || 0;
         const percent = total > 0 ? (completed / total) * 100 : 0;
+
+        // Cheap fingerprint of the parts that drive the UI. A 1-second poll
+        // tick that returns the same fingerprint does no DOM work.
+        const resultsFingerprint = (job.results || []).length + ':' +
+          ((job.results || []).slice(-1)[0]?.timestamp || '') + ':' +
+          (job.aggregated_speed ? job.aggregated_speed.length : 0) + ':' +
+          job.status + ':' + completed;
+        if (resultsFingerprint === state._lastResultsFingerprint) {
+          applyButtonState(job.status);
+          state.pollTimer = setTimeout(pollJob, 1000);
+          return;
+        }
+        state._lastResultsFingerprint = resultsFingerprint;
 
         if (!viewingOther) {
           state.activeBenchmarkType = job.request?.benchmark_type || 'speed';
@@ -3601,14 +3712,14 @@
         if (job.status === 'completed') statusType = 'success';
         if (job.status === 'failed') statusType = 'error';
 
-        setStatus($('jobStatus'), `Status: ${job.status}. ${completed}/${total} complete.`, statusType);
-        setStatus($('mainJobStatus'), `Status: ${job.status}. ${completed}/${total} complete.`, statusType);
+        setStatusBoth(`Status: ${job.status}. ${completed}/${total} complete.`, statusType);
 
         if (job.status === 'completed' || job.status === 'failed' || job.status === 'stopped') {
           if (!viewingOther) setCurrentOperation(job);
           try { sessionStorage.removeItem('llmSpeedTest.jobId'); } catch (_) {}
           state.liveJobId = null;
           state.pollTimer = null;
+          stopPolling();
           loadHistory();
           // A stopped job means the user cancelled — drop any queued jobs.
           if (job.status === 'stopped') state.jobQueue = [];
@@ -3627,11 +3738,31 @@
         state.jobQueue = [];
         applyButtonState(null);
         state.liveJobId = null;
+        stopPolling();
         try { sessionStorage.removeItem('llmSpeedTest.jobId'); } catch (_) {}
-        setStatus($('jobStatus'), `Polling failed: ${error.message}`, 'error');
-        setStatus($('mainJobStatus'), `Polling failed: ${error.message}`, 'error');
+        setStatusBoth(`Polling failed: ${error.message}`, 'error');
       }
     }
+
+    // Page-unload cleanup: stop any in-flight poll timer so it doesn't fire
+    // after the document is gone. pagehide is the modern equivalent of
+    // beforeunload and fires on bfcache as well.
+    window.addEventListener('pagehide', stopPolling);
+    window.addEventListener('beforeunload', stopPolling);
+
+    // Delegated click handler for [data-action="<fn>:<arg>"] buttons.
+    // Replaces inline `onclick="fn('arg')"` so the markup stays declarative
+    // and works under strict CSP.
+    document.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-action]');
+      if (!target) return;
+      const [fnName, arg] = target.getAttribute('data-action').split(':', 2);
+      const fn = window[fnName];
+      if (typeof fn === 'function') {
+        event.preventDefault();
+        fn(arg);
+      }
+    });
 
     // ── Event listeners ──
 
@@ -3793,8 +3924,8 @@
         try { sessionStorage.setItem('llmSpeedTest.speedViewMode', view); } catch (_) {}
         speedToggleEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.getAttribute('data-view') === view));
         // Re-render current results with new view
-        if (state.liveJobId || state.jobId) {
-          const jobId = state.liveJobId || state.jobId;
+        const jobId = getActiveJobId();
+        if (jobId) {
           fetch(apiUrl(`/api/benchmark/${jobId}`))
             .then(r => r.json())
             .then(data => {

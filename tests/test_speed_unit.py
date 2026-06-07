@@ -411,3 +411,166 @@ def test_benchmark_ollama_returns_none_when_eval_count_missing(monkeypatch):
     result = run(_server()._benchmark_ollama(spec, target, "m"))
     assert result["decode_tps"] is None
     assert result["completion_tokens"] is None
+
+
+# ---------------------------------------------------------------------------
+# Ollama latency_ms regression (PR C bug fix)
+# ---------------------------------------------------------------------------
+
+
+def test_ollama_latency_ms_equals_total_time_ms(monkeypatch):
+    """Regression: latency_ms used to be set to ttft_ms (prefill time),
+    not the end-to-end time. OpenAI path returns latency_ms == total_time_ms;
+    Ollama must match for cross-provider comparison and row-shape parity."""
+    monkeypatch.setattr(server_module, "_validate_endpoint_url", lambda *a, **kw: None)
+    payload = {
+        "model": "m",
+        "prompt_eval_count": 10,
+        "eval_count": 20,
+        "prompt_eval_duration": 500_000_000,   # 0.5s
+        "eval_duration": 1_500_000_000,        # 1.5s
+    }
+    fake = FakePostClient(payload)
+    monkeypatch.setattr(server_module.httpx, "AsyncClient", lambda *a, **kw: fake)
+    spec = _make_request()
+    target = _make_target(provider="ollama")
+    result = run(_server()._benchmark_ollama(spec, target, "m"))
+    # Total wall-clock is 0.5s + 1.5s = 2.0s = 2000ms
+    assert result["total_time_ms"] == 2000.0
+    assert result["latency_ms"] == 2000.0
+    assert result["latency_ms"] == result["total_time_ms"]
+    # ttft_ms is the prefill slice only
+    assert result["ttft_ms"] == 500.0
+
+
+# ---------------------------------------------------------------------------
+# _load_json helper (PR C)
+# ---------------------------------------------------------------------------
+
+
+def test_load_json_raises_with_path(tmp_path):
+    """A malformed JSON file must raise an error that names the file."""
+    bad = tmp_path / "results.json"
+    bad.write_text("{not valid json", encoding="utf-8")
+    with pytest.raises(ValueError, match="Invalid JSON in results.json"):
+        server_module._load_json(bad)
+
+
+def test_read_json_raises_with_path(tmp_path):
+    bad = tmp_path / "questions.json"
+    bad.write_text("[1, 2, oops]", encoding="utf-8")
+    with pytest.raises(ValueError, match="Invalid JSON in questions.json"):
+        server_module._read_json(bad)
+
+
+def test_load_json_rejects_non_object(tmp_path):
+    bad = tmp_path / "results.json"
+    bad.write_text("[1, 2, 3]", encoding="utf-8")
+    with pytest.raises(ValueError, match="expected object"):
+        server_module._load_json(bad)
+
+
+# ---------------------------------------------------------------------------
+# set_phase atomicity (PR C)
+# ---------------------------------------------------------------------------
+
+
+def test_set_phase_is_atomic():
+    """Concurrent reader + writer must never see a torn (phase, message)
+    pair from a single set_phase call. Reference assignment in CPython
+    is atomic, and the lock guarantees no half-update."""
+    spec = _make_request()
+    job = JobState(request=spec)
+
+    async def main():
+        async def writer():
+            for i in range(50):
+                await job.set_phase(f"phase_{i}", f"msg_{i}", model=f"m_{i}", run_index=i)
+
+        async def reader():
+            for _ in range(200):
+                snap = job.get_phase_snapshot()
+                suffix = snap.phase.split("_", 1)[-1] if snap.phase.startswith("phase_") else None
+                if suffix is not None:
+                    assert snap.message == f"msg_{suffix}", (
+                        f"torn read: phase={snap.phase} but message={snap.message}"
+                    )
+                await asyncio.sleep(0)
+
+        await asyncio.gather(writer(), reader(), reader(), reader(), reader())
+
+    run(main())
+
+
+# ---------------------------------------------------------------------------
+# _compute_speed_aggregates cache (PR C)
+# ---------------------------------------------------------------------------
+
+
+def test_speed_aggregates_cached_per_job():
+    """to_dict() calls _compute_speed_aggregates on every poll. With the
+    cache, two consecutive calls with the same (n, last_timestamp) return
+    the same list object."""
+    spec = _make_request()
+    job = JobState(request=spec)
+    job.results = [_run("m", 1, True, decode_tps=10.0), _run("m", 2, True, decode_tps=20.0)]
+    first = job.to_dict()["aggregated_speed"]
+    second = job.to_dict()["aggregated_speed"]
+    assert first is second
+    # Adding a result invalidates the cache.
+    job.results.append(_run("m", 3, True, decode_tps=30.0))
+    third = job.to_dict()["aggregated_speed"]
+    assert third is not first
+
+
+# ---------------------------------------------------------------------------
+# Pending save draining (PR C)
+# ---------------------------------------------------------------------------
+
+
+def test_pending_saves_flushed_on_shutdown(monkeypatch, tmp_path):
+    """drain_pending_saves awaits every track_save()'d task. Used in
+    the job's ``finally`` and in the server's on_cleanup hook so a
+    SIGTERM does not drop the last incremental save."""
+    spec = _make_request()
+    job = JobState(request=spec)
+    completed = []
+
+    async def fake_save(duration: float):
+        await asyncio.sleep(duration)
+        completed.append(duration)
+
+    async def main():
+        t1 = asyncio.ensure_future(fake_save(0.05))
+        t2 = asyncio.ensure_future(fake_save(0.05))
+        job.track_save(t1)
+        job.track_save(t2)
+        # They haven't finished yet
+        assert not t1.done()
+        await job.drain_pending_saves()
+        # Now both are done and the registry is empty
+        assert t1.done() and t2.done()
+        assert not job._pending_saves
+        assert sorted(completed) == [0.05, 0.05]
+
+    run(main())
+
+
+def test_server_shutdown_drains_all_jobs(monkeypatch, tmp_path):
+    """BenchmarkServer.shutdown awaits drain_pending_saves for every
+    job currently tracked, so a clean exit does not lose in-flight writes."""
+    spec = _make_request()
+    job = JobState(request=spec)
+
+    async def slow_save():
+        await asyncio.sleep(0.02)
+
+    async def main():
+        t = asyncio.ensure_future(slow_save())
+        job.track_save(t)
+        server = BenchmarkServer(server_module.INDEX_HTML)
+        server.jobs[job.job_id] = job
+        await server.shutdown()
+        assert t.done()
+
+    run(main())

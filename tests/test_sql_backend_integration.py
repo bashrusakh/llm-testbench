@@ -906,7 +906,7 @@ def test_speed_job_exposes_progress_phase_before_first_result(tmp_path, monkeypa
     async def fake_benchmark_openai(self, spec, target, model, *, job=None, run_index=None):
         assert job is not None
         assert run_index == 1
-        job.set_phase(
+        await job.set_phase(
             "waiting_first_token",
             f"Waiting for first token from {model}",
             model=model,
