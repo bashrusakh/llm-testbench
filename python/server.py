@@ -700,6 +700,30 @@ def _compute_speed_aggregates(results: List[Dict[str, Any]]) -> List[Dict[str, A
             "runs": run_data,
         })
 
+    # Ensure models with only failed runs are still represented in the aggregated view.
+    failed_only_models = sorted({
+        r.get("model") for r in failed_runs
+        if r.get("model") and r.get("model") not in by_model
+    })
+    for model in failed_only_models:
+        model_failures = [r for r in failed_runs if r.get("model") == model]
+        aggregates.append({
+            "model": model,
+            "provider_label": model_failures[0].get("provider_label", "") if model_failures else "",
+            "run_count": len(model_failures),
+            "success_count": 0,
+            "fail_count": len(model_failures),
+            "avg_decode_tps": None,
+            "min_decode_tps": None,
+            "max_decode_tps": None,
+            "avg_ttft_ms": None,
+            "min_ttft_ms": None,
+            "max_ttft_ms": None,
+            "avg_total_time_ms": None,
+            "avg_prefill_tps": None,
+            "runs": [],
+        })
+
     return aggregates
 
 
@@ -2453,7 +2477,10 @@ class BenchmarkServer:
                     run_index=run_index,
                     benchmark_type="speed",
                 )
-                return await self._run_single_benchmark(job, target, model, run_index)
+                try:
+                    return await self._run_single_benchmark(job, target, model, run_index)
+                except asyncio.CancelledError:
+                    return self._stopped_result(job, target, model, run_index)
 
         tasks = [
             asyncio.create_task(worker(model, run_index))
@@ -2644,6 +2671,7 @@ class BenchmarkServer:
         first_token_at: Optional[float] = None
         completion_tokens: Optional[int] = None
         prompt_tokens: Optional[int] = None
+        fallback_completion_tokens = 0
         if job is not None:
             job.set_phase("waiting_first_token", f"Waiting for first token from {model}", model=model, run_index=run_index, benchmark_type="speed")
         async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
@@ -2658,18 +2686,30 @@ class BenchmarkServer:
                     if data_str == "[DONE]":
                         break
                     data = json.loads(data_str)
+                    if data.get("error"):
+                        err = data["error"]
+                        msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
+                        raise RuntimeError(f"Server error in stream: {msg}")
                     choices = data.get("choices") or []
                     if choices:
+                        choice_err = choices[0].get("error") or choices[0].get("finish_reason") == "error"
+                        if choice_err:
+                            raise RuntimeError(f"Server error in choice: {choices[0].get('error') or 'unknown'}")
                         delta = choices[0].get("delta") or {}
                         content = delta.get("content")
-                        if content is not None and first_token_at is None:
+                        reasoning = delta.get("reasoning_content")
+                        if first_token_at is None and (content is not None or reasoning is not None):
                             first_token_at = time.perf_counter()
                             if job is not None:
                                 job.set_phase("streaming", f"Streaming response from {model}", model=model, run_index=run_index, benchmark_type="speed")
+                        if isinstance(content, str) and content:
+                            fallback_completion_tokens += 1
                     usage = data.get("usage") or {}
                     if usage:
                         prompt_tokens = usage.get("prompt_tokens", prompt_tokens)
                         completion_tokens = usage.get("completion_tokens", completion_tokens)
+        if completion_tokens is None and fallback_completion_tokens > 0:
+            completion_tokens = fallback_completion_tokens
         end = time.perf_counter()
         latency_ms = (end - start) * 1000.0
         ttft_ms = ((first_token_at or end) - start) * 1000.0 if first_token_at else None
