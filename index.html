@@ -223,6 +223,104 @@
     .text-muted { color: var(--text-muted); }
     .hidden { display: none !important; }
 
+    /* Speed Aggregated View */
+    .speed-view-toggle {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+      padding: 4px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      width: fit-content;
+    }
+    .speed-view-toggle button {
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .speed-view-toggle button:hover { color: var(--text-main); background: rgba(255,255,255,0.05); }
+    .speed-view-toggle button.active { background: var(--accent); color: white; }
+
+    .speed-aggregated-table { width: 100%; border-collapse: collapse; }
+    .speed-aggregated-table th {
+      text-align: left;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .speed-aggregated-table td { padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.85rem; }
+    .speed-aggregated-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .speed-aggregated-table tbody tr.expanded { background: rgba(59,130,246,0.05); }
+
+    .decode-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .decode-badge.good { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+    .decode-badge.mid { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    .decode-badge.poor { background: rgba(239,68,68,0.15); color: #fca5a5; }
+    .decode-badge.none { background: rgba(148,163,184,0.15); color: #9ca3af; }
+
+    .sparkline-cell { width: 100px; }
+    .sparkline-bar {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 24px;
+      padding: 2px 0;
+    }
+    .sparkline-bar__bar {
+      flex: 1;
+      min-width: 6px;
+      border-radius: 1px 1px 0 0;
+      transition: height 0.2s ease;
+    }
+    .sparkline-bar__bar.good { background: #10b981; }
+    .sparkline-bar__bar.mid { background: #f59e0b; }
+    .sparkline-bar__bar.poor { background: #ef4444; }
+    .sparkline-bar__bar.none { background: var(--border); }
+
+    .run-count { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--text-muted); }
+    .run-count .success { color: #6ee7b7; font-weight: 600; }
+    .run-count .fail { color: #fca5a5; font-weight: 600; }
+
+    .expand-toggle {
+      width: 24px; height: 24px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 4px; color: var(--text-muted); cursor: pointer;
+      font-size: 0.7rem; transition: all 0.2s;
+    }
+    .expand-toggle:hover { background: rgba(255,255,255,0.05); color: var(--text-main); border-color: var(--accent); }
+    .expand-toggle.expanded { transform: rotate(180deg); }
+
+    .run-detail-panel {
+      display: none;
+      background: rgba(255,255,255,0.02);
+      border-top: 1px solid var(--border);
+    }
+    .run-detail-panel.visible { display: table-row; }
+    .run-detail-panel td { padding: 0 !important; }
+    .run-detail-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .run-detail-table th { text-align: left; color: var(--text-muted); font-size: 0.65rem; text-transform: uppercase; padding: 8px; border-bottom: 1px solid var(--border); }
+    .run-detail-table td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+
     .history-toolbar {
       display: flex;
       gap: 12px;
@@ -1078,6 +1176,11 @@
         TTFT = time to first token. Total = full generation time. PP = prompt tokens per second when the backend reports prompt-eval timing.
       </div>
 
+      <div id="speedViewToggle" class="speed-view-toggle hidden">
+        <button type="button" data-view="aggregated" class="active" title="One row per model with averaged metrics">📊 Aggregated</button>
+        <button type="button" data-view="raw" title="One row per individual run">☰ Individual runs</button>
+      </div>
+
       <div id="sqlResultsContainer" style="display:none;"></div>
       <div style="overflow-x: auto;">
         <div id="speedResultsContainer">
@@ -1171,6 +1274,8 @@
       // Stop clears this so the queue does not continue.
       jobQueue: [],
       isBenchmarkRunning: false,
+      // Speed view mode: 'aggregated' (default) or 'raw'
+      speedViewMode: 'aggregated',
     };
 
     // Single source of truth for the Start/Stop buttons, driven by job status.
@@ -2219,7 +2324,7 @@
       const closeBtn = $('closeHistoryViewBtn');
       if (closeBtn) closeBtn.classList.remove('hidden');
       setResultsTableMode(state.activeBenchmarkType);
-      renderResults(job.results || [], job.request?.benchmark_type || 'speed');
+      renderResults(job, job.request?.benchmark_type || 'speed');
       updateSummary(job, job.request?.benchmark_type || 'speed');
       const completed = job.progress?.completed || 0;
       const total = job.progress?.total || 0;
@@ -2261,7 +2366,7 @@
       state.liveJobId = jobId;
       state.activeBenchmarkType = job.request?.benchmark_type || 'speed';
       setResultsTableMode(state.activeBenchmarkType);
-      renderResults(job.results || [], state.activeBenchmarkType);
+      renderResults(job, state.activeBenchmarkType);
       updateSummary(job, state.activeBenchmarkType);
       const completed = job.progress?.completed || 0;
       const total = job.progress?.total || 0;
@@ -2377,6 +2482,158 @@
           <td class="text-error">${escapeHtml(result.error || '')}</td>
         `;
         resultsBodyEl.appendChild(row);
+      });
+    }
+
+    // --- Speed Aggregated View ---
+    const DECODE_THRESHOLDS = {
+      good: 50,   // >= 50 tok/s
+      mid: 20,    // 20-50 tok/s
+      poor: 0     // < 20 tok/s
+    };
+
+    function getDecodeThresholdClass(value) {
+      if (value === null || value === undefined) return 'none';
+      if (value >= DECODE_THRESHOLDS.good) return 'good';
+      if (value >= DECODE_THRESHOLDS.mid) return 'mid';
+      return 'poor';
+    }
+
+    function formatTpsFixed(value) {
+      return value != null ? Number(value).toFixed(2) : '—';
+    }
+
+    function formatMsFixed(value) {
+      return value != null ? Number(value).toFixed(2) : '—';
+    }
+
+    function buildSparkline(runs) {
+      if (!runs || !runs.length) return '<span class="text-muted">—</span>';
+      const maxDecode = Math.max(...runs.map(r => r.decode_tps || 0).filter(v => v > 0), 1);
+      const bars = runs.map(r => {
+        const val = r.decode_tps || 0;
+        const heightPct = val > 0 ? Math.max(10, (val / maxDecode) * 100) : 0;
+        const cls = getDecodeThresholdClass(val);
+        return `<div class="sparkline-bar__bar ${cls}" style="height: ${heightPct}%;" title="Run ${r.run_index}: ${formatTpsFixed(val)} tok/s"></div>`;
+      }).join('');
+      return `<div class="sparkline-bar" title="Per-run decode throughput">${bars}</div>`;
+    }
+
+    function renderAggregatedSpeedResults(job) {
+      const container = $('speedResultsContainer');
+      if (!container) return;
+      const aggregates = job.aggregated_speed;
+      if (!aggregates || !aggregates.length) {
+        container.innerHTML = `
+          <div class="empty-state" style="padding:32px;">
+            <div style="font-size:1.2rem; margin-bottom:8px;">📊</div>
+            <div>No completed speed runs to aggregate yet</div>
+          </div>`;
+        return;
+      }
+
+      let html = `
+        <table class="speed-aggregated-table">
+          <thead>
+            <tr>
+              <th style="width:32px;"></th>
+              <th>Model</th>
+              <th>Provider</th>
+              <th style="width:100px;">Runs</th>
+              <th style="width:140px;">Avg Decode (tok/s)</th>
+              <th style="width:100px;">Avg TTFT (ms)</th>
+              <th style="width:100px;">Avg Total (s)</th>
+              <th style="width:100px;">Min/Max Decode</th>
+              <th style="width:100px;">Sparkline</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      aggregates.forEach((agg, idx) => {
+        const thresholdClass = getDecodeThresholdClass(agg.avg_decode_tps);
+        const runCountHtml = `
+          <span class="run-count">
+            <span class="success">${agg.success_count}</span> / ${agg.run_count}
+            ${agg.fail_count > 0 ? `<span class="fail">(${agg.fail_count} failed)</span>` : ''}
+          </span>`;
+        const minMaxHtml = agg.min_decode_tps !== null && agg.max_decode_tps !== null
+          ? `${formatTpsFixed(agg.min_decode_tps)} / ${formatTpsFixed(agg.max_decode_tps)}`
+          : '—';
+        const sparklineHtml = buildSparkline(agg.runs);
+
+        html += `
+          <tr class="aggregate-row" data-model-idx="${idx}">
+            <td><button class="expand-toggle" data-expand="${idx}" aria-label="Expand details">▼</button></td>
+            <td><strong>${escapeHtml(agg.model)}</strong></td>
+            <td>${escapeHtml(agg.provider_label || '-')}</td>
+            <td>${runCountHtml}</td>
+            <td><span class="decode-badge ${thresholdClass}">${formatTpsFixed(agg.avg_decode_tps)}</span></td>
+            <td>${formatMsFixed(agg.avg_ttft_ms)}</td>
+            <td>${agg.avg_total_time_ms != null ? (agg.avg_total_time_ms / 1000).toFixed(2) : '—'}</td>
+            <td class="text-muted">${minMaxHtml}</td>
+            <td class="sparkline-cell">${sparklineHtml}</td>
+          </tr>
+          <tr class="run-detail-panel" data-detail="${idx}">
+            <td colspan="9">
+              <table class="run-detail-table">
+                <thead>
+                  <tr>
+                    <th>Run</th>
+                    <th>Status</th>
+                    <th>Decode (tok/s)</th>
+                    <th>TTFT (ms)</th>
+                    <th>Total (s)</th>
+                    <th>PP (t/s)</th>
+                    <th>Prompt Tok</th>
+                    <th>Completion Tok</th>
+                  </tr>
+                </thead>
+                <tbody>
+        `;
+
+        agg.runs.forEach(run => {
+          const thrClass = getDecodeThresholdClass(run.decode_tps);
+          html += `
+            <tr>
+              <td>${run.run_index}</td>
+              <td><span class="status-badge success">✓</span></td>
+              <td><span class="decode-badge ${thrClass}">${formatTpsFixed(run.decode_tps)}</span></td>
+              <td>${formatMsFixed(run.ttft_ms)}</td>
+              <td>${run.total_time_ms != null ? (run.total_time_ms / 1000).toFixed(2) : '—'}</td>
+              <td>${formatTpsFixed(run.prefill_tps)}</td>
+              <td>${run.prompt_tokens || '—'}</td>
+              <td>${run.completion_tokens || '—'}</td>
+            </tr>
+          `;
+        });
+
+        html += `
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        `;
+      });
+
+      html += `
+          </tbody>
+        </table>
+      `;
+
+      container.innerHTML = html;
+
+      // Attach expand listeners
+      container.querySelectorAll('.expand-toggle').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = btn.getAttribute('data-expand');
+          const detailRow = container.querySelector(`.run-detail-panel[data-detail="${idx}"]`);
+          const isExpanded = btn.classList.toggle('expanded');
+          if (detailRow) detailRow.classList.toggle('visible', isExpanded);
+          const aggregateRow = container.querySelector(`.aggregate-row[data-model-idx="${idx}"]`);
+          if (aggregateRow) aggregateRow.classList.toggle('expanded', isExpanded);
+        });
       });
     }
 
@@ -3159,31 +3416,46 @@
       document.addEventListener('keydown', handleSqlDetailModalEscape);
     }
 
-    function renderResults(results, benchmarkType = state.activeBenchmarkType || 'speed') {
+    function renderResults(job, benchmarkType = state.activeBenchmarkType || 'speed') {
+      const results = job?.results || [];
       setResultsTableMode(benchmarkType);
       const resultsBodyEl = $('resultsBody');
+      const speedToggle = $('speedViewToggle');
+      const speedC = $('speedResultsContainer');
+      const sqlC = $('sqlResultsContainer');
+
       if (!results.length) {
         if (benchmarkType === 'sql') {
-          const sqlC = $('sqlResultsContainer');
           if (sqlC) { sqlC.innerHTML = '<div class="empty-state" style="padding:32px;">No SQL benchmark results yet</div>'; sqlC.style.display = ''; }
-          const speedC = $('speedResultsContainer'); if (speedC) speedC.style.display = 'none';
+          if (speedC) speedC.style.display = 'none';
         } else {
           if (resultsBodyEl) resultsBodyEl.innerHTML = `<tr><td colspan="12" class="empty-state">No results yet</td></tr>`;
-          const speedC = $('speedResultsContainer'); if (speedC) speedC.style.display = '';
-          const sqlC = $('sqlResultsContainer'); if (sqlC) sqlC.style.display = 'none';
+          if (speedC) speedC.style.display = '';
+          if (sqlC) sqlC.style.display = 'none';
         }
+        if (speedToggle) speedToggle.classList.add('hidden');
         return;
       }
 
+      if (speedToggle) speedToggle.classList.remove('hidden');
+
       if (benchmarkType === 'sql') {
-        const speedC = $('speedResultsContainer'); if (speedC) speedC.style.display = 'none';
-        const sqlC = $('sqlResultsContainer'); if (sqlC) sqlC.style.display = '';
+        if (speedC) speedC.style.display = 'none';
+        if (sqlC) sqlC.style.display = '';
         renderSqlResults(results);
       } else {
-        const sqlC = $('sqlResultsContainer'); if (sqlC) sqlC.style.display = 'none';
-        const speedC = $('speedResultsContainer'); if (speedC) speedC.style.display = '';
-        if (resultsBodyEl) resultsBodyEl.innerHTML = '';
-        renderSpeedResults(results);
+        if (sqlC) sqlC.style.display = 'none';
+        if (speedC) speedC.style.display = '';
+
+        // Use aggregated view by default for speed benchmarks
+        const viewMode = state.speedViewMode || 'aggregated';
+        if (viewMode === 'aggregated' && job.aggregated_speed && job.aggregated_speed.length) {
+          if (resultsBodyEl) resultsBodyEl.innerHTML = '';
+          renderAggregatedSpeedResults(job);
+        } else {
+          if (resultsBodyEl) resultsBodyEl.innerHTML = '';
+          renderSpeedResults(results);
+        }
       }
     }
 
@@ -3196,29 +3468,56 @@
 
     function updateSummary(job, benchmarkType = state.activeBenchmarkType || 'speed') {
       resetSummaryForMode(benchmarkType);
-      const successful = (job.results || []).filter(r => r.success);
       const sr = $('successfulRuns');
-      if (sr) sr.textContent = successful.length;
       const am = $('activeModel');
       if (am) {
         am.textContent = formatActiveModelDisplay(job.progress?.current_provider_label, job.progress?.current_model);
       }
 
       if (benchmarkType === 'sql') {
+        const successful = (job.results || []).filter(r => r.success);
+        if (sr) sr.textContent = successful.length;
         const bl = $('bestLatency'); if (bl) bl.textContent = String((job.results || []).filter(r => r.row_count_match === true).length);
         const bp = $('bestPp'); if (bp) bp.textContent = String((job.results || []).filter(r => r.columns_match === true).length);
         const bd = $('bestDecode'); if (bd) bd.textContent = String((job.results || []).filter(r => r.first_row_match === true).length);
         return;
       }
 
-      if (successful.length) {
-        const ttftValues = successful.map(r => r.ttft_ms).filter(v => v != null);
-        const ppValues = successful.map(r => r.prefill_tps).filter(v => v != null);
-        const decodeValues = successful.map(r => r.decode_tps).filter(v => v != null);
+      // Speed benchmark: use aggregated data if available
+      const aggregates = job.aggregated_speed;
+      if (aggregates && aggregates.length) {
+        const totalSuccessful = aggregates.reduce((sum, a) => sum + a.success_count, 0);
+        const totalRuns = aggregates.reduce((sum, a) => sum + a.run_count, 0);
+        if (sr) sr.textContent = `${totalSuccessful} / ${totalRuns}`;
 
-        const bl = $('bestLatency'); if (bl) bl.textContent = ttftValues.length ? formatMillisecondsAsSeconds(Math.min(...ttftValues)) : 'n/a';
-        const bp = $('bestPp'); if (bp) bp.textContent = ppValues.length ? `${formatNumber(Math.max(...ppValues), 1)} t/s` : 'n/a';
-        const bd = $('bestDecode'); if (bd) bd.textContent = decodeValues.length ? `${formatNumber(Math.max(...decodeValues), 1)} t/s` : 'n/a';
+        // Best avg decode across models
+        const avgDecodeValues = aggregates.map(a => a.avg_decode_tps).filter(v => v != null);
+        const avgTtftValues = aggregates.map(a => a.avg_ttft_ms).filter(v => v != null);
+        const avgTotalValues = aggregates.map(a => a.avg_total_time_ms).filter(v => v != null);
+
+        const bl = $('bestLatency');
+        if (bl) bl.textContent = avgTtftValues.length ? formatMillisecondsAsSeconds(Math.min(...avgTtftValues)) : 'n/a';
+
+        const bp = $('bestPp');
+        const avgPpValues = aggregates.map(a => a.avg_prefill_tps).filter(v => v != null);
+        if (bp) bp.textContent = avgPpValues.length ? `${formatNumber(Math.max(...avgPpValues), 1)} t/s` : 'n/a';
+
+        const bd = $('bestDecode');
+        if (bd) bd.textContent = avgDecodeValues.length ? `${formatNumber(Math.max(...avgDecodeValues), 1)} t/s` : 'n/a';
+      } else {
+        // Fallback to raw results
+        const successful = (job.results || []).filter(r => r.success);
+        if (sr) sr.textContent = successful.length;
+
+        if (successful.length) {
+          const ttftValues = successful.map(r => r.ttft_ms).filter(v => v != null);
+          const ppValues = successful.map(r => r.prefill_tps).filter(v => v != null);
+          const decodeValues = successful.map(r => r.decode_tps).filter(v => v != null);
+
+          const bl = $('bestLatency'); if (bl) bl.textContent = ttftValues.length ? formatMillisecondsAsSeconds(Math.min(...ttftValues)) : 'n/a';
+          const bp = $('bestPp'); if (bp) bp.textContent = ppValues.length ? `${formatNumber(Math.max(...ppValues), 1)} t/s` : 'n/a';
+          const bd = $('bestDecode'); if (bd) bd.textContent = decodeValues.length ? `${formatNumber(Math.max(...decodeValues), 1)} t/s` : 'n/a';
+        }
       }
     }
 
@@ -3243,7 +3542,7 @@
 
         if (!viewingOther) {
           state.activeBenchmarkType = job.request?.benchmark_type || 'speed';
-          renderResults(job.results || [], job.request?.benchmark_type || 'speed');
+          renderResults(job, job.request?.benchmark_type || 'speed');
           updateSummary(job, job.request?.benchmark_type || 'speed');
           setCurrentOperation(job);
 
@@ -3436,6 +3735,43 @@
         updateActionButtons();
       });
     }
+
+    // Speed view toggle
+    const speedToggleEl = $('speedViewToggle');
+    if (speedToggleEl) {
+      speedToggleEl.addEventListener('click', (event) => {
+        const btn = event.target.closest('button[data-view]');
+        if (!btn) return;
+        const view = btn.getAttribute('data-view');
+        if (view !== 'aggregated' && view !== 'raw') return;
+        state.speedViewMode = view;
+        try { sessionStorage.setItem('llmSpeedTest.speedViewMode', view); } catch (_) {}
+        speedToggleEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.getAttribute('data-view') === view));
+        // Re-render current results with new view
+        if (state.liveJobId || state.jobId) {
+          const jobId = state.liveJobId || state.jobId;
+          fetch(apiUrl(`/api/benchmark/${jobId}`))
+            .then(r => r.json())
+            .then(data => {
+              if (data.status === 'ok' && data.job) {
+                renderResults(data.job, data.job.request?.benchmark_type || 'speed');
+              }
+            });
+        }
+      });
+    }
+
+    // Load persisted speed view mode
+    try {
+      const savedView = sessionStorage.getItem('llmSpeedTest.speedViewMode');
+      if (savedView === 'aggregated' || savedView === 'raw') {
+        state.speedViewMode = savedView;
+        const speedToggleEl = $('speedViewToggle');
+        if (speedToggleEl) {
+          speedToggleEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.getAttribute('data-view') === savedView));
+        }
+      }
+    } catch (_) {}
 
     window.addEventListener('resize', () => { hideSqlFloatingTooltip(); syncSqlMatrixLayout(document); });
     window.addEventListener('scroll', hideSqlFloatingTooltip, true);
