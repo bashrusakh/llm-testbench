@@ -4,6 +4,7 @@ All notable release changes for LLM Testbench are tracked here.
 
 ## Unreleased
 
+
 ### Security
 
 - **SSRF guard for provider endpoints** — `_validate_endpoint_url` now resolves the hostname via `socket.getaddrinfo` and rejects targets whose resolved IPs fall into `is_private`/`is_loopback`/`is_link_local`/`is_multicast`/`is_reserved`/`is_unspecified` (covering `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16` link-local incl. cloud metadata, `100.64.0.0/10` CGNAT, `0.0.0.0`, IPv6 loopback / ULA / link-local, etc.). Wired into `_benchmark_openai`, `_benchmark_ollama`, and `_probe_provider` (which catches the error and reports the target as `unreachable` instead of crashing). DNS resolution failures now raise a clear `ValueError` instead of producing a confusing `httpx.ConnectError` deeper in the stack.
@@ -11,6 +12,16 @@ All notable release changes for LLM Testbench are tracked here.
 ### Added
 
 - **`tests/test_speed_unit.py`** — Regression tests for `_compute_speed_aggregates` (single-model, multi-model, failed-only), the new SSRF guard (private IPv4/IPv6, loopback, link-local, public IPv4, public HTTPS, DNS failure), `_benchmark_openai` (reasoning-content first-token anchor, chunk-counter fallback, SSE error body), and `_benchmark_ollama` (full `eval_count` + `prompt_eval_count`, missing-fields fallback).
+
+### Changed
+
+- Removed dead code:
+  - `BenchmarkServer._read_jsonl` (`python/server.py`) — duplicate of `local_benchmarks.read_jsonl`, no callers.
+  - Frontend helpers `generateProviderId`, `selectedModels`, `selectedSqlModel`, `renderSqlDetailChecks` (`index.html`) — replaced earlier by `stableProviderId`, `aggregateSelectedModels`, `getSelectedModelsForProvider`, and `renderSqlDetailChecksInline`.
+  - Unused ids `resultsHeaderRow` and `promptGroup` (`index.html`) — no readers.
+  - Unused imports: `os` (`python/server.py`), `ToolLlmCallback` (`python/server.py`), `math` (`python/sql_benchmark.py`).
+  - Root `__init__.py` — empty, no consumers (the actual package is `python/`).
+
 
 ### Fixed
 
