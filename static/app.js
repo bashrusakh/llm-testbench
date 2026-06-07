@@ -2216,6 +2216,12 @@
   }
 
   function renderResults(job, benchmarkType = state.activeBenchmarkType || 'speed') {
+    // Cache the latest job so other code paths (e.g. the speed view
+    // toggle) can answer "does this job have aggregates?" synchronously
+    // without doing another fetch. The toggle handler also re-fetches the
+    // job before re-rendering, so a stale cache is self-correcting on
+    // the next click.
+    state.lastJob = job;
     const results = job?.results || [];
     setResultsTableMode(benchmarkType);
     const resultsBodyEl = $('resultsBody');
@@ -2246,30 +2252,72 @@
       if (sqlC) sqlC.style.display = 'none';
       if (speedC) speedC.style.display = '';
 
-      // Respect the user-selected view even when no aggregate is available yet.
+      const hasAggregates = job.aggregated_speed && job.aggregated_speed.length;
       const viewMode = state.speedViewMode || 'aggregated';
-      if (viewMode === 'raw') {
+
+      if (viewMode === 'raw' || !hasAggregates) {
+        // Raw view, OR aggregated view but no pre-computed aggregates
+        // (e.g. a saved run loaded from history whose record was written
+        // before the backend started persisting aggregated_speed, or a run
+        // that hasn't completed any successful result yet). Fall back to
+        // the raw table so the user sees their data instead of a dead
+        // placeholder. When we fall back, sync the toggle to 'raw' so the
+        // Aggregated/Individual button reflects what's actually shown.
+        if (!hasAggregates && viewMode !== 'raw') {
+          state.speedViewMode = 'raw';
+          try { sessionStorage.setItem('llmSpeedTest.speedViewMode', 'raw'); } catch (_) {}
+          const toggle = $('speedViewToggle');
+          if (toggle) toggle.querySelectorAll('button').forEach(b =>
+            b.classList.toggle('active', b.getAttribute('data-view') === 'raw')
+          );
+        }
+        // Restore the structural table the placeholder would otherwise wipe:
+        // renderAggregatedSpeedResults replaces speedResultsContainer's
+        // innerHTML with a fresh <table>; the original <tbody id="resultsBody">
+        // we depend on for the raw view is gone after that. Rebuild it.
+        _ensureRawResultsTable();
         if (resultsBodyEl) resultsBodyEl.innerHTML = '';
         _clearSpeedRowCache();
         renderSpeedResults(results);
-      } else if (job.aggregated_speed && job.aggregated_speed.length) {
+      } else {
+        // Aggregated view, with aggregates available.
         if (resultsBodyEl) resultsBodyEl.innerHTML = '';
         renderAggregatedSpeedResults(job);
-      } else {
-        // Aggregated view is selected but nothing has been aggregated yet.
-        // Show a placeholder that matches the aggregated layout instead of
-        // silently falling back to the raw view (which would make the
-        // toggle appear to do nothing).
-        if (resultsBodyEl) resultsBodyEl.innerHTML = '';
-        if (speedC) {
-          speedC.innerHTML = `
-            <div class="empty-state" style="padding:32px;">
-              <div style="font-size:1.2rem; margin-bottom:8px;">📊</div>
-              <div>No completed speed runs to aggregate yet</div>
-            </div>`;
-        }
       }
     }
+  }
+
+  // Rebuild the raw <table> inside #speedResultsContainer after
+  // renderAggregatedSpeedResults has replaced it with its own aggregated
+  // <table class="speed-aggregated-table">. The raw view depends on a
+  // <tbody id="resultsBody"> being present; if it isn't, create one and
+  // the matching <table><thead> with the same column layout as
+  // index.html. Idempotent: returns immediately if the structure is
+  // already there.
+  function _ensureRawResultsTable() {
+    const speedC = $('speedResultsContainer');
+    if (!speedC) return;
+    if (speedC.querySelector('table > tbody#resultsBody')) return;
+    speedC.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Model</th>
+            <th>Run</th>
+            <th>Status</th>
+            <th>Total (s)</th>
+            <th>TTFT (s)</th>
+            <th>PP (t/s)</th>
+            <th>Decode (t/s)</th>
+            <th>Prompt Tok</th>
+            <th>Completion Tok</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody" aria-busy="false" aria-live="polite"></tbody>
+      </table>
+    `;
   }
 
   function formatActiveModelDisplay(providerLabel, modelName) {
@@ -2590,9 +2638,20 @@
       if (!btn) return;
       const view = btn.getAttribute('data-view');
       if (view !== 'aggregated' && view !== 'raw') return;
-      state.speedViewMode = view;
-      try { sessionStorage.setItem('llmSpeedTest.speedViewMode', view); } catch (_) {}
-      speedToggleEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.getAttribute('data-view') === view));
+
+      // If the user wants aggregated view but the cached job has no
+      // aggregates (e.g. an old saved run loaded from history), don't
+      // optimistically flip the toggle. Otherwise the button briefly
+      // shows "Aggregated" before the async re-render flips it back.
+      // The re-render below will still happen and update the toggle
+      // via the fallback in renderResults.
+      const hasCachedAggregates = !!(state.lastJob && state.lastJob.aggregated_speed && state.lastJob.aggregated_speed.length);
+      if (view !== 'aggregated' || hasCachedAggregates) {
+        state.speedViewMode = view;
+        try { sessionStorage.setItem('llmSpeedTest.speedViewMode', view); } catch (_) {}
+        speedToggleEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.getAttribute('data-view') === view));
+      }
+
       // Re-render current results with new view
       const jobId = getActiveJobId();
       if (jobId) {
