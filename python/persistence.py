@@ -152,7 +152,13 @@ async def reconcile_stale_records(server: "BenchmarkServer") -> int:
             try:
                 content = await asyncio.to_thread(path.read_text, "utf-8")
                 data = json.loads(content)
-            except Exception:
+            except (OSError, ValueError):
+                # OSError    -> read failed (permissions, transient I/O)
+                # ValueError -> json.JSONDecodeError, also a subclass
+                # Corrupt or unreadable files are skipped (no log line) so
+                # a single bad record does not block startup. Other
+                # exception types (TypeError, KeyError, ...) would indicate
+                # a real bug and are intentionally not swallowed.
                 continue
             if not isinstance(data, dict):
                 continue
