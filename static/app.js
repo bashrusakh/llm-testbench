@@ -2453,7 +2453,11 @@
       applyButtonState(job.status);
       state.pollTimer = setTimeout(pollJob, 1000);
     } catch (error) {
-      state.jobQueue = [];
+      // Transient poll failure (network blip, server 5xx). Do NOT touch
+      // `state.jobQueue` here -- only `job.status === 'stopped'` (handled
+      // above) should clear the queue. Dropping the queue on a fetch
+      // error silently loses any queued follow-up jobs the user just
+      // submitted (e.g. SQL after Speed).
       applyButtonState(null);
       state.liveJobId = null;
       stopPolling();
