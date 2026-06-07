@@ -4,6 +4,15 @@ All notable release changes for LLM Testbench are tracked here.
 
 ## Unreleased
 
+### Changed
+
+- Removed dead code:
+  - `BenchmarkServer._read_jsonl` (`python/server.py`) — duplicate of `local_benchmarks.read_jsonl`, no callers.
+  - Frontend helpers `generateProviderId`, `selectedModels`, `selectedSqlModel`, `renderSqlDetailChecks` (`index.html`) — replaced earlier by `stableProviderId`, `aggregateSelectedModels`, `getSelectedModelsForProvider`, and `renderSqlDetailChecksInline`.
+  - Unused ids `resultsHeaderRow` and `promptGroup` (`index.html`) — no readers.
+  - Unused imports: `os` (`python/server.py`), `ToolLlmCallback` (`python/server.py`), `math` (`python/sql_benchmark.py`).
+  - Root `__init__.py` — empty, no consumers (the actual package is `python/`).
+
 ### Fixed
 
 - **Speed `decode_tps` is now ~2× lower for reasoning models** — `_benchmark_openai` was anchoring `first_token_at` to the first `delta.content` chunk and ignoring `delta.reasoning_content`. For thinking models (DeepSeek-R1, QwQ, gpt-oss, etc.) the entire `reasoning_content` phase was excluded from the decode window while `usage.completion_tokens` (which includes reasoning tokens) was still used as the numerator, producing a value roughly `1 + T_thinking / T_content` (≈2× when thinking time matches answer time). The TTFT/decode anchor now triggers on the first generation delta of either field, matching LM Studio's `eval_count / eval_duration`.

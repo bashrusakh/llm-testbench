@@ -11,7 +11,6 @@ import hashlib
 import io
 import json
 import logging
-import os
 import socket
 import time
 import uuid
@@ -23,7 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import httpx
 from aiohttp import web
 
-from python.sql_benchmark import SqlBenchmarkRunner, ToolLlmCallback
+from python.sql_benchmark import SqlBenchmarkRunner
 from python.adapter import ADAPTER_REGISTRY, get_adapter
 from python.local_benchmarks import LOCAL_FIXTURE_SPECS, load_local_tasks, validate_local_fixtures
 
@@ -1389,22 +1388,6 @@ class BenchmarkServer:
             },
             "timestamp": ts_utc(),
         })
-
-    @staticmethod
-    def _read_jsonl(path: Path) -> List[Dict[str, Any]]:
-        rows: List[Dict[str, Any]] = []
-        for line_number, line in enumerate(path.read_text("utf-8").splitlines(), start=1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                item = json.loads(line)
-            except json.JSONDecodeError as exc:
-                raise ValueError(f"{path.name}:{line_number}: invalid JSON: {exc.msg}") from exc
-            if not isinstance(item, dict):
-                raise ValueError(f"{path.name}:{line_number}: expected JSON object")
-            rows.append(item)
-        return rows
 
     def _build_fixture_manifest(self) -> Dict[str, Any]:
         sql_questions_path = SQL_BENCHMARK_DATA_DIR / "questions.json"
