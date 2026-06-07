@@ -21,10 +21,8 @@ expect to find on this module.
 from __future__ import annotations
 
 import argparse
-import contextvars
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
 
 import httpx  # re-exported so ``server_module.httpx.AsyncClient`` monkeypatching works
 from aiohttp import web
@@ -55,15 +53,12 @@ INDEX_HTML = PROJECT_ROOT / "index.html"
 SQL_BENCHMARK_DATA_DIR = PROJECT_ROOT / "sql_benchmark_data"
 RESULTS_STORE_DIR = PROJECT_ROOT / "benchmarks"
 DEFAULT_ALLOWED_ORIGINS = {"*"}
-DEFAULT_TIMEOUT_MS = 120_000
 DEFAULT_PORT_CANDIDATES = [1234, 8080, 11434, 5000, 5001]
 DEFAULT_HOST_CANDIDATES = ["127.0.0.1", "localhost"]
 LOCAL_SCAN_CONNECT_TIMEOUT_S = 0.5
 LOCAL_SCAN_READ_TIMEOUT_S = .5
 OPENAI_MODELS_PATH = "/v1/models"
-OPENAI_CHAT_PATH = "/v1/chat/completions"
 OLLAMA_TAGS_PATH = "/api/tags"
-OLLAMA_CHAT_PATH = "/api/chat"
 
 
 def setup_logging(level: int = logging.INFO) -> None:
