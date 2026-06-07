@@ -123,7 +123,6 @@ async def create_app() -> web.Application:
         LOG.warning("Stale-record reconciliation failed: %s", exc)
     app = web.Application(middlewares=[cors_middleware()])
     app.on_cleanup.append(lambda _app: server.shutdown())
-    app.router.add_route("OPTIONS", "/{tail:.*}", lambda _request: web.Response(status=204))
     # Serve /static/style.css and /static/app.js extracted from index.html
     static_dir = PROJECT_ROOT / "static"
     if static_dir.is_dir():
