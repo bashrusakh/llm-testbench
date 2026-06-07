@@ -53,7 +53,7 @@ def test_frontend_history_and_summary_branch_by_benchmark_type():
 
     assert 'Benchmark Type' in html
     assert "job.request?.benchmark_type" in html
-    assert "renderResults(job.results || [], job.request?.benchmark_type || 'speed')" in html
+    assert "renderResults(job, job.request?.benchmark_type || 'speed')" in html
     assert "updateSummary(job, job.request?.benchmark_type || 'speed')" in html
 
 
@@ -90,7 +90,7 @@ def test_frontend_speed_table_uses_ttft_total_and_operation_status():
     assert 'Current operation:' in html
     assert 'Latency (s)' not in html
     assert 'Total (ms)' not in html
-    assert 'TTFT (ms)' not in html
+    # Raw table uses TTFT (s), aggregated table uses Avg TTFT (ms)
     assert 'Total (s)' in html
     assert 'TTFT (s)' in html
     assert "formatMillisecondsAsSeconds(result.total_time_ms)" in html
@@ -99,6 +99,9 @@ def test_frontend_speed_table_uses_ttft_total_and_operation_status():
     assert "formatTps(result.decode_tps)" in html
     assert "current_message" in html
     assert "Best TTFT" in html
+    # Aggregated view headers
+    assert 'Avg TTFT (ms)' in html
+    assert 'Avg Decode (tok/s)' in html
 
 
 def test_frontend_quant_parser_recognizes_unsloth_dynamic_formats():
