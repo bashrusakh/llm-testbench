@@ -1647,10 +1647,6 @@
       updateActionButtons();
     }
 
-    function generateProviderId(source) {
-      return `${source}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    }
-
     function getSelectedModelsForProvider(providerId) {
       return Array.from(state.providerModelSelection[providerId] || []);
     }
@@ -1939,10 +1935,6 @@
       renderEndpoints();
     }
 
-    function selectedModels() {
-      return getSelectedModelsForProvider(state.activeProviderId);
-    }
-
     function setModelCheckedForActiveProvider(model, checked) {
       const providerId = state.activeProviderId;
       if (!providerId || !model) return;
@@ -1962,12 +1954,6 @@
 
     function exactlyOneIncludedProvider() {
       return includedProviders().length === 1;
-    }
-
-    function selectedSqlModel() {
-      const provider = selectedSqlProvider();
-      if (!provider) return null;
-      return getSelectedModelsForProvider(provider.id)[0] || null;
     }
 
     function updateActionButtons() {
@@ -3157,40 +3143,6 @@
       const act = Array.isArray(result.actual_columns) ? result.actual_columns.length : null;
       if (exp === null && act === null) return '—';
       return `${act ?? '—'} / ${exp ?? '—'}`;
-    }
-
-    function renderSqlDetailChecks(result) {
-      const checks = [
-        {
-          label: 'Row count',
-          value: result.row_count_match,
-          detail: sqlDetailCountPair(result, ['expected_row_count'], ['actual_row_count']),
-        },
-        {
-          label: 'Column count',
-          value: result.columns_match,
-          detail: sqlDetailColsCountPair(result),
-        },
-        {
-          label: 'First row',
-          value: result.first_row_match,
-          detail: Array.isArray(result.first_row_diffs) && result.first_row_diffs.length ? `${result.first_row_diffs.length} diff(s)` : '',
-        },
-      ];
-
-      return `
-        <div class="sql-check-list">
-          ${checks.map(check => `
-            <div class="sql-check-item">
-              ${sqlDetailCheckIcon(check.value)}
-              <div>
-                <strong>${escapeHtml(check.label)}</strong>
-                <div>${escapeHtml(sqlDetailCheckText(check.value))}${check.detail ? ` · ${escapeHtml(check.detail)}` : ''}</div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      `;
     }
 
     function sqlDetailCheckClass(value) {
