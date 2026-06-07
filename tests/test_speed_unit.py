@@ -129,26 +129,39 @@ def test_validate_endpoint_url_accepts_public_https():
     _validate_endpoint_url("https://api.openai.com/v1")  # may resolve to public IPs
 
 
-def test_validate_endpoint_url_rejects_loopback():
-    with pytest.raises(ValueError, match="non-public address"):
-        _validate_endpoint_url("http://127.0.0.1:11434")
-    with pytest.raises(ValueError, match="non-public address"):
-        _validate_endpoint_url("http://localhost:1234")
+def test_validate_endpoint_url_accepts_loopback():
+    """The benchmark server is local-only and its primary use case is
+    benchmarking locally-running LLM servers (Ollama on 11434, LM Studio
+    on 1234, llama.cpp on 8080). The guard must let loopback through."""
+    _validate_endpoint_url("http://127.0.0.1:11434")
+    _validate_endpoint_url("http://localhost:1234")
+    _validate_endpoint_url("http://[::1]:8080")
 
 
-def test_validate_endpoint_url_rejects_rfc1918():
-    with pytest.raises(ValueError, match="non-public address"):
-        _validate_endpoint_url("http://10.0.0.1:8000")
-    with pytest.raises(ValueError, match="non-public address"):
-        _validate_endpoint_url("http://192.168.1.1")
-    with pytest.raises(ValueError, match="non-public address"):
-        _validate_endpoint_url("http://172.16.0.1")
+def test_validate_endpoint_url_accepts_rfc1918():
+    """Self-hosted OpenAI-compatible endpoints on a LAN are a common
+    use case. RFC1918 (10/8, 172.16/12, 192.168/16) must be allowed."""
+    _validate_endpoint_url("http://10.0.0.1:8000")
+    _validate_endpoint_url("http://192.168.1.1")
+    _validate_endpoint_url("http://172.16.0.1")
 
 
 def test_validate_endpoint_url_rejects_link_local_metadata():
-    """AWS / GCP / Azure instance metadata service."""
-    with pytest.raises(ValueError, match="non-public address"):
+    """AWS / GCP / Azure instance metadata service. The real SSRF
+    attack surface — must still be blocked."""
+    with pytest.raises(ValueError, match="non-routable address"):
         _validate_endpoint_url("http://169.254.169.254/latest/meta-data")
+    with pytest.raises(ValueError, match="non-routable address"):
+        _validate_endpoint_url("http://[fe80::1]/")
+
+
+def test_validate_endpoint_url_rejects_multicast_and_reserved():
+    """Multicast, reserved, and unspecified addresses can never be a
+    real LLM server. Reject them defensively."""
+    with pytest.raises(ValueError, match="non-routable address"):
+        _validate_endpoint_url("http://224.0.0.1:1234")
+    with pytest.raises(ValueError, match="non-routable address"):
+        _validate_endpoint_url("http://0.0.0.0/")
 
 
 def test_validate_endpoint_url_rejects_bad_scheme():
@@ -326,23 +339,50 @@ def test_benchmark_openai_raises_on_error_body_in_stream(monkeypatch):
         run(_server()._benchmark_openai(spec, target, "m"))
 
 
-def test_benchmark_openai_rejects_private_endpoint(monkeypatch):
-    """_validate_endpoint_url guard: 127.0.0.1 is rejected even before
-    any network IO is attempted."""
+def test_benchmark_openai_allows_local_endpoint(monkeypatch):
+    """Local LLM servers (Ollama on 11434, LM Studio on 1234, llama.cpp
+    on 8080) live on 127.0.0.1. The SSRF guard must NOT block them, so
+    the benchmark proceeds and AsyncClient gets constructed."""
     import python.server as server_module
     calls = []
 
+    class _BoomClient:
+        def __init__(self, *a, **kw):
+            calls.append((a, kw))
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *a):
+            return False
+        def stream(self, *a, **kw):
+            raise AssertionError("stream() not exercised in this test; "
+                                 "we only verify the guard let us through")
+
+    monkeypatch.setattr(server_module.httpx, "AsyncClient", _BoomClient)
+
+    spec = _make_request()
+    target = _make_target(base_url="http://127.0.0.1:11434")
+    # Guard must NOT raise; AsyncClient must be constructed. The call will
+    # then fail inside stream(), but that proves the guard let the URL
+    # through.
+    with pytest.raises(AssertionError, match="stream\\(\\) not exercised"):
+        run(_server()._benchmark_openai(spec, target, "m"))
+    assert len(calls) == 1
+
+
+def test_benchmark_openai_rejects_link_local_metadata(monkeypatch):
+    """The cloud metadata endpoint (169.254.169.254) is the actual SSRF
+    target and must still be blocked, even when supplied as base_url."""
+    import python.server as server_module
+
     def fake_async_client(*a, **kw):
-        calls.append((a, kw))
-        raise AssertionError("AsyncClient must not be constructed for private URLs")
+        raise AssertionError("AsyncClient must not be constructed for metadata URLs")
 
     monkeypatch.setattr(server_module.httpx, "AsyncClient", fake_async_client)
 
     spec = _make_request()
-    target = _make_target(base_url="http://127.0.0.1:11434")
-    with pytest.raises(ValueError, match="non-public address"):
+    target = _make_target(base_url="http://169.254.169.254/latest/meta-data")
+    with pytest.raises(ValueError, match="non-routable address"):
         run(_server()._benchmark_openai(spec, target, "m"))
-    assert calls == []
 
 
 # ---------------------------------------------------------------------------
@@ -574,3 +614,55 @@ def test_server_shutdown_drains_all_jobs(monkeypatch, tmp_path):
         assert t.done()
 
     run(main())
+
+
+# ---------------------------------------------------------------------------
+# _scan_candidates — automatic local endpoint discovery
+# ---------------------------------------------------------------------------
+
+
+def test_scan_candidates_finds_local_ollama_despite_ssrf_guard(monkeypatch):
+    """Regression: the SSRF guard in _probe_provider used to reject every
+    candidate URL in the local scan (they are all loopback by construction),
+    so /api/endpoints/scan always returned {"endpoints": []}. The guard is
+    only meant for user-supplied URLs in the OpenAI/Ollama benchmark paths.
+    Make sure the scan can still report a live local Ollama on 11434.
+    """
+    server = BenchmarkServer.__new__(BenchmarkServer)
+    # Pin the candidate grid to one host and two ports so the test is fast
+    # and deterministic.
+    server.host_candidates = ["127.0.0.1"]
+    server.port_candidates = [11434, 1234]
+    server.openai_models_path = "/v1/models"
+    server.ollama_tags_path = "/api/tags"
+    server.local_scan_connect_timeout_s = 0.5
+    server.local_scan_read_timeout_s = 0.5
+
+    async def fake_detect(self_or_url, *args, **kwargs):  # accepts self binding
+        # The first positional arg may be self (method) or base_url.
+        # The real call is self._detect_provider(base_url, ...) so base_url is args[0]
+        # when the method is bound (self is implicit). When monkeypatched at the
+        # class level, self is passed explicitly as the first arg.
+        base_url = args[0] if args else kwargs.get("base_url", "")
+        if base_url == "http://127.0.0.1:11434":
+            return "ollama"
+        return None
+
+    # Patch on the instance to avoid passing self
+    async def fake_detect_bound(base_url, requested_provider, api_key, client=None):
+        if base_url == "http://127.0.0.1:11434":
+            return "ollama"
+        return None
+
+    monkeypatch.setattr(server, "_detect_provider", fake_detect_bound)
+
+    async def main():
+        return await server._scan_candidates()
+
+    endpoints = run(main())
+    assert len(endpoints) == 1
+    ep = endpoints[0]
+    assert ep.base_url == "http://127.0.0.1:11434"
+    assert ep.provider == "ollama"
+    assert ep.reachable is True
+    assert ep.models_path == "/api/tags"
