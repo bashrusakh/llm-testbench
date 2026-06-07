@@ -4,6 +4,19 @@ All notable release changes for LLM Testbench are tracked here.
 
 ## Unreleased
 
+### Changed
+
+- **Server split into focused modules** — `python/server.py` is now a 168-line entry point that wires the aiohttp app, defines the module-level path/config constants (`INDEX_HTML`, `SQL_BENCHMARK_DATA_DIR`, `RESULTS_STORE_DIR`, `OPENAI_*_PATH`, `OLLAMA_*_PATH`, `DEFAULT_*_CANDIDATES`, `LOCAL_SCAN_*_TIMEOUT_S`), and re-exports the names older tests and `server_module.httpx` / `server_module.SqlBenchmarkRunner` monkeypatching expect. The 3035-line monolith is split as:
+  - `python/models.py` (669 lines) — dataclasses and registries: `EndpointCandidate`, `BenchmarkTarget`, `BenchmarkRequest` (with `from_dict`), `BenchmarkModule`, `BenchmarkPreset`, `RunState`, `JobState`, plus the `BENCHMARK_MODULES` / `BENCHMARK_PRESETS` tuples and their `BY_ID` lookups.
+  - `python/aggregates.py` (130 lines) — `_compute_speed_aggregates`, the per-model rollup.
+  - `python/json_io.py` (39 lines) — `ts_utc`, `_load_json`, `_read_json` with path-tagged errors.
+  - `python/ssrf.py` (49 lines) — `_validate_endpoint_url` private-IP guard.
+  - `python/speed_row.py` (76 lines) — `_build_speed_row` for success / failure / stopped paths.
+  - `python/persistence.py` (584 lines) — free functions: `inverted_prefix`, `record_filename`, `find_record_path`, `load_results_store`, `migrate_legacy_filenames`, `reconcile_stale_records`, `save_job_record`, `flush_job_record`, `append_job_to_results_store`, `load_job_record`, `build_results_jsonl` / `_table` / `_csv` / `_tsv`, `build_run_manifest`, `build_run_summary`, `clear_results`.
+  - `python/job_runner.py` (825 lines) — free functions: `post_openai_chat_with_reasoning_fallback`, `run_job`, `run_sql_job`, `call_llm_single`, `call_llm_tool_calling`, `sql_result_row`, `run_sequential`, `run_parallel`, `run_single_benchmark`, `stopped_result`, `benchmark_openai`, `benchmark_ollama`, `build_report`, `build_speed_report`, `build_sql_report`. Owns the `REASONING_FALLBACK_STATE` ContextVar.
+  - `python/benchmark_server.py` (1012 lines) — `BenchmarkServer` class with `__init__`, route handlers (HTTP), and thin delegate methods (`_run_job`, `_run_sql_job`, `_run_sequential`, `_run_parallel`, `_run_single_benchmark`, `_stopped_result`, `_benchmark_openai`, `_benchmark_ollama`, `_call_llm_single`, `_call_llm_tool_calling`, `_sql_result_row`, `_post_openai_chat_with_reasoning_fallback`, `_validate_endpoint_url`, `_build_report`, `_build_speed_report`, `_build_sql_report`, `_save_job_record`, `_flush_job_record`, `_append_job_to_results_store`, `_load_results_store`, `_find_record_path`, `_record_filename`, `_build_*` static builders, `migrate_legacy_filenames`, `reconcile_stale_records`) that bridge to the free functions. Delegates preserve the `monkeypatch.setattr(BenchmarkServer, "_x", fake)` test surface; the free functions in `job_runner.py` call the delegates (`self._benchmark_openai`, `self._validate_endpoint_url`) so the patches take effect.
+- **Frontend split into `static/style.css` and `static/app.js`** — `index.html` shrinks from 3971 to 321 lines. The 1011 lines of CSS (lines 10-1020) live in `static/style.css`; the 2641 lines of JS (lines 1329-3969) live in `static/app.js`. The HTML now loads both via `<link rel="stylesheet" href="/static/style.css">` and `<script src="/static/app.js"></script>`. The aiohttp app registers `app.router.add_static("/static/", PROJECT_ROOT / "static", show_index=False)`.
+- **`tests/test_sql_frontend_integration.py` updated to read JS from the new file** — new `_read_frontend()` helper concatenates `index.html` + `static/app.js` so existing substring assertions on JS-only strings (`conv-thinking`, `visibleToolCalls`, `formatMillisecondsAsSeconds(...)`, etc.) keep working without per-test rewrites.
 
 ### Security
 
