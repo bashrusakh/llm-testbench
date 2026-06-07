@@ -2683,7 +2683,7 @@ class BenchmarkServer:
             completion_tokens_capped = min(completion_tokens, spec.max_tokens)
             decode_tps = round(decode_tokens_measured / decode_seconds, 2)
         return {
-            "latency_ms": round(ttft_ms, 2) if ttft_ms is not None else None,
+            "latency_ms": round(latency_ms, 2),
             "total_time_ms": round(latency_ms, 2),
             "ttft_ms": round(ttft_ms, 2) if ttft_ms is not None else None,
             "prefill_tps": prefill_tps,
