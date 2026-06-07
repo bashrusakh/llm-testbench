@@ -250,6 +250,13 @@ async def append_job_to_results_store(server: "BenchmarkServer", job: "JobState"
         "errors": job.errors,
         "report_text": job.report_text,
     }
+    # Match JobState.to_dict(): include pre-computed per-model aggregates for
+    # speed benchmarks so the History -> Open path can render the aggregated
+    # table without a second round-trip and without losing the cached value
+    # (to_dict() computes it on every poll, but only for the in-memory job;
+    # the on-disk record is what History serves up).
+    if job.request.benchmark_type == "speed":
+        record["aggregated_speed"] = job._aggregated_speed()
     await save_job_record(server, job.job_id, record)
 
 

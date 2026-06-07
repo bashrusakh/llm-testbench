@@ -922,10 +922,13 @@ class BenchmarkServer:
         return candidates
 
     async def _probe_provider(self, base_url: str, client: Optional[httpx.AsyncClient] = None) -> Optional[str]:
-        try:
-            _validate_endpoint_url(base_url)
-        except ValueError:
-            return None
+        # base_url is always one of the built-in local candidates built in
+        # _build_scan_candidates (host_candidates x port_candidates), so the
+        # SSRF guard _validate_endpoint_url is intentionally NOT applied here:
+        # every candidate is loopback by construction, and applying the guard
+        # would make the automatic local scan always return []. The guard
+        # still applies to user-supplied URLs via _benchmark_openai /
+        # _benchmark_ollama, which is the path that needs it.
         try:
             provider = await self._detect_provider(base_url, "auto", "", client=client)
             return provider
