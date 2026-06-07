@@ -18,7 +18,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import httpx
 from aiohttp import web
@@ -533,6 +533,31 @@ class BenchmarkRequest:
 
 
 @dataclass
+class RunState:
+    """Snapshot of a job's in-flight phase, updated atomically.
+
+    All five fields change together; readers must observe a consistent
+    snapshot (phase, message, run_index, model, benchmark_type) rather
+    than a torn update from a concurrent writer. `last_event_at` is a
+    monotonic wall-clock for staleness checks.
+    """
+    phase: str = "queued"
+    message: str = "Queued"
+    run_index: Optional[int] = None
+    benchmark_type: Optional[str] = None
+    last_event_at: float = field(default_factory=time.perf_counter)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "phase": self.phase,
+            "message": self.message,
+            "run_index": self.run_index,
+            "benchmark_type": self.benchmark_type,
+            "last_event_at": self.last_event_at,
+        }
+
+
+@dataclass
 class JobState:
     request: BenchmarkRequest
     job_id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -544,10 +569,13 @@ class JobState:
     progress_total: int = 0
     progress_completed: int = 0
     current_model: Optional[str] = None
-    current_phase: str = "queued"
-    current_message: str = "Queued"
-    current_run_index: Optional[int] = None
-    current_benchmark_type: Optional[str] = None
+    current_provider_id: Optional[str] = None
+    current_provider_label: Optional[str] = None
+    run_state: RunState = field(default_factory=RunState)
+    _phase_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    _save_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    _pending_saves: "set[asyncio.Task]" = field(default_factory=set)
+    _aggregates_cache: Optional[Tuple[int, float, List[Dict[str, Any]]]] = None
     results: List[Dict[str, Any]] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     report_text: str = ""
@@ -566,12 +594,12 @@ class JobState:
                 "completed": self.progress_completed,
                 "total": self.progress_total,
                 "current_model": self.current_model,
-                "current_provider_id": getattr(self, "current_provider_id", None),
-                "current_provider_label": getattr(self, "current_provider_label", None),
-                "current_phase": self.current_phase,
-                "current_message": self.current_message,
-                "current_run_index": self.current_run_index,
-                "current_benchmark_type": self.current_benchmark_type or self.request.benchmark_type,
+                "current_provider_id": self.current_provider_id,
+                "current_provider_label": self.current_provider_label,
+                "current_phase": self.run_state.phase,
+                "current_message": self.run_state.message,
+                "current_run_index": self.run_state.run_index,
+                "current_benchmark_type": self.run_state.benchmark_type or self.request.benchmark_type,
             },
             "request": {
                 "benchmark_type": self.request.benchmark_type,
@@ -589,10 +617,26 @@ class JobState:
             "report_text": self.report_text,
         }
         if self.request.benchmark_type == "speed":
-            base["aggregated_speed"] = _compute_speed_aggregates(self.results)
+            base["aggregated_speed"] = self._aggregated_speed()
         return base
 
-    def set_phase(
+    def _aggregated_speed(self) -> List[Dict[str, Any]]:
+        """Cached aggregate stats; invalidated when results change.
+
+        Cache key is ``(len(results), last_result_timestamp)``. ``to_dict``
+        is called on every poll, but ``_compute_speed_aggregates`` walks
+        every row; on a 20-model × 5-run job that's 100 rows per tick.
+        """
+        n = len(self.results)
+        last_ts = self.results[-1].get("timestamp") if self.results else None
+        cache_key = (n, last_ts)
+        if self._aggregates_cache is not None and self._aggregates_cache[0] == n and self._aggregates_cache[1] == last_ts:
+            return self._aggregates_cache[2]
+        agg = _compute_speed_aggregates(self.results)
+        self._aggregates_cache = (n, last_ts, agg)
+        return agg
+
+    async def set_phase(
         self,
         phase: str,
         message: str,
@@ -600,13 +644,43 @@ class JobState:
         model: Optional[str] = None,
         run_index: Optional[int] = None,
         benchmark_type: Optional[str] = None,
-    ) -> None:
-        self.current_phase = phase
-        self.current_message = message
-        self.current_run_index = run_index
-        self.current_benchmark_type = benchmark_type or self.request.benchmark_type
+    ) -> RunState:
         if model is not None:
             self.current_model = model
+        new_state = RunState(
+            phase=phase,
+            message=message,
+            run_index=run_index,
+            benchmark_type=benchmark_type or self.request.benchmark_type,
+            last_event_at=time.perf_counter(),
+        )
+        async with self._phase_lock:
+            self.run_state = new_state
+        return new_state
+
+    def get_phase_snapshot(self) -> RunState:
+        """Return the current RunState without acquiring the lock.
+
+        Reference assignment in CPython is atomic, so the caller sees
+        a fully-constructed RunState from a single prior `set_phase`.
+        """
+        return self.run_state
+
+    def track_save(self, task: "asyncio.Task") -> None:
+        """Register a fire-and-forget save task so it can be awaited on shutdown."""
+        self._pending_saves.add(task)
+        task.add_done_callback(self._pending_saves.discard)
+
+    async def drain_pending_saves(self) -> None:
+        """Wait for any in-flight save tasks to finish.
+
+        Called from the job's ``finally`` and from the server's shutdown
+        hook so a SIGTERM does not drop the last incremental write.
+        """
+        if not self._pending_saves:
+            return
+        pending = list(self._pending_saves)
+        await asyncio.gather(*pending, return_exceptions=True)
 
 
 def _compute_speed_aggregates(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -730,6 +804,90 @@ def _compute_speed_aggregates(results: List[Dict[str, Any]]) -> List[Dict[str, A
 
 def ts_utc() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _load_json(path: Path) -> Dict[str, Any]:
+    """Read a JSON file and re-raise decode errors with the path in the message.
+
+    A bare ``json.loads(path.read_text(...))`` produces
+    ``json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)``
+    with no hint of which file is bad. This wraps it so log output and test
+    failures name the file.
+    """
+    loaded = _read_json(path)
+    if not isinstance(loaded, dict):
+        raise ValueError(f"Invalid JSON in {path.name}: expected object, got {type(loaded).__name__}")
+    return loaded
+
+
+def _read_json(path: Path) -> Any:
+    """Read any JSON value from a file with a path-tagged error on failure."""
+    try:
+        return json.loads(path.read_text("utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid JSON in {path.name}: {exc}") from exc
+
+
+def _build_speed_row(
+    job: "JobState",
+    target: "BenchmarkTarget",
+    model: str,
+    run_index: int,
+    *,
+    prompt_hash: str,
+    timestamp: str,
+    metrics: Optional[Dict[str, Any]] = None,
+    success: Union[bool, str] = True,
+    error: str = "",
+    latency_ms: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Build the row dict for a single speed benchmark attempt.
+
+    The success path passes ``metrics`` (output of ``_benchmark_openai`` /
+    ``_benchmark_ollama``); the failure path passes ``latency_ms`` and
+    ``error="..."``. The stopped path uses ``success="stopped"`` with
+    no metrics. All three paths share the same column set.
+    """
+    m = metrics or {}
+    row: Dict[str, Any] = {
+        "timestamp": timestamp,
+        "job_id": job.job_id,
+        "provider_id": target.provider_id,
+        "provider_label": target.provider_label,
+        "provider_type": target.provider,
+        "endpoint": target.base_url,
+        "provider": target.provider,
+        "mode": job.request.mode,
+        "model": model,
+        "prompt_chars": len(job.request.prompt),
+        "prompt_hash": prompt_hash,
+        "max_tokens": job.request.max_tokens,
+        "temperature": job.request.temperature,
+        "top_p": job.request.top_p,
+        "presence_penalty": job.request.presence_penalty,
+        "frequency_penalty": job.request.frequency_penalty,
+        "timeout_ms": job.request.timeout_ms,
+        "run_index": run_index,
+        "success": success,
+        "error": error,
+        "latency_ms": m.get("latency_ms") if metrics is not None else latency_ms,
+        "total_time_ms": m.get("total_time_ms") if metrics is not None else latency_ms,
+        "ttft_ms": m.get("ttft_ms") if metrics is not None else None,
+        "prefill_tps": m.get("prefill_tps") if metrics is not None else None,
+        "decode_tps": m.get("decode_tps") if metrics is not None else None,
+        "prompt_tokens": m.get("prompt_tokens") if metrics is not None else None,
+        "completion_tokens": m.get("completion_tokens") if metrics is not None else None,
+        "completion_tokens_capped": m.get("completion_tokens_capped") if metrics is not None else None,
+        "decode_tokens_measured": m.get("decode_tokens_measured") if metrics is not None else None,
+        "warmup_runs": job.request.warmup_runs,
+        "max_concurrent_predictions": job.request.max_concurrent_predictions,
+        "mtp": job.request.mtp,
+        "k_cache_quantization": job.request.k_cache_quantization,
+        "v_cache_quantization": job.request.v_cache_quantization,
+        "batch_size": job.request.batch_size,
+        "flash_attn": job.request.flash_attn,
+    }
+    return row
 
 
 def _validate_endpoint_url(base_url: str) -> None:
@@ -918,7 +1076,7 @@ class BenchmarkServer:
                     data = json.loads(content)
                     if isinstance(data, dict):
                         items.append(data)
-                except Exception as exc:
+                except (OSError, ValueError) as exc:
                     LOG.warning("Failed reading result file %s: %s", path, exc)
             return items
 
@@ -941,10 +1099,8 @@ class BenchmarkServer:
                 if len(prefix) == 13 and prefix.isdigit():
                     continue
                 try:
-                    data = json.loads(await asyncio.to_thread(path.read_text, "utf-8"))
-                except Exception:
-                    continue
-                if not isinstance(data, dict):
+                    data = _load_json(path)
+                except (OSError, ValueError):
                     continue
                 job_id = data.get("job_id") or stem
                 new_name = self._record_filename(job_id, data.get("created_at"))
@@ -1003,14 +1159,15 @@ class BenchmarkServer:
         return fixed
 
     async def _save_job_record(self, job_id: str, record: Dict[str, Any]) -> None:
+        results_dir = self.results_store_dir
+        results_dir.mkdir(parents=True, exist_ok=True)
+        filename = self._record_filename(job_id, record.get("created_at"))
+        path = results_dir / filename
+        # Remove any stale file for this job under a different name (legacy
+        # <job_id>.json or an older prefix), so incremental saves don't leave
+        # duplicates behind. The directory scan itself is serialized by
+        # ``_results_lock`` so two jobs don't trample each other's globs.
         async with self._results_lock:
-            results_dir = self.results_store_dir
-            results_dir.mkdir(parents=True, exist_ok=True)
-            filename = self._record_filename(job_id, record.get("created_at"))
-            path = results_dir / filename
-            # Remove any stale file for this job under a different name (legacy
-            # <job_id>.json or an older prefix), so incremental saves don't leave
-            # duplicates behind.
             for other in results_dir.glob(f"*_{job_id}.json"):
                 if other.name != filename:
                     try: other.unlink()
@@ -1019,12 +1176,26 @@ class BenchmarkServer:
             if legacy.exists() and legacy.name != filename:
                 try: legacy.unlink()
                 except OSError: pass
-            payload = json.dumps(record, ensure_ascii=False, indent=2)
-            await asyncio.to_thread(path.write_text, payload, "utf-8")
+        payload = json.dumps(record, ensure_ascii=False, indent=2)
+        await asyncio.to_thread(path.write_text, payload, "utf-8")
 
     async def _flush_job_record(self, job: JobState) -> None:
         """Write current job state to disk (called after each question for incremental saves)."""
-        await self._append_job_to_results_store(job)
+        # The per-job lock serialises "snapshot job.results" + "write record"
+        # for the SAME job. Saves for different jobs proceed in parallel.
+        async with job._save_lock:
+            await self._append_job_to_results_store(job)
+
+    async def shutdown(self) -> None:
+        """Drain in-flight save tasks for every job.
+
+        Registered as ``app.on_cleanup`` in :func:`create_app`. Without
+        this, a SIGTERM between the ``ensure_future`` for an incremental
+        save and its ``path.write_text`` would drop the row.
+        """
+        if not self.jobs:
+            return
+        await asyncio.gather(*(j.drain_pending_saves() for j in self.jobs.values()), return_exceptions=True)
 
     async def _append_job_to_results_store(self, job: JobState) -> None:
         record = {
@@ -1438,7 +1609,7 @@ class BenchmarkServer:
 
         sql_questions: List[Dict[str, Any]] = []
         if sql_questions_path.exists():
-            loaded = json.loads(sql_questions_path.read_text("utf-8"))
+            loaded = _read_json(sql_questions_path)
             sql_questions = sql_questions_from_loaded(loaded)
 
         fixtures = {
@@ -1473,7 +1644,7 @@ class BenchmarkServer:
             errors.append("sql: missing questions.json")
         else:
             try:
-                loaded = json.loads(sql_path.read_text("utf-8"))
+                loaded = _read_json(sql_path)
                 questions = loaded if isinstance(loaded, list) else loaded.get("questions") if isinstance(loaded, dict) else None
                 if not isinstance(questions, list):
                     errors.append("sql: questions.json must be an array or object with questions array")
@@ -1796,7 +1967,7 @@ class BenchmarkServer:
                 loaded = json.loads(content)
                 if isinstance(loaded, dict):
                     return loaded
-            except Exception as exc:
+            except (OSError, ValueError) as exc:
                 LOG.warning("Failed reading %s export record %s: %s", log_label, path, exc)
         return None
 
@@ -2118,7 +2289,7 @@ class BenchmarkServer:
     async def _run_job(self, job: JobState) -> None:
         job.status = "running"
         job.started_at = ts_utc()
-        job.set_phase("starting", f"Starting {job.request.benchmark_type} benchmark")
+        await job.set_phase("starting", f"Starting {job.request.benchmark_type} benchmark")
         try:
             if job.request.benchmark_type == "sql":
                 await self._run_sql_job(job)
@@ -2126,9 +2297,9 @@ class BenchmarkServer:
                 for target in job.request.targets:
                     job.current_provider_id = target.provider_id
                     job.current_provider_label = target.provider_label
-                    job.set_phase("detecting_provider", f"Detecting provider for {target.provider_label}")
+                    await job.set_phase("detecting_provider", f"Detecting provider for {target.provider_label}")
                     normalized_provider = await self._detect_provider(target.base_url, target.provider, target.api_key)
-                    job.set_phase("discovering_models", f"Discovering models at {target.provider_label}")
+                    await job.set_phase("discovering_models", f"Discovering models at {target.provider_label}")
                     available_models = await self._discover_models(target.base_url, normalized_provider, target.api_key)
                     missing = [model for model in target.models if model not in available_models]
                     if missing:
@@ -2151,21 +2322,25 @@ class BenchmarkServer:
 
             if job.stop_requested and job.status == "stopping":
                 job.status = "stopped"
-                job.set_phase("stopped", "Stopped")
+                await job.set_phase("stopped", "Stopped")
             elif job.status not in {"failed", "stopped"}:
                 job.status = "completed"
-                job.set_phase("completed", "Completed")
+                await job.set_phase("completed", "Completed")
             job.report_text = self._build_report(job)
         except Exception as exc:
             LOG.exception("Benchmark job failed")
             job.errors.append(str(exc))
             job.status = "failed"
-            job.set_phase("failed", str(exc))
+            await job.set_phase("failed", str(exc))
             job.report_text = self._build_report(job)
         finally:
             job.finished_at = ts_utc()
+            # Wait for any in-flight incremental save tasks before the final write,
+            # otherwise the last few results can be dropped if the process is killed.
+            await job.drain_pending_saves()
             if job.results or job.errors:
-                await self._append_job_to_results_store(job)
+                async with job._save_lock:
+                    await self._append_job_to_results_store(job)
 
     async def _run_sql_job(self, job: JobState) -> None:
         target = job.request.targets[0]
@@ -2264,7 +2439,8 @@ class BenchmarkServer:
                         result["reasoning_fallback"] = bool(reasoning_fallback_state.get("used"))
                         job.results.append(self._sql_result_row(job, runtime_target, result))
                         job.progress_completed += 1
-                        asyncio.ensure_future(self._flush_job_record(job))
+                        save_task = asyncio.ensure_future(self._flush_job_record(job))
+                        job.track_save(save_task)
 
     async def _call_llm_single(
         self,
@@ -2470,30 +2646,31 @@ class BenchmarkServer:
             for _ in range(job.request.warmup_runs):
                 if job.stop_requested:
                     return
-                job.set_phase("warming_up", f"Warming up {model}", model=model, run_index=0, benchmark_type="speed")
+                await job.set_phase("warming_up", f"Warming up {model}", model=model, run_index=0, benchmark_type="speed")
                 await self._run_single_benchmark(job, target, model, 0)
             for run_index in range(1, job.request.repeat_count + 1):
                 if job.stop_requested:
                     return
-                job.set_phase("running_request", f"Running speed test for {model} (run {run_index}/{job.request.repeat_count})", model=model, run_index=run_index, benchmark_type="speed")
+                await job.set_phase("running_request", f"Running speed test for {model} (run {run_index}/{job.request.repeat_count})", model=model, run_index=run_index, benchmark_type="speed")
                 result = await self._run_single_benchmark(job, target, model, run_index)
                 job.results.append(result)
                 job.progress_completed += 1
-                job.set_phase("result_recorded", f"Recorded speed result for {model} (run {run_index}/{job.request.repeat_count})", model=model, run_index=run_index, benchmark_type="speed")
+                await job.set_phase("result_recorded", f"Recorded speed result for {model} (run {run_index}/{job.request.repeat_count})", model=model, run_index=run_index, benchmark_type="speed")
 
     async def _run_parallel(self, job: JobState, target: BenchmarkTarget) -> None:
         job.current_provider_id = target.provider_id
         job.current_provider_label = target.provider_label
+        prompt_hash = hashlib.sha256(job.request.prompt.encode("utf-8")).hexdigest()
         semaphore = asyncio.Semaphore(job.request.concurrency)
 
         async def worker(model: str, run_index: int) -> Dict[str, Any]:
             async with semaphore:
                 if job.stop_requested:
-                    return self._stopped_result(job, target, model, run_index)
+                    return self._stopped_result(job, target, model, run_index, prompt_hash)
                 job.current_model = model
                 job.current_provider_id = target.provider_id
                 job.current_provider_label = target.provider_label
-                job.set_phase(
+                await job.set_phase(
                     "warming_up" if run_index == 0 else "running_request",
                     f"{'Warming up' if run_index == 0 else 'Running speed test for'} {model}"
                     + ("" if run_index == 0 else f" (run {run_index}/{job.request.repeat_count})"),
@@ -2504,7 +2681,7 @@ class BenchmarkServer:
                 try:
                     return await self._run_single_benchmark(job, target, model, run_index)
                 except asyncio.CancelledError:
-                    return self._stopped_result(job, target, model, run_index)
+                    return self._stopped_result(job, target, model, run_index, prompt_hash)
 
         tasks = [
             asyncio.create_task(worker(model, run_index))
@@ -2524,7 +2701,7 @@ class BenchmarkServer:
                 continue
             job.results.append(result)
             job.progress_completed += 1
-            job.set_phase("result_recorded", f"Recorded speed result for {result.get('model', 'model')}", model=result.get("model"), run_index=result.get("run_index"), benchmark_type="speed")
+            await job.set_phase("result_recorded", f"Recorded speed result for {result.get('model', 'model')}", model=result.get("model"), run_index=result.get("run_index"), benchmark_type="speed")
             if job.stop_requested:
                 for pending in tasks:
                     if not pending.done():
@@ -2546,126 +2723,39 @@ class BenchmarkServer:
                 metrics = await self._benchmark_openai(job.request, target, model, job=job, run_index=run_index)
             else:
                 metrics = await self._benchmark_ollama(job.request, target, model, job=job, run_index=run_index)
-            job.set_phase("scoring", f"Scoring speed result for {model}", model=model, run_index=run_index, benchmark_type="speed")
+            await job.set_phase("scoring", f"Scoring speed result for {model}", model=model, run_index=run_index, benchmark_type="speed")
             latency_ms = round((time.perf_counter() - started) * 1000.0, 2)
-            return {
-                "timestamp": start_stamp,
-                "job_id": job.job_id,
-                "provider_id": target.provider_id,
-                "provider_label": target.provider_label,
-                "provider_type": target.provider,
-                "endpoint": target.base_url,
-                "provider": target.provider,
-                "mode": job.request.mode,
-                "model": model,
-                "prompt_chars": len(job.request.prompt),
-                "prompt_hash": prompt_hash,
-                "max_tokens": job.request.max_tokens,
-                "temperature": job.request.temperature,
-                "top_p": job.request.top_p,
-                "presence_penalty": job.request.presence_penalty,
-                "frequency_penalty": job.request.frequency_penalty,
-                "timeout_ms": job.request.timeout_ms,
-                "run_index": run_index,
-                "success": True,
-                "error": "",
-                "latency_ms": metrics.get("latency_ms"),
-                "total_time_ms": metrics.get("total_time_ms", latency_ms),
-                "ttft_ms": metrics.get("ttft_ms"),
-                "prefill_tps": metrics.get("prefill_tps"),
-                "decode_tps": metrics.get("decode_tps"),
-                "prompt_tokens": metrics.get("prompt_tokens"),
-                "completion_tokens": metrics.get("completion_tokens"),
-                "completion_tokens_capped": metrics.get("completion_tokens_capped"),
-                "decode_tokens_measured": metrics.get("decode_tokens_measured"),
-                "warmup_runs": job.request.warmup_runs,
-                "max_concurrent_predictions": job.request.max_concurrent_predictions,
-                "mtp": job.request.mtp,
-                "k_cache_quantization": job.request.k_cache_quantization,
-                "v_cache_quantization": job.request.v_cache_quantization,
-                "batch_size": job.request.batch_size,
-                "flash_attn": job.request.flash_attn,
-            }
-        except Exception as exc:
+            return _build_speed_row(
+                job, target, model, run_index,
+                prompt_hash=prompt_hash,
+                timestamp=start_stamp,
+                metrics=metrics,
+                success=True,
+                error="",
+                latency_ms=latency_ms,
+            )
+        except (httpx.HTTPError, ValueError, RuntimeError, asyncio.TimeoutError) as exc:
             latency_ms = round((time.perf_counter() - started) * 1000.0, 2)
-            return {
-                "timestamp": start_stamp,
-                "job_id": job.job_id,
-                "provider_id": target.provider_id,
-                "provider_label": target.provider_label,
-                "provider_type": target.provider,
-                "endpoint": target.base_url,
-                "provider": target.provider,
-                "mode": job.request.mode,
-                "model": model,
-                "prompt_chars": len(job.request.prompt),
-                "prompt_hash": prompt_hash,
-                "max_tokens": job.request.max_tokens,
-                "temperature": job.request.temperature,
-                "top_p": job.request.top_p,
-                "presence_penalty": job.request.presence_penalty,
-                "frequency_penalty": job.request.frequency_penalty,
-                "timeout_ms": job.request.timeout_ms,
-                "run_index": run_index,
-                "success": False,
-                "error": str(exc),
-                "latency_ms": latency_ms,
-                "total_time_ms": latency_ms,
-                "ttft_ms": None,
-                "prefill_tps": None,
-                "decode_tps": None,
-                "prompt_tokens": None,
-                "completion_tokens": None,
-                "completion_tokens_capped": None,
-                "decode_tokens_measured": None,
-                "warmup_runs": job.request.warmup_runs,
-                "max_concurrent_predictions": job.request.max_concurrent_predictions,
-                "mtp": job.request.mtp,
-                "k_cache_quantization": job.request.k_cache_quantization,
-                "v_cache_quantization": job.request.v_cache_quantization,
-                "batch_size": job.request.batch_size,
-                "flash_attn": job.request.flash_attn,
-            }
+            return _build_speed_row(
+                job, target, model, run_index,
+                prompt_hash=prompt_hash,
+                timestamp=start_stamp,
+                metrics=None,
+                success=False,
+                error=str(exc),
+                latency_ms=latency_ms,
+            )
 
-    def _stopped_result(self, job: JobState, target: BenchmarkTarget, model: str, run_index: int) -> Dict[str, Any]:
-        return {
-            "timestamp": ts_utc(),
-            "job_id": job.job_id,
-            "provider_id": target.provider_id,
-            "provider_label": target.provider_label,
-            "provider_type": target.provider,
-            "endpoint": target.base_url,
-            "provider": target.provider,
-            "mode": job.request.mode,
-            "model": model,
-            "prompt_chars": len(job.request.prompt),
-            "prompt_hash": hashlib.sha256(job.request.prompt.encode("utf-8")).hexdigest(),
-            "max_tokens": job.request.max_tokens,
-            "temperature": job.request.temperature,
-            "top_p": job.request.top_p,
-            "presence_penalty": job.request.presence_penalty,
-            "frequency_penalty": job.request.frequency_penalty,
-            "timeout_ms": job.request.timeout_ms,
-            "run_index": run_index,
-            "success": "stopped",
-            "error": "stopped",
-            "latency_ms": None,
-            "total_time_ms": None,
-            "ttft_ms": None,
-            "prefill_tps": None,
-            "decode_tps": None,
-            "prompt_tokens": None,
-            "completion_tokens": None,
-            "completion_tokens_capped": None,
-            "decode_tokens_measured": None,
-            "warmup_runs": job.request.warmup_runs,
-            "max_concurrent_predictions": job.request.max_concurrent_predictions,
-            "mtp": job.request.mtp,
-            "k_cache_quantization": job.request.k_cache_quantization,
-            "v_cache_quantization": job.request.v_cache_quantization,
-            "batch_size": job.request.batch_size,
-            "flash_attn": job.request.flash_attn,
-        }
+    def _stopped_result(self, job: JobState, target: BenchmarkTarget, model: str, run_index: int, prompt_hash: str) -> Dict[str, Any]:
+        return _build_speed_row(
+            job, target, model, run_index,
+            prompt_hash=prompt_hash,
+            timestamp=ts_utc(),
+            metrics=None,
+            success="stopped",
+            error="stopped",
+            latency_ms=None,
+        )
 
     async def _benchmark_openai(
         self,
@@ -2697,7 +2787,7 @@ class BenchmarkServer:
         prompt_tokens: Optional[int] = None
         fallback_completion_tokens = 0
         if job is not None:
-            job.set_phase("waiting_first_token", f"Waiting for first token from {model}", model=model, run_index=run_index, benchmark_type="speed")
+            await job.set_phase("waiting_first_token", f"Waiting for first token from {model}", model=model, run_index=run_index, benchmark_type="speed")
         _validate_endpoint_url(target.base_url)
         async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
             async with client.stream("POST", f"{target.base_url}{OPENAI_CHAT_PATH}", json=payload) as response:
@@ -2726,7 +2816,7 @@ class BenchmarkServer:
                         if first_token_at is None and (content is not None or reasoning is not None):
                             first_token_at = time.perf_counter()
                             if job is not None:
-                                job.set_phase("streaming", f"Streaming response from {model}", model=model, run_index=run_index, benchmark_type="speed")
+                                await job.set_phase("streaming", f"Streaming response from {model}", model=model, run_index=run_index, benchmark_type="speed")
                         if isinstance(content, str) and content:
                             fallback_completion_tokens += 1
                     usage = data.get("usage") or {}
@@ -2780,7 +2870,7 @@ class BenchmarkServer:
         }
         timeout = httpx.Timeout(spec.timeout_ms / 1000.0)
         if job is not None:
-            job.set_phase("waiting_response", f"Waiting for Ollama response from {model}", model=model, run_index=run_index, benchmark_type="speed")
+            await job.set_phase("waiting_response", f"Waiting for Ollama response from {model}", model=model, run_index=run_index, benchmark_type="speed")
         _validate_endpoint_url(target.base_url)
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(f"{target.base_url}{OLLAMA_CHAT_PATH}", json=payload)
@@ -2806,7 +2896,7 @@ class BenchmarkServer:
             completion_tokens_capped = min(completion_tokens, spec.max_tokens)
             decode_tps = round(completion_tokens / max(eval_duration / 1_000_000_000.0, 1e-6), 2)
         return {
-            "latency_ms": ttft_ms,
+            "latency_ms": total_time_ms,
             "total_time_ms": total_time_ms,
             "ttft_ms": ttft_ms,
             "prefill_tps": prefill_tps,
@@ -2899,6 +2989,7 @@ async def create_app() -> web.Application:
     except Exception as exc:
         LOG.warning("Stale-record reconciliation failed: %s", exc)
     app = web.Application(middlewares=[cors_middleware()])
+    app.on_cleanup.append(lambda _app: server.shutdown())
     app.router.add_route("OPTIONS", "/{tail:.*}", lambda _request: web.Response(status=204))
     app.router.add_get("/", server.index)
     app.router.add_get("/health", server.health)
