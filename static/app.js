@@ -850,8 +850,6 @@
     document.querySelectorAll('.speed-preset-btn').forEach(btn =>
       btn.classList.toggle('active', btn.getAttribute('data-action') === 'applySpeedPreset:' + name)
     );
-    const summary = $('speedPresetSummary');
-    if (summary) summary.textContent = `${name} · ${p.maxTokens} tok · ${p.repeatCount} runs · ${p.warmupRuns} warmup`;
   }
 
   function buildSpeedPayload() {
