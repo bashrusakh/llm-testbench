@@ -20,7 +20,7 @@
         <button id="startBtn" class="btn-primary" disabled>Start</button>
         <button id="stopBtn" class="btn-danger" disabled>Stop</button>
       </div>
-      <div id="jobStatus" class="status-message info" role="status" aria-live="polite" style="margin-top:8px; margin-bottom:0;">Ready to benchmark</div>
+      <div id="jobStatus" class="status-message info status-message--compact" role="status" aria-live="polite">Ready to benchmark</div>
     </div>
 
     <!-- Endpoint Configuration -->
@@ -31,7 +31,7 @@
         <button id="scanBtn" class="btn-primary" style="flex:1;">Scan Local</button>
         <button id="addManualBtn" class="btn-secondary btn-sm">+ Manual</button>
       </div>
-      <div id="endpointStatus" class="status-message info">Click scan to discover local inference servers</div>
+      <div id="endpointStatus" class="status-message info status-message--compact">Click scan to discover local inference servers</div>
       <div id="endpointList"></div>
 
       <!-- Manual provider form (hidden by default) -->
@@ -67,8 +67,8 @@
     <!-- Benchmark Settings (moved up, centered) -->
     <div class="sidebar-section">
       <div class="sidebar-section-title">🔧 Benchmark Settings</div>
-      <div class="form-group">
-        <label>Tests (run sequentially)</label>
+      <div class="settings-subsection">
+        <div class="subsection-label">Tests</div>
         <div class="chk-row">
           <label><input type="checkbox" id="typeSpeed" checked> Speed</label>
           <label><input type="checkbox" id="typeSql"> SQL Accuracy</label>
@@ -78,8 +78,8 @@
         <label for="questionIds">Question IDs</label>
         <input id="questionIds" type="text" placeholder="e.g. 1, 7, 12">
       </div>
-      <div id="thinkingModeGroup" class="form-group hidden">
-        <label>Thinking Mode</label>
+      <div id="thinkingModeGroup" class="settings-subsection hidden">
+        <div class="subsection-label">Thinking Mode</div>
         <div class="chk-row">
           <label><input type="checkbox" id="thinkOff" checked> Off (direct)</label>
           <label><input type="checkbox" id="thinkOn"> On</label>
@@ -100,12 +100,12 @@
       <div id="questionTimeoutGroup" class="form-group hidden">
         <label for="questionTimeoutMs">Per-question timeout (ms)</label>
         <input id="questionTimeoutMs" type="number" value="0" min="0" step="1000" placeholder="0 = disabled">
-        <div class="status-message info" style="margin-top:6px; margin-bottom:0;">
+        <div class="status-message info status-message--compact">
           Max wall-clock per question, excluding model load (first call to each model is untimed). 0 disables.
         </div>
       </div>
-      <div class="form-group speed-only-setting">
-        <label>Speed Preset</label>
+      <div class="settings-subsection speed-only-setting">
+        <div class="subsection-label">Speed Preset</div>
         <div class="speed-preset-grid">
           <button class="speed-preset-btn" type="button" data-action="applySpeedPreset:smoke">
             <span class="speed-preset-name">Smoke</span>

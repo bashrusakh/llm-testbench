@@ -49,20 +49,20 @@
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    padding: 24px;
+    padding: 16px;
     overflow-y: auto;
   }
 
   h1 { font-size: 1.5rem; margin-bottom: 8px; font-weight: 700; letter-spacing: -0.5px; }
-  .subtitle { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; }
+  .subtitle { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; }
   .sidebar-actions {
     position: sticky;
     top: 0;
     z-index: 10;
     background: linear-gradient(180deg, var(--sidebar-bg) 0%, rgba(17,24,39,0.96) 100%);
     border-bottom: 1px solid rgba(55,65,81,0.85);
-    padding-bottom: 14px;
-    margin-bottom: 18px;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
   }
   .sidebar-actions-row {
     display: grid;
@@ -81,13 +81,13 @@
 
   .section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
 
-  .form-group { margin-bottom: 20px; }
-  label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group { margin-bottom: 12px; }
+  label { display: block; font-size: 0.7rem; font-weight: 500; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
   /* Inline checkbox rows for multi-select settings (benchmark type, thinking mode). */
-  .chk-row { display: flex; flex-wrap: wrap; gap: 14px; }
+  .chk-row { display: flex; flex-wrap: wrap; gap: 12px; }
   .chk-row label {
     display: inline-flex; align-items: center; gap: 7px; margin: 0;
-    font-size: 0.85rem; font-weight: 600; color: var(--text-main);
+    font-size: 0.8rem; font-weight: 600; color: var(--text-main);
     text-transform: none; letter-spacing: 0; cursor: pointer;
   }
   .chk-row input[type="checkbox"] { width: auto; margin: 0; cursor: pointer; }
@@ -95,10 +95,11 @@
     width: 100%;
     background: #0f172a;
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 14px;
+    border-radius: 6px;
+    padding: 6px 10px;
     color: white;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
+    min-height: 32px;
     transition: border-color 0.2s;
   }
   input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
@@ -180,7 +181,7 @@
     font-size: 0.65rem;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.04em;
   }
   .speed-field input,
   .speed-field select {
@@ -188,10 +189,11 @@
     box-sizing: border-box;
     background: var(--bg-input, #1a1d23);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: 6px;
     color: var(--text-main);
-    padding: 4px 6px;
-    font-size: 0.75rem;
+    padding: 5px 8px;
+    font-size: 0.78rem;
+    min-height: 30px;
   }
   .speed-field input:focus,
   .speed-field select:focus {
@@ -216,7 +218,7 @@
   .model-item:hover { background: rgba(59, 130, 246, 0.1); }
   .model-item input { width: auto; margin-right: 12px; cursor: pointer; }
 
-  button { cursor: pointer; font-weight: 600; transition: all 0.2s; border-radius: 8px; padding: 12px; border: none; font-family: inherit; }
+  button { cursor: pointer; font-weight: 600; transition: all 0.2s; border-radius: 6px; padding: 6px 12px; border: none; font-family: inherit; font-size: 0.8rem; min-height: 32px; }
   .btn-primary { background: var(--accent); color: white; }
   .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
   .btn-danger { background: #7f1d1d; color: #fecaca; }
@@ -255,9 +257,9 @@
   .endpoint-card {
     background: rgba(255,255,255,0.03);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 8px;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
     cursor: pointer;
     transition: all 0.2s;
   }
@@ -478,11 +480,12 @@
   }
 
   .status-message {
-    padding: 12px 16px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    font-size: 0.9rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-size: 0.75rem;
   }
+  .status-message--compact { margin-top: 4px; margin-bottom: 0; }
   .status-message.info { background: rgba(59,130,246,0.1); color: #93c5fd; border: 1px solid rgba(59,130,246,0.2); }
   .status-message.success { background: rgba(16,185,129,0.1); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.2); }
   .status-message.error { background: rgba(239,68,68,0.1); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); }
@@ -501,7 +504,7 @@
     padding: 12px;
     margin-top: 8px;
   }
-  .manual-provider-form .form-group { margin-bottom: 8px; }
+  .manual-provider-form .form-group { margin-bottom: 6px; }
   .manual-provider-form .form-group:last-child { margin-bottom: 0; }
   .manual-row { display: flex; gap: 8px; align-items: flex-end; }
   .manual-row .form-group { flex: 1; }
@@ -1069,12 +1072,28 @@
     .sql-detail-modal-title { white-space: normal; }
   }
 
-  .sidebar-section { margin-bottom: 20px; }
-  .sidebar-section-title { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .sidebar-section { margin-bottom: 12px; }
+  .settings-subsection {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .settings-subsection:last-child { margin-bottom: 0; }
+  .subsection-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+  .sidebar-section-title { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
 
   .endpoint-config-row { display: flex; gap: 8px; margin-bottom: 8px; }
   .endpoint-config-row input { flex: 1; }
-  .endpoint-config-row .btn-sm { padding: 8px 12px; font-size: 0.75rem; white-space: nowrap; }
+  .endpoint-config-row .btn-sm { padding: 6px 10px; font-size: 0.7rem; white-space: nowrap; }
 
   @media (max-width: 1024px) {
     body { flex-direction: column; height: auto; overflow: auto; }
