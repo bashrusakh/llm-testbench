@@ -1302,7 +1302,8 @@
       if (!v.row.isConnected) _speedRowCache.delete(k);
     }
     const seen = new Set();
-    results.forEach(result => {
+    const sorted = [...results].sort((a, b) => (b.decode_tps || 0) - (a.decode_tps || 0));
+    sorted.forEach(result => {
       const key = _speedRowKey(result);
       seen.add(key);
       const version = _speedRowVersion(result);
@@ -1409,7 +1410,8 @@
         <tbody>
     `;
 
-    aggregates.forEach((agg, idx) => {
+    const sorted = [...aggregates].sort((a, b) => (b.avg_decode_tps || 0) - (a.avg_decode_tps || 0));
+    sorted.forEach((agg, idx) => {
       const thresholdClass = getDecodeThresholdClass(agg.avg_decode_tps);
       const runCountHtml = `
         <span class="run-count">
