@@ -877,7 +877,7 @@
       models,
       targets,
       mode: $('mode') ? $('mode').value : 'sequential',
-      timeout_ms: numVal('timeoutMs', 12000000),
+      timeout_ms: numVal('timeoutMs', 12000) * 1000,
       prompt: $('prompt') ? $('prompt').value : '',
       max_tokens: numVal('maxTokens', 4096),
       repeat_count: numVal('repeatCount', 3),
@@ -902,8 +902,8 @@
       thinking_mode: thinkingMode,
       reasoning_effort: getReasoningEffort(),
       question_ids: parseQuestionIds($('questionIds') ? $('questionIds').value : ''),
-      timeout_ms: Number($('timeoutMs') ? $('timeoutMs').value : '12000000'),
-      question_timeout_ms: Number($('questionTimeoutMs') && $('questionTimeoutMs').value !== '' ? $('questionTimeoutMs').value : 0),
+      timeout_ms: (Number($('timeoutMs') ? $('timeoutMs').value : '12000') || 12000) * 1000,
+      question_timeout_ms: (Number($('questionTimeoutMs') && $('questionTimeoutMs').value !== '' ? $('questionTimeoutMs').value : 0) || 0) * 1000,
     };
   }
 
@@ -1398,7 +1398,7 @@
             <th>Provider</th>
             <th style="width:100px;">Runs</th>
             <th style="width:140px;">Avg Decode (tok/s)</th>
-            <th style="width:100px;">Avg TTFT (ms)</th>
+            <th style="width:100px;">Avg TTFT (s)</th>
             <th style="width:100px;">Avg Total (s)</th>
             <th style="width:100px;">Min/Max Decode</th>
             <th style="width:100px;">Sparkline</th>
@@ -1427,7 +1427,7 @@
           <td>${escapeHtml(agg.provider_label || '-')}</td>
           <td>${runCountHtml}</td>
           <td><span class="decode-badge ${thresholdClass}">${formatTpsFixed(agg.avg_decode_tps)}</span></td>
-          <td>${formatMsFixed(agg.avg_ttft_ms)}</td>
+          <td>${formatMillisecondsAsSeconds(agg.avg_ttft_ms)}</td>
           <td>${agg.avg_total_time_ms != null ? (agg.avg_total_time_ms / 1000).toFixed(2) : '—'}</td>
           <td class="text-muted">${minMaxHtml}</td>
           <td class="sparkline-cell">${sparklineHtml}</td>
@@ -1457,7 +1457,7 @@
             <td>${run.run_index}</td>
             <td><span class="status-badge success">✓</span></td>
             <td><span class="decode-badge ${thrClass}">${formatTpsFixed(run.decode_tps)}</span></td>
-            <td>${formatMsFixed(run.ttft_ms)}</td>
+            <td>${formatMillisecondsAsSeconds(run.ttft_ms)}</td>
             <td>${run.total_time_ms != null ? (run.total_time_ms / 1000).toFixed(2) : '—'}</td>
             <td>${formatTpsFixed(run.prefill_tps)}</td>
             <td>${run.prompt_tokens || '—'}</td>
