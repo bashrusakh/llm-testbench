@@ -178,7 +178,7 @@
   .speed-preset-btn.active {
     border-color: var(--accent);
     color: var(--text-main);
-    background: rgba(59, 130, 246, 0.08);
+    background: rgba(59, 130, 246, 0.15);
   }
   .speed-preset-name {
     font-size: 0.72rem;
