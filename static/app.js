@@ -2241,6 +2241,13 @@
     document.addEventListener('keydown', handleSqlDetailModalEscape);
   }
 
+  function syncSpeedToggleButton() {
+    const speedToggle = $('speedViewToggle');
+    if (speedToggle) speedToggle.querySelectorAll('button').forEach(b =>
+      b.classList.toggle('active', b.getAttribute('data-view') === (state.speedViewMode || 'aggregated'))
+    );
+  }
+
   function renderResults(job, benchmarkType = state.activeBenchmarkType || 'speed') {
     // Cache the latest job so other code paths (e.g. the speed view
     // toggle) can answer "does this job have aggregates?" synchronously
@@ -2290,12 +2297,7 @@
         // placeholder. When we fall back, sync the toggle to 'raw' so the
         // Aggregated/Individual button reflects what's actually shown.
         if (!hasAggregates && viewMode !== 'raw') {
-          state.speedViewMode = 'raw';
-          try { sessionStorage.setItem('llmSpeedTest.speedViewMode', 'raw'); } catch (_) {}
-          const toggle = $('speedViewToggle');
-          if (toggle) toggle.querySelectorAll('button').forEach(b =>
-            b.classList.toggle('active', b.getAttribute('data-view') === 'raw')
-          );
+          // Fall back silently; caller is responsible for syncing toggle via syncSpeedToggleButton()
         }
         // Restore the structural table the placeholder would otherwise wipe:
         // renderAggregatedSpeedResults replaces speedResultsContainer's
