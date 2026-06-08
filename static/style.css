@@ -208,6 +208,12 @@
   .speed-field input[type="number"],
   .speed-field input[type="number"]:focus {
     text-align: right;
+    -moz-appearance: textfield;
+  }
+  .speed-field input[type="number"]::-webkit-outer-spin-button,
+  .speed-field input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
   .speed-field input,
   .speed-field select {
@@ -217,7 +223,7 @@
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 6px;
     color: var(--text-main);
-    padding: 6px 8px;
+    padding: 6px 10px;
     font-size: 0.75rem;
     min-height: 32px;
   }
