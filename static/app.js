@@ -1443,7 +1443,7 @@
                   <th>Run</th>
                   <th>Status</th>
                   <th>Decode (tok/s)</th>
-                  <th>TTFT (ms)</th>
+                  <th>TTFT (s)</th>
                   <th>Total (s)</th>
                   <th>PP (t/s)</th>
                   <th>Prompt Tok</th>
