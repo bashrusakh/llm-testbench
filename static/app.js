@@ -1073,6 +1073,8 @@
     if (resultsBodyEl) {
       resultsBodyEl.innerHTML = '<tr><td colspan="12" class="empty-state">No benchmark results yet</td></tr>';
     }
+    const speedC = $('speedResultsContainer');
+    if (speedC) speedC.innerHTML = '';
     const sqlContainer = $('sqlResultsContainer');
     if (sqlContainer) {
       sqlContainer.innerHTML = '';
@@ -1160,6 +1162,8 @@
       } catch (_) { /* fall through to static view */ }
     }
     setStatusBoth(`Loaded saved benchmark ${jobId} (${job.status || 'unknown'}).`, 'info');
+    const historyStatusEl = $('historyStatus');
+    if (historyStatusEl) historyStatusEl.textContent = `Opened: ${jobId.slice(0,8)}… (${job.status || 'unknown'})`;
     } finally {
       _openHistoryJobInFlight = false;
     }

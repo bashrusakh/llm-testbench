@@ -352,25 +352,25 @@
   }
   /* Static raw-view table: 11 columns in the order defined at line 1189 */
   #speedResultsContainer > table th:nth-child(1),
-  #speedResultsContainer > table td:nth-child(1) { width: 9%; text-align: left; }
+  #speedResultsContainer > table td:nth-child(1) { width: 14%; text-align: left; }
   #speedResultsContainer > table th:nth-child(2),
-  #speedResultsContainer > table td:nth-child(2) { width: 22%; text-align: left; }
+  #speedResultsContainer > table td:nth-child(2) { width: 26%; text-align: left; }
   #speedResultsContainer > table th:nth-child(3),
   #speedResultsContainer > table td:nth-child(3) { width: 5%; text-align: right; }
   #speedResultsContainer > table th:nth-child(4),
-  #speedResultsContainer > table td:nth-child(4) { width: 7%; text-align: center; }
+  #speedResultsContainer > table td:nth-child(4) { width: 6%; text-align: center; }
   #speedResultsContainer > table th:nth-child(5),
-  #speedResultsContainer > table td:nth-child(5) { width: 9%; text-align: right; }
+  #speedResultsContainer > table td:nth-child(5) { width: 8%; text-align: right; }
   #speedResultsContainer > table th:nth-child(6),
-  #speedResultsContainer > table td:nth-child(6) { width: 8%; text-align: right; }
+  #speedResultsContainer > table td:nth-child(6) { width: 7%; text-align: right; }
   #speedResultsContainer > table th:nth-child(7),
-  #speedResultsContainer > table td:nth-child(7) { width: 8%; text-align: right; }
+  #speedResultsContainer > table td:nth-child(7) { width: 7%; text-align: right; }
   #speedResultsContainer > table th:nth-child(8),
-  #speedResultsContainer > table td:nth-child(8) { width: 10%; text-align: right; }
+  #speedResultsContainer > table td:nth-child(8) { width: 8%; text-align: right; }
   #speedResultsContainer > table th:nth-child(9),
-  #speedResultsContainer > table td:nth-child(9) { width: 8%; text-align: right; }
+  #speedResultsContainer > table td:nth-child(9) { width: 7%; text-align: right; }
   #speedResultsContainer > table th:nth-child(10),
-  #speedResultsContainer > table td:nth-child(10) { width: 9%; text-align: right; }
+  #speedResultsContainer > table td:nth-child(10) { width: 7%; text-align: right; }
   #speedResultsContainer > table th:nth-child(11),
   #speedResultsContainer > table td:nth-child(11) { width: 5%; text-align: left; }
   /* Aggregated view: 9 columns */
