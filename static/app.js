@@ -396,14 +396,8 @@
     return allProviders().find(provider => provider.id === providerId) || null;
   }
 
-  function applyProviderToConfig(provider) {
-    if (!provider) return;
-    const baseUrlEl = $('baseUrl');
-    const providerEl = $('provider');
-    const apiKeyEl = $('apiKey');
-    if (baseUrlEl) baseUrlEl.value = provider.base_url || '';
-    if (providerEl) providerEl.value = provider.provider || 'auto';
-    if (apiKeyEl) apiKeyEl.value = provider.api_key || '';
+  function applyProviderToConfig(_provider) {
+    // Config card removed — provider data lives in state only.
   }
 
   function selectedManualPreset() {
@@ -523,8 +517,6 @@
       state.activeProviderId = nextProvider ? nextProvider.id : null;
       if (nextProvider) applyProviderToConfig(nextProvider);
       else {
-        const baseUrlEl = $('baseUrl');
-        if (baseUrlEl) baseUrlEl.value = '';
         state.models = [];
         state.filteredModels = [];
       }
@@ -597,8 +589,8 @@
   }
 
   function getBaseUrlValue() {
-    const el = $('baseUrl');
-    return el ? el.value.trim() : '';
+    const provider = getProviderById(state.activeProviderId);
+    return provider ? (provider.base_url || '').trim() : '';
   }
 
   function renderModels(models, providerId = state.activeProviderId) {
@@ -821,7 +813,7 @@
 
   function applyCapabilityGating() {
     const provider = getProviderById(state.activeProviderId);
-    const providerType = provider?.provider || ($('provider') ? $('provider').value : 'auto') || 'auto';
+    const providerType = provider?.provider || 'auto';
     const hints = runtimeCapabilityHints(providerType);
     const sqlMode = isSqlBenchmarkMode();
     const fields = [
@@ -860,6 +852,7 @@
   function buildSpeedPayload() {
     const baseUrl = getBaseUrlValue();
     if (!baseUrl) throw new Error('Base URL is required. Scan endpoints or enter one manually.');
+    const activeProvider = getProviderById(state.activeProviderId);
     const models = aggregateSelectedModels();
     if (!models.length) throw new Error('Select at least one model across included providers');
     const targets = includedProviders()
@@ -879,8 +872,8 @@
     return {
       benchmark_type: 'speed',
       base_url: baseUrl,
-      provider: $('provider') ? $('provider').value : 'auto',
-      api_key: $('apiKey') ? $('apiKey').value : '',
+      provider: activeProvider?.provider || 'auto',
+      api_key: activeProvider?.api_key || '',
       models,
       targets,
       mode: $('mode') ? $('mode').value : 'sequential',
@@ -903,8 +896,8 @@
     return {
       benchmark_type: 'sql',
       base_url: sqlProvider.base_url,
-      provider: sqlProvider.provider || ($('provider') ? $('provider').value : 'auto'),
-      api_key: sqlProvider.api_key || ($('apiKey') ? $('apiKey').value : ''),
+      provider: sqlProvider.provider || 'auto',
+      api_key: sqlProvider.api_key || '',
       models: models,
       thinking_mode: thinkingMode,
       reasoning_effort: getReasoningEffort(),
@@ -2605,12 +2598,6 @@
 
   const modelSearchEl = $('modelSearch');
   if (modelSearchEl) modelSearchEl.addEventListener('input', filterModels);
-
-  const baseUrlEl = $('baseUrl');
-  if (baseUrlEl) baseUrlEl.addEventListener('input', updateActionButtons);
-
-  const providerEl = $('provider');
-  if (providerEl) providerEl.addEventListener('change', applyCapabilityGating);
 
   ['typeSpeed', 'typeSql'].forEach(id => {
     const el = $(id);
