@@ -1399,12 +1399,12 @@
             <th style="width:32px;"></th>
             <th>Model</th>
             <th>Provider</th>
-            <th style="width:100px;">Runs</th>
-            <th style="width:140px;">Avg Decode (tok/s)</th>
-            <th style="width:100px;">Avg TTFT (s)</th>
-            <th style="width:100px;">Avg Total (s)</th>
-            <th style="width:100px;">Min/Max Decode</th>
-            <th style="width:100px;">Sparkline</th>
+            <th>Runs</th>
+            <th>Avg Decode (tok/s)</th>
+            <th>Avg TTFT (s)</th>
+            <th>Avg Total (s)</th>
+            <th>Min/Max Decode</th>
+            <th>Sparkline</th>
           </tr>
         </thead>
         <tbody>
@@ -1443,7 +1443,7 @@
                   <th>Run</th>
                   <th>Status</th>
                   <th>Decode (tok/s)</th>
-                  <th>TTFT (ms)</th>
+                  <th>TTFT (s)</th>
                   <th>Total (s)</th>
                   <th>PP (t/s)</th>
                   <th>Prompt Tok</th>
