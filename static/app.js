@@ -1068,6 +1068,9 @@
     if (clearSelectedBtn) clearSelectedBtn.disabled = selected === 0;
   }
 
+  let _openHistoryJobInFlight = false;
+  let _openJobGeneration = 0;
+
   function closeHistoryView() {
     state.activeHistoryJobId = null;
     // Reset results table to speed mode, clear both containers
@@ -1101,14 +1104,33 @@
       applyButtonState(null);
     }
     setStatusBoth('Ready', 'info');
+    // Reset speed view to aggregated so the next open starts clean
+    state.speedViewMode = 'aggregated';
+    try { sessionStorage.setItem('llmSpeedTest.speedViewMode', 'aggregated'); } catch (_) {}
+    const speedToggle = $('speedViewToggle');
+    if (speedToggle) speedToggle.querySelectorAll('button').forEach(b =>
+      b.classList.toggle('active', b.getAttribute('data-view') === 'aggregated')
+    );
   }
 
   async function openHistoryJob(jobId) {
+    if (state.activeHistoryJobId === jobId) return;  // already open
+    if (_openHistoryJobInFlight) return;              // debounce rapid clicks
+    _openHistoryJobInFlight = true;
+    const gen = ++_openJobGeneration;
+    try {
     const job = state.history.find(item => item.job_id === jobId);
     if (!job) return;
     state.activeHistoryJobId = jobId;
     state.jobId = jobId;
     state.activeBenchmarkType = job.request?.benchmark_type || 'speed';
+    // Reset speed view to aggregated so each job starts with a clean toggle
+    state.speedViewMode = 'aggregated';
+    try { sessionStorage.setItem('llmSpeedTest.speedViewMode', 'aggregated'); } catch (_) {}
+    const speedToggle = $('speedViewToggle');
+    if (speedToggle) speedToggle.querySelectorAll('button').forEach(b =>
+      b.classList.toggle('active', b.getAttribute('data-view') === 'aggregated')
+    );
     // Show close button
     const closeBtn = $('closeHistoryViewBtn');
     if (closeBtn) closeBtn.classList.remove('hidden');
@@ -1131,6 +1153,7 @@
     if (maybeLive) {
       try {
         const resp = await fetch(apiUrl(`/api/benchmark/${jobId}`));
+        if (gen !== _openJobGeneration) return;  // stale, another open superseded us
         const data = await resp.json();
         const liveStatus = data?.job?.status;
         if (data.status === 'ok' && (liveStatus === 'running' || liveStatus === 'queued' || liveStatus === 'stopping')) {
@@ -1144,6 +1167,9 @@
       } catch (_) { /* fall through to static view */ }
     }
     setStatusBoth(`Loaded saved benchmark ${jobId} (${job.status || 'unknown'}).`, 'info');
+    } finally {
+      _openHistoryJobInFlight = false;
+    }
   }
 
   // Attach the UI to a confirmed-live job: render its progress, enable Stop,
@@ -2215,6 +2241,13 @@
     document.addEventListener('keydown', handleSqlDetailModalEscape);
   }
 
+  function syncSpeedToggleButton() {
+    const speedToggle = $('speedViewToggle');
+    if (speedToggle) speedToggle.querySelectorAll('button').forEach(b =>
+      b.classList.toggle('active', b.getAttribute('data-view') === (state.speedViewMode || 'aggregated'))
+    );
+  }
+
   function renderResults(job, benchmarkType = state.activeBenchmarkType || 'speed') {
     // Cache the latest job so other code paths (e.g. the speed view
     // toggle) can answer "does this job have aggregates?" synchronously
@@ -2264,12 +2297,7 @@
         // placeholder. When we fall back, sync the toggle to 'raw' so the
         // Aggregated/Individual button reflects what's actually shown.
         if (!hasAggregates && viewMode !== 'raw') {
-          state.speedViewMode = 'raw';
-          try { sessionStorage.setItem('llmSpeedTest.speedViewMode', 'raw'); } catch (_) {}
-          const toggle = $('speedViewToggle');
-          if (toggle) toggle.querySelectorAll('button').forEach(b =>
-            b.classList.toggle('active', b.getAttribute('data-view') === 'raw')
-          );
+          // Fall back silently; caller is responsible for syncing toggle via syncSpeedToggleButton()
         }
         // Restore the structural table the placeholder would otherwise wipe:
         // renderAggregatedSpeedResults replaces speedResultsContainer's
@@ -2635,6 +2663,7 @@
   }
 
   // Speed view toggle
+  let _speedToggleGeneration = 0;
   const speedToggleEl = $('speedViewToggle');
   if (speedToggleEl) {
     speedToggleEl.addEventListener('click', (event) => {
@@ -2659,9 +2688,11 @@
       // Re-render current results with new view
       const jobId = getActiveJobId();
       if (jobId) {
+        const gen = ++_speedToggleGeneration;
         fetch(apiUrl(`/api/benchmark/${jobId}`))
           .then(r => r.json())
           .then(data => {
+            if (gen !== _speedToggleGeneration) return;  // stale
             if (data.status === 'ok' && data.job) {
               renderResults(data.job, data.job.request?.benchmark_type || 'speed');
             }
