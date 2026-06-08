@@ -215,6 +215,10 @@
     -webkit-appearance: none;
     margin: 0;
   }
+  .speed-field input[type="number"],
+  .speed-field input[type="number"]:focus {
+    text-align: right;
+  }
   .speed-field input,
   .speed-field select {
     width: 100%;
