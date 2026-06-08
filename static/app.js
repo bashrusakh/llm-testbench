@@ -2691,14 +2691,18 @@
       const jobId = getActiveJobId();
       if (jobId) {
         const gen = ++_speedToggleGeneration;
-        fetch(apiUrl(`/api/benchmark/${jobId}`))
-          .then(r => r.json())
-          .then(data => {
-            if (gen !== _speedToggleGeneration) return;  // stale
-            if (data.status === 'ok' && data.job) {
-              renderResults(data.job, data.job.request?.benchmark_type || 'speed');
-            }
-          });
+        if (state.lastJob && state.lastJob.job_id === jobId) {
+          renderResults(state.lastJob, state.lastJob.request?.benchmark_type || 'speed');
+        } else {
+          fetch(apiUrl(`/api/benchmark/${jobId}`))
+            .then(r => r.json())
+            .then(data => {
+              if (gen !== _speedToggleGeneration) return;  // stale
+              if (data.status === 'ok' && data.job) {
+                renderResults(data.job, data.job.request?.benchmark_type || 'speed');
+              }
+            });
+        }
       }
     });
   }
