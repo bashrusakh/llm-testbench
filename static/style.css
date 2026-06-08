@@ -178,7 +178,7 @@
   .speed-preset-btn.active {
     border-color: var(--accent);
     color: var(--text-main);
-    background: rgba(59, 130, 246, 0.15);
+    background: rgba(59, 130, 246, 0.08);
   }
   .speed-preset-name {
     font-size: 0.72rem;
@@ -214,6 +214,10 @@
   .speed-field input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
+  }
+  .speed-field input[type="number"],
+  .speed-field input[type="number"]:focus {
+    text-align: right;
   }
   .speed-field input,
   .speed-field select {
@@ -379,9 +383,9 @@
   }
   /* Static raw-view table: 11 columns in the order defined at line 1189 */
   #speedResultsContainer > table th:nth-child(1),
-  #speedResultsContainer > table td:nth-child(1) { width: 26%; text-align: left; }
+  #speedResultsContainer > table td:nth-child(1) { width: 14%; text-align: left; }
   #speedResultsContainer > table th:nth-child(2),
-  #speedResultsContainer > table td:nth-child(2) { width: 14%; text-align: left; }
+  #speedResultsContainer > table td:nth-child(2) { width: 26%; text-align: left; }
   #speedResultsContainer > table th:nth-child(3),
   #speedResultsContainer > table td:nth-child(3) { width: 5%; text-align: right; }
   #speedResultsContainer > table th:nth-child(4),
