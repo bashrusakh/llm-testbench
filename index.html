@@ -132,8 +132,14 @@
           <button class="btn-small" type="button" data-action="applySpeedPreset:balanced">Balanced</button>
           <button class="btn-small" type="button" data-action="applySpeedPreset:leaderboard">Leaderboard</button>
         </div>
-        <div class="status-message info" style="margin-top:6px; margin-bottom:0;">
-          Smoke: 256 tok / 1 run. Balanced: 1024 tok / 3 runs + 1 warmup. Leaderboard: 4096 tok / 5 runs + 1 warmup.
+        <div class="status-message info" style="margin-top:6px; margin-bottom:0; padding:4px 8px;">
+          <table style="width:100%; font-size:11px; line-height:1.3; border-collapse:collapse; color:var(--text-muted);">
+            <tr>
+              <td style="padding:1px 4px;"><b>Smoke:</b> 256 tok / 1 run</td>
+              <td style="padding:1px 4px;"><b>Balanced:</b> 1024 tok / 3 runs + 1 warmup</td>
+              <td style="padding:1px 4px;"><b>Leaderboard:</b> 4096 tok / 5 runs + 1 warmup</td>
+            </tr>
+          </table>
         </div>
       </div>
       <div class="form-group speed-only-setting">
