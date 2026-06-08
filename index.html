@@ -159,7 +159,7 @@
         <button id="discoverBtn" class="btn-primary" style="flex:1;">Discover Models</button>
       </div>
       <div id="discoverStatus" class="status-message info">Select endpoint and discover available models</div>
-      <div class="model-selector-container" style="height:300px; margin-top:12px;">
+      <div class="model-selector-container">
         <div class="model-search-wrapper">
           <input id="modelSearch" type="text" placeholder="Filter models...">
         </div>
@@ -177,7 +177,7 @@
         <label for="prompt">Benchmark Prompt</label>
         <textarea id="prompt" rows="4" placeholder="Enter the prompt to benchmark...">Explain the practical trade-offs between throughput, latency, and model quality for local LLM inference.</textarea>
       </div>
-      <div id="sqlModeHint" class="status-message info hidden" style="margin-top:8px; margin-bottom:0;">
+      <div id="sqlModeHint" class="status-message info hidden status-message--compact">
         SQL benchmark uses backend-built prompts from the AdventureWorks schema. Select one or more models.
       </div>
     </div>
@@ -186,7 +186,7 @@
     <div class="results-card">
       <div class="section-title">📈 Live Results</div>
       <div id="mainJobStatus" class="status-message info" role="status" aria-live="polite">Ready to benchmark</div>
-      <div id="currentOperation" class="status-message info hidden" style="margin-top:-8px;">
+      <div id="currentOperation" class="status-message info hidden status-message--attached">
         Current operation: idle
       </div>
       
@@ -265,16 +265,16 @@
       <div class="history-toolbar">
         <div class="history-actions">
           <button id="refreshHistoryBtn" class="btn-secondary">Refresh</button>
-          <label style="display:flex; align-items:center; gap:8px; margin:0; text-transform:none; letter-spacing:0; color:var(--text-main);">
-            <input id="selectAllHistory" type="checkbox" style="width:auto; margin:0;">
+          <label class="chk-row-label">
+            <input id="selectAllHistory" type="checkbox">
             Select all
           </label>
-          <button id="clearSelectedHistoryBtn" class="btn-danger btn-sm" disabled>Clear Selected</button>
-          <button id="clearAllHistoryBtn" class="btn-danger btn-sm">Clear All</button>
+          <button id="clearSelectedHistoryBtn" class="btn-danger btn-small" disabled>Clear Selected</button>
+          <button id="clearAllHistoryBtn" class="btn-danger btn-small">Clear All</button>
         </div>
         <div style="display:flex; align-items:center; gap:12px;">
           <div id="historyStatus" class="text-muted">No saved history loaded yet</div>
-          <button id="closeHistoryViewBtn" class="btn-small hidden" style="font-size:0.7rem; padding:3px 8px;">✕ Close</button>
+          <button id="closeHistoryViewBtn" class="btn-small hidden">✕ Close</button>
         </div>
       </div>
       <div style="overflow-x: auto;">
