@@ -60,7 +60,7 @@ def validate_local_fixtures(project_root: Path) -> List[str]:
             continue
         try:
             rows = read_jsonl(path)
-        except Exception as exc:
+        except (OSError, ValueError) as exc:
             errors.append(f"{module_id}: {exc}")
             continue
         if not rows:
