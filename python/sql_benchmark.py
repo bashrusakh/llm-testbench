@@ -146,7 +146,7 @@ class SqlBenchmarkRunner:
             expected_columns = [str(column) for column in question.get("columns") or expected_execution.columns]
             expected_first_row = _normalize_mapping(question.get("first_row"))
             prompt = self.build_prompt(question, thinking_mode=thinking_mode)
-        except Exception as exc:
+        except (duckdb.Error, ValueError, TypeError, KeyError) as exc:
             return self._build_failure_result(
                 question=question,
                 model=model,
@@ -219,7 +219,7 @@ class SqlBenchmarkRunner:
 
         try:
             actual_execution = self._execute_sql(generated_sql)
-        except Exception as exc:
+        except duckdb.Error as exc:
             return self._build_failure_result(
                 question=question,
                 model=model,
@@ -370,8 +370,8 @@ class SqlBenchmarkRunner:
                     columns_match=columns_match,
                     first_row_match=fr_match,
                 )
-            except Exception as exc:
-                error_msg = f"Generated SQL execution failed: {exc}"
+            except (ValueError, TypeError) as exc:
+                error_msg = f"SQL result comparison failed: {exc}"
 
         return self._build_tool_result(
             question=question, model=model, provider=provider,
@@ -429,7 +429,7 @@ class SqlBenchmarkRunner:
             expected_row_count = _safe_int(question.get("row_count"), expected_execution.row_count)
             expected_columns = [str(column) for column in question.get("columns") or expected_execution.columns]
             expected_first_row = _normalize_mapping(question.get("first_row"))
-        except Exception as exc:
+        except (duckdb.Error, ValueError, TypeError, KeyError) as exc:
             return self._build_failure_result(
                 question=question,
                 model=model,
@@ -603,7 +603,7 @@ class SqlBenchmarkRunner:
                     attempts += 1
                     try:
                         actual_execution = self._execute_sql(last_sql)
-                    except Exception as exc:
+                    except duckdb.Error as exc:
                         return self._build_failure_result(
                             question=question,
                             model=model,
@@ -754,7 +754,7 @@ class SqlBenchmarkRunner:
                             "content": result_summary,
                         })
                         retry_count = 0
-                    except Exception as exc:
+                    except duckdb.Error as exc:
                         retry_count += 1
                         if retry_count > max_retries:
                             return self._build_failure_result(
