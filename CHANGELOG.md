@@ -94,6 +94,17 @@ All notable release changes for LLM Testbench are tracked here.
 
 - **Number inputs right-aligned** — Numeric input fields in the speed settings grid now use `text-align: right` for consistent number presentation.
 
+- **Sidebar visual overhaul** — Left panel redesigned for modern, cleaner appearance:
+  - Section titles: removed uppercase, calmer labels ("Run", "Endpoint configuration", "Benchmark settings")
+  - Start/Stop buttons: Start becomes primary action, Stop is muted secondary until running
+  - Status messages: reduced padding and opacity for less visual noise
+  - Speed presets: softer borders, larger padding for readability
+  - Endpoint cards: reduced border intensity, subtler hover/selected states
+  - Numeric inputs: softer borders, consistent right-alignment
+  - Settings subsections: lighter borders, improved spacing
+  - Labels: removed uppercase from sidebar labels for calmer appearance
+  - Overall: more breathing room, reduced visual noise, consistent dark theme
+
 ## v0.1.0
 
 ### Added

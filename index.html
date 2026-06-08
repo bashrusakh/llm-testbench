@@ -15,9 +15,9 @@
     <div class="subtitle">Local multi-benchmark workbench for LLM evaluation</div>
 
     <div class="sidebar-section sidebar-actions">
-      <div class="sidebar-section-title">Start / Stop</div>
+      <div class="sidebar-section-title">Run</div>
       <div class="sidebar-actions-row">
-        <button id="startBtn" class="btn-primary" disabled>Start</button>
+        <button id="startBtn" class="btn-primary" disabled>Start benchmark</button>
         <button id="stopBtn" class="btn-danger" disabled>Stop</button>
       </div>
       <div id="jobStatus" class="status-message info status-message--compact" role="status" aria-live="polite">Ready to benchmark</div>
@@ -25,7 +25,7 @@
 
     <!-- Endpoint Configuration -->
     <div class="sidebar-section">
-      <div class="sidebar-section-title">⚡ Endpoint Configuration</div>
+      <div class="sidebar-section-title">Endpoint configuration</div>
 
       <div class="endpoint-config-row">
         <button id="scanBtn" class="btn-primary" style="flex:1;">Scan Local</button>
@@ -66,7 +66,7 @@
 
     <!-- Benchmark Settings (moved up, centered) -->
     <div class="sidebar-section">
-      <div class="sidebar-section-title">🔧 Benchmark Settings</div>
+      <div class="sidebar-section-title">Benchmark settings</div>
       <div class="settings-subsection">
         <div class="subsection-label">Tests</div>
         <div class="chk-row">
@@ -123,7 +123,7 @@
       </div>
       <div class="speed-settings-grid speed-only-setting">
         <div class="speed-field">
-          <label for="maxTokens">Max Tokens</label>
+          <label for="maxTokens">Max tokens</label>
           <input id="maxTokens" type="number" value="4096" min="1" step="256">
         </div>
         <div class="speed-field">
@@ -134,6 +134,8 @@
           <label for="warmupRuns">Warmup</label>
           <input id="warmupRuns" type="number" value="1" min="0" max="10">
         </div>
+      </div>
+      <div class="speed-settings-grid speed-only-setting" style="margin-top:6px;">
         <div class="speed-field">
           <label for="mode">Mode</label>
           <select id="mode">
