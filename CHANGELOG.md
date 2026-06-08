@@ -88,6 +88,8 @@ All notable release changes for LLM Testbench are tracked here.
 
 - **Raw / Aggregated table widths aligned** — Raw view column widths (Provider 14%, Model 26%, numeric columns 7-8%) now match the proportions of the aggregated view (Provider 14%, Model 26%, Avg Decode 140px, etc.) so toggling between views no longer causes a visible width jump.
 
+- **Aggregated TTFT now in seconds** — Header changed from "Avg TTFT (ms)" to "Avg TTFT (s)" and values now use `formatMillisecondsAsSeconds()` for consistent seconds formatting across raw and aggregated views.
+
 ## v0.1.0
 
 ### Added

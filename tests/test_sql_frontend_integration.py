@@ -102,7 +102,7 @@ def test_frontend_speed_table_uses_ttft_total_and_operation_status():
     assert 'Current operation:' in frontend
     assert 'Latency (s)' not in frontend
     assert 'Total (ms)' not in frontend
-    # Raw table uses TTFT (s), aggregated table uses Avg TTFT (ms)
+    # Raw table uses TTFT (s), aggregated table uses Avg TTFT (s)
     assert 'Total (s)' in frontend
     assert 'TTFT (s)' in frontend
     assert "formatMillisecondsAsSeconds(result.total_time_ms)" in frontend
@@ -112,7 +112,7 @@ def test_frontend_speed_table_uses_ttft_total_and_operation_status():
     assert "current_message" in frontend
     assert "Best TTFT" in frontend
     # Aggregated view headers
-    assert 'Avg TTFT (ms)' in frontend
+    assert 'Avg TTFT (s)' in frontend
     assert 'Avg Decode (tok/s)' in frontend
 
 
