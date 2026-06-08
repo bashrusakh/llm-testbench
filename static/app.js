@@ -2728,6 +2728,7 @@
   updateActionButtons();
   applyManualPreset();
   updateBenchmarkModeUi();
+  applySpeedPreset('balanced');
   loadHistory();
   restoreActiveJob();
   scanEndpoints();
