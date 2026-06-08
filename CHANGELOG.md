@@ -82,6 +82,12 @@ All notable release changes for LLM Testbench are tracked here.
 
 - **Speed preset hint is now a compact 3-column table** — The single-line status text listing Smoke/Balanced/Leaderboard presets is replaced with a 3-column `<table>` at 11px font size, improving readability in the settings panel.
 
+- **History Close button now clears speed table** — `closeHistoryView` was only resetting `resultsBodyEl` (raw table tbody) but not clearing `speedResultsContainer.innerHTML`. When the aggregated view replaced the container contents, closing left the aggregated table visible. Now both containers are cleared.
+
+- **History Open updates status to show opened job** — `openHistoryJob` now sets `#historyStatus` to display the opened job ID and status, replacing the stale "Loaded N saved benchmark run(s)" message from the initial history load.
+
+- **Raw / Aggregated table widths aligned** — Raw view column widths (Provider 14%, Model 26%, numeric columns 7-8%) now match the proportions of the aggregated view (Provider 14%, Model 26%, Avg Decode 140px, etc.) so toggling between views no longer causes a visible width jump.
+
 ## v0.1.0
 
 ### Added
