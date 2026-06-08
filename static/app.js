@@ -1317,8 +1317,8 @@
         statusBadge = '<span class="status-badge stopped" title="Stopped" aria-label="Stopped">■</span>';
       }
       row.innerHTML = `
-        <td>${escapeHtml(result.provider_label || result.provider_id || '-')}</td>
         <td>${escapeHtml(result.model)}</td>
+        <td>${escapeHtml(result.provider_label || result.provider_id || '-')}</td>
         <td>${result.run_index}</td>
         <td>${statusBadge}</td>
         <td>${formatMillisecondsAsSeconds(result.total_time_ms)}</td>
@@ -2332,8 +2332,8 @@
       <table>
         <thead>
           <tr>
-            <th>Provider</th>
             <th>Model</th>
+            <th>Provider</th>
             <th>Run</th>
             <th>Status</th>
             <th>Total (s)</th>

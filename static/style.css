@@ -379,9 +379,9 @@
   }
   /* Static raw-view table: 11 columns in the order defined at line 1189 */
   #speedResultsContainer > table th:nth-child(1),
-  #speedResultsContainer > table td:nth-child(1) { width: 14%; text-align: left; }
+  #speedResultsContainer > table td:nth-child(1) { width: 26%; text-align: left; }
   #speedResultsContainer > table th:nth-child(2),
-  #speedResultsContainer > table td:nth-child(2) { width: 26%; text-align: left; }
+  #speedResultsContainer > table td:nth-child(2) { width: 14%; text-align: left; }
   #speedResultsContainer > table th:nth-child(3),
   #speedResultsContainer > table td:nth-child(3) { width: 5%; text-align: right; }
   #speedResultsContainer > table th:nth-child(4),
