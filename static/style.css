@@ -188,6 +188,10 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
+  .speed-field input[type="number"],
+  .speed-field input[type="number"]:focus {
+    text-align: right;
+  }
   .speed-field input,
   .speed-field select {
     width: 100%;

@@ -90,6 +90,10 @@ All notable release changes for LLM Testbench are tracked here.
 
 - **Aggregated TTFT now in seconds** — Header changed from "Avg TTFT (ms)" to "Avg TTFT (s)" and values now use `formatMillisecondsAsSeconds()` for consistent seconds formatting across raw and aggregated views.
 
+- **Timeout inputs now in seconds** — Both "Timeout" and "Per-question timeout" labels changed from `(ms)` to `(s)`. Default timeout changed from 12000000ms to 12000s. JS payloads multiply by 1000 before sending to API.
+
+- **Number inputs right-aligned** — Numeric input fields in the speed settings grid now use `text-align: right` for consistent number presentation.
+
 ## v0.1.0
 
 ### Added

@@ -98,8 +98,8 @@
         </select>
       </div>
       <div id="questionTimeoutGroup" class="form-group hidden">
-        <label for="questionTimeoutMs">Per-question timeout (ms)</label>
-        <input id="questionTimeoutMs" type="number" value="0" min="0" step="1000" placeholder="0 = disabled">
+        <label for="questionTimeoutMs">Per-question timeout (s)</label>
+        <input id="questionTimeoutMs" type="number" value="0" min="0" step="1" placeholder="0 = disabled">
         <div class="status-message info status-message--compact">
           Max wall-clock per question, excluding model load (first call to each model is untimed). 0 disables.
         </div>
@@ -142,8 +142,8 @@
           </select>
         </div>
         <div class="speed-field speed-field--wide">
-          <label for="timeoutMs">Timeout (ms)</label>
-          <input id="timeoutMs" type="number" value="12000000" min="1000" step="1000">
+          <label for="timeoutMs">Timeout (s)</label>
+          <input id="timeoutMs" type="number" value="12000" min="1" step="1">
         </div>
       </div>
     </div>

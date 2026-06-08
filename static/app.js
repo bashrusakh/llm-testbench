@@ -877,7 +877,7 @@
       models,
       targets,
       mode: $('mode') ? $('mode').value : 'sequential',
-      timeout_ms: numVal('timeoutMs', 12000000),
+      timeout_ms: numVal('timeoutMs', 12000) * 1000,
       prompt: $('prompt') ? $('prompt').value : '',
       max_tokens: numVal('maxTokens', 4096),
       repeat_count: numVal('repeatCount', 3),
@@ -902,8 +902,8 @@
       thinking_mode: thinkingMode,
       reasoning_effort: getReasoningEffort(),
       question_ids: parseQuestionIds($('questionIds') ? $('questionIds').value : ''),
-      timeout_ms: Number($('timeoutMs') ? $('timeoutMs').value : '12000000'),
-      question_timeout_ms: Number($('questionTimeoutMs') && $('questionTimeoutMs').value !== '' ? $('questionTimeoutMs').value : 0),
+      timeout_ms: (Number($('timeoutMs') ? $('timeoutMs').value : '12000') || 12000) * 1000,
+      question_timeout_ms: (Number($('questionTimeoutMs') && $('questionTimeoutMs').value !== '' ? $('questionTimeoutMs').value : 0) || 0) * 1000,
     };
   }
 
