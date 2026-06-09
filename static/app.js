@@ -1396,7 +1396,7 @@
       <table class="speed-aggregated-table">
         <thead>
           <tr>
-            <th style="width:32px;"></th>
+            <th></th>
             <th>Model</th>
             <th>Provider</th>
             <th>Runs</th>
@@ -1437,7 +1437,7 @@
         </tr>
         <tr class="run-detail-panel" data-detail="${idx}">
           <td colspan="9">
-            <table class="run-detail-table">
+              <table class="run-detail-table">
               <thead>
                 <tr>
                   <th>Run</th>
