@@ -2,6 +2,12 @@
 
 All notable release changes for LLM Testbench are tracked here.
 
+## v0.2.1 (2026-06-14)
+
+### Fixed
+
+- **`_finalize_tool_run` crash on invalid LLM-generated SQL** — `duckdb.Error` (e.g. `BinderException` for missing GROUP BY) was not caught, crashing the entire benchmark job instead of recording a failed result. Added `duckdb.Error` to the except clause, consistent with error handling elsewhere in the tool-calling loop. (#32)
+
 ## v0.2.0 (2026-06-10)
 
 Major refactor — backend split into focused modules, frontend extracted to separate CSS/JS files, SSRF security hardening, performance optimizations, and numerous UI/UX fixes across speed and SQL views.
