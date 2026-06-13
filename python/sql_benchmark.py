@@ -370,8 +370,8 @@ class SqlBenchmarkRunner:
                     columns_match=columns_match,
                     first_row_match=fr_match,
                 )
-            except (ValueError, TypeError) as exc:
-                error_msg = f"SQL result comparison failed: {exc}"
+            except (duckdb.Error, ValueError, TypeError) as exc:
+                error_msg = f"SQL execution/comparison failed: {exc}"
 
         return self._build_tool_result(
             question=question, model=model, provider=provider,
