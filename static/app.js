@@ -54,36 +54,6 @@
     return cellTag;
   }
 
-  const formatters = {
-    ms(value) {
-      return value != null ? Number(value).toFixed(2) : '—';
-    },
-    msAsSeconds(value) {
-      return value != null ? `${(Number(value) / 1000).toFixed(2)}s` : '-';
-    },
-    tps(value) {
-      return value != null ? Number(value).toFixed(2) : 'n/a';
-    },
-    tpsFixed(value) {
-      return value != null ? Number(value).toFixed(2) : '—';
-    },
-    number(value, decimals = 2) {
-      return value != null ? Number(value).toFixed(decimals) : '-';
-    },
-    percent(value) {
-      return value != null ? `${Number(value).toFixed(1)}%` : '-';
-    },
-  };
-
-  const OUTCOME_META = {
-    pass: { className: 'pass', icon: '✓', label: 'Pass' },
-    fail: { className: 'fail', icon: '✗', label: 'Fail' },
-    error: { className: 'error', icon: '!', label: 'Error' },
-  };
-  function outcomeMeta(outcome) {
-    return OUTCOME_META[outcome] || OUTCOME_META.error;
-  }
-
   // Single source of truth for the Start/Stop buttons, driven by job status.
   // status === null or a terminal status -> idle (Start on, Stop off).
   // queued/running/stopping -> live (Start off, Stop on).
@@ -396,10 +366,6 @@
     return allProviders().find(provider => provider.id === providerId) || null;
   }
 
-  function applyProviderToConfig(_provider) {
-    // Config card removed — provider data lives in state only.
-  }
-
   function selectedManualPreset() {
     const presetEl = $('manualProviderPreset');
     const presetId = presetEl ? presetEl.value : 'generic-openai';
@@ -495,7 +461,6 @@
     if (!endpoint) return;
 
     renderEndpoints();
-    applyProviderToConfig(endpoint);
     loadModelsForActiveProvider();
     applyCapabilityGating();
     setStatus($('discoverStatus'), `Selected ${endpoint.base_url}. Ready to discover models.`, 'success');
@@ -515,8 +480,7 @@
     if (state.activeProviderId === providerId) {
       const nextProvider = allProviders()[0] || null;
       state.activeProviderId = nextProvider ? nextProvider.id : null;
-      if (nextProvider) applyProviderToConfig(nextProvider);
-      else {
+      if (!nextProvider) {
         state.models = [];
         state.filteredModels = [];
       }
@@ -880,7 +844,7 @@
       models,
       targets,
       mode: $('mode') ? $('mode').value : 'sequential',
-      timeout_ms: numVal('timeoutMs', 12000) * 1000,
+      timeout_ms: numVal('timeoutMs', 120) * 1000,
       prompt: $('prompt') ? $('prompt').value : '',
       max_tokens: numVal('maxTokens', 4096),
       repeat_count: numVal('repeatCount', 3),
@@ -905,7 +869,7 @@
       thinking_mode: thinkingMode,
       reasoning_effort: getReasoningEffort(),
       question_ids: parseQuestionIds($('questionIds') ? $('questionIds').value : ''),
-      timeout_ms: (Number($('timeoutMs') ? $('timeoutMs').value : '12000') || 12000) * 1000,
+      timeout_ms: (Number($('timeoutMs') ? $('timeoutMs').value : '120') || 120) * 1000,
       question_timeout_ms: (Number($('questionTimeoutMs') && $('questionTimeoutMs').value !== '' ? $('questionTimeoutMs').value : 0) || 0) * 1000,
     };
   }
@@ -974,7 +938,7 @@
 
       const resultsBodyEl = $('resultsBody');
       if (resultsBodyEl) {
-        const colspan = benchmarkType === 'sql' ? 10 : benchmarkType === 'speed' ? 11 : 12;
+        const colspan = benchmarkType === 'sql' ? 10 : 11;
         resultsBodyEl.innerHTML = emptyState('Benchmark in progress...', { colspan });
       }
       pollJob();
@@ -995,7 +959,7 @@
       await fetch(apiUrl(`/api/benchmark/${targetId}/stop`), { method: 'POST' });
       setStatusBoth('Stop requested...', 'info');
     } catch (error) {
-      setStatusBoth(`Start failed: ${error.message}`, 'error');
+      setStatusBoth(`Stop failed: ${error.message}`, 'error');
     }
   }
 
@@ -1074,7 +1038,7 @@
     setResultsTableMode('speed');
     const resultsBodyEl = $('resultsBody');
     if (resultsBodyEl) {
-      resultsBodyEl.innerHTML = '<tr><td colspan="12" class="empty-state">No benchmark results yet</td></tr>';
+      resultsBodyEl.innerHTML = '<tr><td colspan="11" class="empty-state">No benchmark results yet</td></tr>';
     }
     const speedC = $('speedResultsContainer');
     if (speedC) speedC.innerHTML = '';
@@ -2098,20 +2062,78 @@
     return diffHtml;
   }
 
+  // Must match python/sql_benchmark.py:MAX_TOOL_CALLS. Used so the modal can
+  // render "Tool calls: 5 / 10" instead of a bare number — operators want to
+  // know whether the model finished comfortably (3/10) or scraped past the
+  // ceiling (10/10). If the backend ever ships the limit per-result we can
+  // pull it from `result.max_tool_calls` instead.
+  const SQL_TOOL_CALL_LIMIT = 10;
+
+  // Maps backend stop_reason keys to short, human-readable labels and a
+  // severity class for colouring the chip:
+  //   ok    — model finished cleanly under the limit
+  //   warn  — we had to intervene (duplicate dedup, implicit ok, last-good fallback)
+  //   bad   — hit the ceiling or timed out / errored
+  const SQL_STOP_REASON_META = {
+    results_ok:              { label: 'model finished',              severity: 'ok'   },
+    text_implicit_ok:        { label: 'implicit ok (text)',          severity: 'warn' },
+    duplicate_sql_forced_ok: { label: 'duplicate SQL stopped',       severity: 'warn' },
+    limit_forced_ok:         { label: 'hit limit (used last SQL)',   severity: 'warn' },
+    tool_call_limit:         { label: 'hit limit (no SQL)',          severity: 'bad'  },
+    question_timeout:        { label: 'timed out',                   severity: 'bad'  },
+    error:                   { label: 'errored',                     severity: 'bad'  },
+  };
+
   function renderSqlDetailMeta(result) {
     const items = [];
     const att = result.attempts || 0;
     const tc = result.tool_calls || 0;
-    if (att) items.push(['Attempts', att]);
-    if (tc) items.push(['Tool calls', tc]);
+    if (att) items.push({ label: 'Attempts', value: String(att) });
+    if (tc) {
+      // Colour the chip when the model is close to (>=80%) or at the limit,
+      // so "10/10" jumps out as the cause of a failed run.
+      const ratio = tc / SQL_TOOL_CALL_LIMIT;
+      const cls = ratio >= 1 ? 'bad' : ratio >= 0.8 ? 'warn' : '';
+      items.push({
+        label: 'Tool calls',
+        value: `${tc} / ${SQL_TOOL_CALL_LIMIT}`,
+        cls,
+        title: ratio >= 1
+          ? 'Reached MAX_TOOL_CALLS — model never produced results_ok'
+          : ratio >= 0.8
+            ? 'Close to MAX_TOOL_CALLS'
+            : `${Math.round(ratio * 100)}% of MAX_TOOL_CALLS used`,
+      });
+    }
     const inTok = result.input_tokens || 0;
     const outTok = result.output_tokens || 0;
-    if (inTok || outTok) items.push(['Tokens', `${inTok.toLocaleString()} in / ${outTok.toLocaleString()} out`]);
-    if (result.cost) items.push(['Cost', `$${Number(result.cost).toFixed(4)}`]);
+    if (inTok || outTok) items.push({ label: 'Tokens', value: `${inTok.toLocaleString()} in / ${outTok.toLocaleString()} out` });
+    if (result.cost) items.push({ label: 'Cost', value: `$${Number(result.cost).toFixed(4)}` });
+
+    // stop_reason is interesting whenever it isn't the trivial happy path:
+    // "model finished" on a passing result is the boring default, so don't
+    // shout about it — but still surface it on fails so the operator can tell
+    // "model gave up cleanly" apart from "we cut it off".
+    const sr = result.stop_reason;
+    if (sr && SQL_STOP_REASON_META[sr]) {
+      const meta = SQL_STOP_REASON_META[sr];
+      const isBoringPass = sr === 'results_ok' && result.success === true;
+      if (!isBoringPass) {
+        items.push({
+          label: 'Stop reason',
+          value: meta.label,
+          cls: meta.severity,
+          title: `Backend stop_reason: ${sr}`,
+        });
+      }
+    }
+
     if (!items.length) return '';
-    return `<div class="sql-run-meta-strip">${items.map(([l,v]) =>
-      `<span><strong>${escapeHtml(String(l))}</strong> ${escapeHtml(String(v))}</span>`
-    ).join('')}</div>`;
+    return `<div class="sql-run-meta-strip">${items.map(item => {
+      const clsAttr = item.cls ? ` class="sql-meta-${item.cls}"` : '';
+      const titleAttr = item.title ? ` title="${escapeHtml(item.title)}"` : '';
+      return `<span${clsAttr}${titleAttr}><strong>${escapeHtml(item.label)}</strong> ${escapeHtml(item.value)}</span>`;
+    }).join('')}</div>`;
   }
 
   function closeSqlDetailModal() {
@@ -2269,7 +2291,7 @@
         if (sqlC) { sqlC.innerHTML = emptyState('No SQL benchmark results yet', { padding: '32px' }); sqlC.style.display = ''; }
         if (speedC) speedC.style.display = 'none';
       } else {
-        if (resultsBodyEl) resultsBodyEl.innerHTML = emptyState('No results yet', { colspan: 12 });
+        if (resultsBodyEl) resultsBodyEl.innerHTML = emptyState('No results yet', { colspan: 11 });
         if (speedC) speedC.style.display = '';
         if (sqlC) sqlC.style.display = 'none';
       }
@@ -2716,6 +2738,24 @@
   window.addEventListener('resize', () => { hideSqlFloatingTooltip(); syncSqlMatrixLayout(document); });
   window.addEventListener('scroll', hideSqlFloatingTooltip, true);
 
+  // Fetch the version once at startup and stamp it next to the H1. The
+  // backend resolves it from git tag / VERSION file / env, so the UI never
+  // ships a hardcoded number. Failure here is non-fatal — the placeholder
+  // "—" stays in place.
+  async function loadAppVersion() {
+    const el = $('appVersion');
+    if (!el) return;
+    try {
+      const resp = await fetch(apiUrl('/api/version'));
+      const data = await resp.json();
+      if (data.status === 'ok' && data.version) {
+        el.textContent = data.version;
+        el.title = `Version source: ${data.source || 'unknown'}`;
+        if (data.source) el.setAttribute('data-source', data.source);
+      }
+    } catch (_) { /* leave the placeholder */ }
+  }
+
   // ── Init ──
   loadStoredManualProviders();
   if (state.manualProviders.length) {
@@ -2730,4 +2770,5 @@
   loadHistory();
   restoreActiveJob();
   scanEndpoints();
+  loadAppVersion();
 

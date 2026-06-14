@@ -9,6 +9,8 @@
     --border: #374151;
     --success: #10b981;
     --error: #ef4444;
+    --warn: #f59e0b;
+    --danger: #ef4444;
     --radius: 6px;
   }
 
@@ -56,6 +58,24 @@
 
   h1 { font-size: 1.3rem; margin-bottom: 4px; font-weight: 700; letter-spacing: -0.5px; }
   .subtitle { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0; opacity: 0.7; }
+  /* Version tag in the sidebar header. Stays unobtrusive next to the H1 but
+     readable enough to copy when reporting a bug. */
+  .app-version {
+    font-size: 0.65rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-left: 6px;
+    padding: 1px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    vertical-align: middle;
+    letter-spacing: 0;
+    text-transform: none;
+    opacity: 0.75;
+    cursor: help;
+  }
+  .app-version[data-source="fallback"] { color: var(--warn); border-color: var(--warn); opacity: 0.85; }
+  .app-version[data-source="env"]      { color: var(--accent); border-color: var(--accent); }
   .sidebar-actions {
     position: sticky;
     top: 0;
@@ -580,6 +600,30 @@
     margin-bottom: 12px;
   }
   .sql-run-meta-strip span strong { color: var(--text-main); margin-left: 3px; }
+  /* Severity-coloured chips in the SQL meta strip — used for Tool-calls X/10
+     when close to the ceiling and for Stop reason on non-trivial outcomes.
+     Reuses the existing pass/fail/error palette via opaque borders + text. */
+  .sql-run-meta-strip span.sql-meta-warn {
+    color: var(--warn, #d97706);
+    border: 1px solid var(--warn, #d97706);
+    border-radius: 4px;
+    padding: 1px 6px;
+  }
+  .sql-run-meta-strip span.sql-meta-warn strong { color: var(--warn, #d97706); }
+  .sql-run-meta-strip span.sql-meta-bad {
+    color: var(--danger, #dc2626);
+    border: 1px solid var(--danger, #dc2626);
+    border-radius: 4px;
+    padding: 1px 6px;
+  }
+  .sql-run-meta-strip span.sql-meta-bad strong { color: var(--danger, #dc2626); }
+  .sql-run-meta-strip span.sql-meta-ok {
+    color: var(--success, #16a34a);
+    border: 1px solid var(--success, #16a34a);
+    border-radius: 4px;
+    padding: 1px 6px;
+  }
+  .sql-run-meta-strip span.sql-meta-ok strong { color: var(--success, #16a34a); }
       .sql-result-scroll {
     width: 100%;
     overflow-x: auto;

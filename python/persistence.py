@@ -445,6 +445,21 @@ def build_run_summary(record: Dict[str, Any]) -> str:
                 return parsed
         return None
 
+    def ms_from_ms_or_s(ms_value: Any, s_value: Any) -> Optional[float]:
+        """Return milliseconds from either an *_ms or *_s field.
+
+        Mixing ms-records and s-records into the same average without conversion
+        skews the mean by 1000×. Speed rows always write *_ms now; legacy disk
+        records may carry *_s. Convert the latter before averaging.
+        """
+        ms = number(ms_value)
+        if ms is not None:
+            return ms
+        seconds = number(s_value)
+        if seconds is not None:
+            return seconds * 1000.0
+        return None
+
     def average(values: List[float]) -> Optional[float]:
         if not values:
             return None
@@ -460,12 +475,12 @@ def build_run_summary(record: Dict[str, Any]) -> str:
     failures = [item for item in rows if item.get("success") is False]
     latency_values = [
         value
-        for value in (first_number(item.get("latency_ms"), item.get("latency_s")) for item in rows)
+        for value in (ms_from_ms_or_s(item.get("latency_ms"), item.get("latency_s")) for item in rows)
         if value is not None
     ]
     total_time_values = [
         value
-        for value in (first_number(item.get("total_time_ms"), item.get("total_time_s")) for item in rows)
+        for value in (ms_from_ms_or_s(item.get("total_time_ms"), item.get("total_time_s")) for item in rows)
         if value is not None
     ]
     ttft_values = [
@@ -509,7 +524,7 @@ def build_run_summary(record: Dict[str, Any]) -> str:
             bucket["pass_count"] += 1
         elif item.get("success") is False:
             bucket["fail_count"] += 1
-        latency = first_number(item.get("latency_ms"), item.get("latency_s"))
+        latency = ms_from_ms_or_s(item.get("latency_ms"), item.get("latency_s"))
         if latency is not None:
             bucket["latency_ms_values"].append(latency)
         cost = number(item.get("cost"))

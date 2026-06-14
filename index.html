@@ -11,7 +11,7 @@
 </head>
 <body>
   <aside>
-    <h1>LLM Testbench</h1>
+    <h1>LLM Testbench <span id="appVersion" class="app-version" title="Loading…">—</span></h1>
     <div class="subtitle">Local multi-benchmark workbench for LLM evaluation</div>
 
     <div class="sidebar-section sidebar-actions">
@@ -136,16 +136,19 @@
         </div>
       </div>
       <div class="speed-settings-grid speed-only-setting" style="margin-top:6px;">
-        <div class="speed-field">
+        <div class="speed-field speed-field--wide">
           <label for="mode">Mode</label>
           <select id="mode">
             <option value="sequential">Sequential</option>
             <option value="parallel">Parallel</option>
           </select>
         </div>
-        <div class="speed-field speed-field--wide">
-          <label for="timeoutMs">Timeout (s)</label>
-          <input id="timeoutMs" type="number" value="12000" min="1" step="1">
+      </div>
+      <div class="form-group" style="margin-top:6px;">
+        <label for="timeoutMs">Request timeout (s)</label>
+        <input id="timeoutMs" type="number" value="120" min="1" step="1">
+        <div class="status-message info status-message--compact">
+          Max wall-clock for one HTTP call to the LLM server, in seconds. Covers the full speed run, or one tool-calling round-trip in SQL mode. Typical: <strong>60-120 s</strong> for 7-13B models, <strong>300-600 s</strong> for reasoning models or weak hardware. Hitting this records the run as failed.
         </div>
       </div>
     </div>

@@ -733,6 +733,7 @@ def test_openai_tool_call_reasoning_falls_back_when_unsupported(monkeypatch):
             })
 
     monkeypatch.setattr(server_module.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(server_module, "_validate_endpoint_url", lambda *a, **kw: None)
     server = BenchmarkServer(INDEX_HTML)
     target = BenchmarkTarget(
         provider_id="p",
@@ -794,6 +795,7 @@ def test_openai_single_prefers_content_over_reasoning_content(monkeypatch):
             return FakeResponse()
 
     monkeypatch.setattr(server_module.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(server_module, "_validate_endpoint_url", lambda *a, **kw: None)
     server = BenchmarkServer(INDEX_HTML)
     target = BenchmarkTarget(
         provider_id="p",

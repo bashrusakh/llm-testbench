@@ -24,7 +24,6 @@ import httpx
 from python.json_io import ts_utc
 from python.models import BenchmarkTarget, JobState
 from python.speed_row import _build_speed_row
-from python.ssrf import _validate_endpoint_url  # noqa: F401  (kept for re-export; runtime calls go via server._validate_endpoint_url)
 
 if TYPE_CHECKING:  # pragma: no cover
     from python.benchmark_server import BenchmarkServer
@@ -118,7 +117,7 @@ async def post_openai_chat_with_reasoning_fallback(
 
 
 async def run_job(server: "BenchmarkServer", job: JobState) -> None:
-    from python.persistence import append_job_to_results_store, flush_job_record
+    from python.persistence import append_job_to_results_store
 
     job.status = "running"
     job.started_at = ts_utc()
@@ -295,6 +294,10 @@ async def call_llm_single(
     *,
     reasoning_effort: str = "disabled",
 ) -> str:
+    # Lazy import so the test's ``monkeypatch.setattr(server_module, "_validate_endpoint_url", ...)`` takes effect.
+    # SSRF guard for SQL path (speed path validates inside _benchmark_openai/_ollama).
+    from python.server import _validate_endpoint_url as _server_validate_endpoint_url
+    _server_validate_endpoint_url(target.base_url)
     messages = [
         {"role": "system", "content": system},
         {"role": "user", "content": user},
@@ -303,17 +306,19 @@ async def call_llm_single(
         headers = {"Content-Type": "application/json"}
         if target.api_key:
             headers["Authorization"] = f"Bearer {target.api_key}"
+        # Sampling params intentionally omitted — let the server use whatever
+        # is configured in LM Studio / llama.cpp / Ollama. Sending them here
+        # would override the user's per-model preset on OpenAI-compatible APIs.
         payload = {
             "model": model,
             "messages": messages,
-            "temperature": 0.1,
             "max_tokens": 4096,
             "stream": False,
         }
         timeout = httpx.Timeout(
             connect=30.0,
-            read=None if timeout_ms <= 0 else max(timeout_ms / 1000.0, 300.0),
-            write=None if timeout_ms <= 0 else max(timeout_ms / 1000.0, 300.0),
+            read=None if timeout_ms <= 0 else timeout_ms / 1000.0,
+            write=None if timeout_ms <= 0 else timeout_ms / 1000.0,
             pool=30.0,
         )
         async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
@@ -337,16 +342,16 @@ async def call_llm_single(
         content = message.get("content") or message.get("reasoning_content") or ""
         return _coerce_message_content_to_text(content)
 
+    # Ollama: sampling params omitted so the model uses its registered options.
     payload = {
         "model": model,
         "messages": messages,
-        "temperature": 0.1,
         "stream": False,
     }
     timeout = httpx.Timeout(
         connect=30.0,
-        read=None if timeout_ms <= 0 else max(timeout_ms / 1000.0, 300.0),
-        write=None if timeout_ms <= 0 else max(timeout_ms / 1000.0, 300.0),
+        read=None if timeout_ms <= 0 else timeout_ms / 1000.0,
+        write=None if timeout_ms <= 0 else timeout_ms / 1000.0,
         pool=30.0,
     )
     async with httpx.AsyncClient(timeout=timeout) as client:
@@ -377,24 +382,28 @@ async def call_llm_tool_calling(
     case we re-try without tools so the tool-calling loop can extract SQL from
     plain text via the fallback branch in run_question_tool_calling.
     """
+    # Lazy import so the test's ``monkeypatch.setattr(server_module, "_validate_endpoint_url", ...)`` takes effect.
+    # SSRF guard for SQL tool-calling path.
+    from python.server import _validate_endpoint_url as _server_validate_endpoint_url
+    _server_validate_endpoint_url(target.base_url)
     all_messages = [{"role": "system", "content": system_prompt}] + messages
     headers = {"Content-Type": "application/json"}
     if target.api_key:
         headers["Authorization"] = f"Bearer {target.api_key}"
 
+    # Sampling params omitted — server-side preset wins.
     tool_payload = {
         "model": model,
         "messages": all_messages,
         "tools": tools,
         "tool_choice": "auto",
-        "temperature": 0.1,
         "max_tokens": 4096,
         "stream": False,
     }
     timeout = httpx.Timeout(
         connect=30.0,
-        read=None if timeout_ms <= 0 else max(timeout_ms / 1000.0, 300.0),
-        write=None if timeout_ms <= 0 else max(timeout_ms / 1000.0, 300.0),
+        read=None if timeout_ms <= 0 else timeout_ms / 1000.0,
+        write=None if timeout_ms <= 0 else timeout_ms / 1000.0,
         pool=30.0,
     )
 
@@ -433,7 +442,7 @@ async def call_llm_tool_calling(
                     "Model %s at %s rejected tool-calling (%s) — retrying without tools",
                     model, target.base_url, response.status_code,
                 )
-                plain_payload = {"model": model, "messages": all_messages, "temperature": 0.1, "max_tokens": 4096, "stream": False}
+                plain_payload = {"model": model, "messages": all_messages, "max_tokens": 4096, "stream": False}
                 response = await post_openai_chat_with_reasoning_fallback(
                     client,
                     f"{target.base_url}{OPENAI_CHAT_PATH}",
@@ -483,6 +492,7 @@ def sql_result_row(job: JobState, target: BenchmarkTarget, result: Dict[str, Any
 
 
 async def run_sequential(server: "BenchmarkServer", job: JobState, target: BenchmarkTarget) -> None:
+    from python.persistence import flush_job_record
     job.current_provider_id = target.provider_id
     job.current_provider_label = target.provider_label
     for model in target.models:
@@ -501,10 +511,15 @@ async def run_sequential(server: "BenchmarkServer", job: JobState, target: Bench
             result = await run_single_benchmark(server, job, target, model, run_index)
             job.results.append(result)
             job.progress_completed += 1
+            # Incremental save: a server crash mid-run no longer drops all
+            # already-finished results. Mirrors the SQL path.
+            save_task = asyncio.ensure_future(flush_job_record(server, job))
+            job.track_save(save_task)
             await job.set_phase("result_recorded", f"Recorded speed result for {model} (run {run_index}/{job.request.repeat_count})", model=model, run_index=run_index, benchmark_type="speed")
 
 
 async def run_parallel(server: "BenchmarkServer", job: JobState, target: BenchmarkTarget) -> None:
+    from python.persistence import flush_job_record
     job.current_provider_id = target.provider_id
     job.current_provider_label = target.provider_label
     prompt_hash = hashlib.sha256(job.request.prompt.encode("utf-8")).hexdigest()
@@ -548,6 +563,9 @@ async def run_parallel(server: "BenchmarkServer", job: JobState, target: Benchma
             continue
         job.results.append(result)
         job.progress_completed += 1
+        # Incremental save (parallel path).
+        save_task = asyncio.ensure_future(flush_job_record(server, job))
+        job.track_save(save_task)
         await job.set_phase("result_recorded", f"Recorded speed result for {result.get('model', 'model')}", model=result.get("model"), run_index=result.get("run_index"), benchmark_type="speed")
         if job.stop_requested:
             for pending in tasks:
@@ -625,14 +643,14 @@ async def benchmark_openai(
     headers = {"Content-Type": "application/json"}
     if target.api_key:
         headers["Authorization"] = f"Bearer {target.api_key}"
+    # Sampling params (temperature/top_p/penalties) intentionally omitted so
+    # the LLM server uses whatever its own model preset specifies. Sending
+    # values here would silently override the user's per-model config in
+    # LM Studio / llama.cpp.
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": spec.prompt}],
         "max_tokens": spec.max_tokens,
-        "temperature": spec.temperature,
-        "top_p": spec.top_p,
-        "presence_penalty": spec.presence_penalty,
-        "frequency_penalty": spec.frequency_penalty,
         "stream": True,
         "stream_options": {"include_usage": True},
     }
@@ -641,7 +659,6 @@ async def benchmark_openai(
     first_token_at: Optional[float] = None
     completion_tokens: Optional[int] = None
     prompt_tokens: Optional[int] = None
-    fallback_completion_tokens = 0
     if job is not None:
         await job.set_phase("waiting_first_token", f"Waiting for first token from {model}", model=model, run_index=run_index, benchmark_type="speed")
     # Lazy import so the test's ``monkeypatch.setattr(server_module, "_validate_endpoint_url", ...)`` takes effect
@@ -675,14 +692,14 @@ async def benchmark_openai(
                         first_token_at = time.perf_counter()
                         if job is not None:
                             await job.set_phase("streaming", f"Streaming response from {model}", model=model, run_index=run_index, benchmark_type="speed")
-                    if isinstance(content, str) and content:
-                        fallback_completion_tokens += 1
                 usage = data.get("usage") or {}
                 if usage:
                     prompt_tokens = usage.get("prompt_tokens", prompt_tokens)
                     completion_tokens = usage.get("completion_tokens", completion_tokens)
-    if completion_tokens is None and fallback_completion_tokens > 0:
-        completion_tokens = fallback_completion_tokens
+    # Counting stream chunks is NOT a tokens fallback: one chunk can hold many
+    # tokens, so deriving decode_tps from chunk count under-reports by N×. If
+    # the server doesn't include usage, leave completion_tokens/decode_tps as
+    # None — the UI shows "n/a" rather than a misleading number.
     end = time.perf_counter()
     latency_ms = (end - start) * 1000.0
     ttft_ms = ((first_token_at or end) - start) * 1000.0 if first_token_at else None
@@ -717,13 +734,12 @@ async def benchmark_ollama(
     job: Optional[JobState] = None,
     run_index: Optional[int] = None,
 ) -> Dict[str, Any]:
+    # Sampling params omitted — Ollama uses the model's Modelfile defaults.
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": spec.prompt}],
         "options": {
             "num_predict": spec.max_tokens,
-            "temperature": spec.temperature,
-            "top_p": spec.top_p,
         },
         "stream": False,
     }

@@ -56,7 +56,7 @@ DEFAULT_ALLOWED_ORIGINS = {"*"}
 DEFAULT_PORT_CANDIDATES = [1234, 8080, 11434, 5000, 5001]
 DEFAULT_HOST_CANDIDATES = ["127.0.0.1", "localhost"]
 LOCAL_SCAN_CONNECT_TIMEOUT_S = 0.5
-LOCAL_SCAN_READ_TIMEOUT_S = .5
+LOCAL_SCAN_READ_TIMEOUT_S = 0.5
 OPENAI_MODELS_PATH = "/v1/models"
 OLLAMA_TAGS_PATH = "/api/tags"
 
@@ -124,6 +124,7 @@ async def create_app() -> web.Application:
         app.router.add_static("/static/", static_dir, show_index=False)
     app.router.add_get("/", server.index)
     app.router.add_get("/health", server.health)
+    app.router.add_get("/api/version", server.version)
     app.router.add_get("/api/fixtures", server.fixture_manifest)
     app.router.add_get("/api/fixtures/validate", server.fixture_validation)
     app.router.add_get("/api/benchmark/contract", server.benchmark_contract)
