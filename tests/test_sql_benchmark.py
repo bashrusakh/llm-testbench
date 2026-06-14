@@ -399,13 +399,13 @@ def test_tool_calling_loop_sends_sql_error_back_to_llm():
 
 def test_tool_calling_no_tool_call_prompts_llm_to_use_tool():
     """When LLM returns text without a tool call:
-    - First MAX_NO_TOOL_CALL_RETRIES (2) calls are silent retries (same messages).
+    - First MAX_NO_TOOL_CALL_RETRIES (3) calls are silent retries (same messages).
     - After retries exhausted, a follow-up message is added asking to use run_sql_query.
     """
     runner = None
     received_messages = []
     call_count = [0]
-    MAX_RETRIES = 2  # must match sql_benchmark.py MAX_NO_TOOL_CALL_RETRIES
+    MAX_RETRIES = 3  # must match sql_benchmark.py MAX_NO_TOOL_CALL_RETRIES
 
     async def tool_callback(*, system_prompt, messages, tools, model, provider, endpoint, timeout_ms):
         call_count[0] += 1
