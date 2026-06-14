@@ -26,6 +26,7 @@ from python.adapter import ADAPTER_REGISTRY, get_adapter
 from python.json_io import _read_json, ts_utc
 from python.local_benchmarks import LOCAL_FIXTURE_SPECS, load_local_tasks, validate_local_fixtures
 from python.models import (
+    ADAPTER_LIFECYCLE_HOOKS,
     BENCHMARK_MODULES,
     BENCHMARK_MODULES_BY_ID,
     BENCHMARK_PRESETS,
@@ -248,11 +249,6 @@ class BenchmarkServer:
     def _validate_endpoint_url(base_url: str) -> None:
         return _validate_endpoint_url(base_url)
 
-    @staticmethod
-    def _validate_endpoint_url_is_bound() -> bool:
-        """Diagnostic: True if the delegate is wired (always True)."""
-        return True
-
     # ---------- error responses & health ----------
 
     @staticmethod
@@ -268,6 +264,22 @@ class BenchmarkServer:
 
     async def health(self, _request: web.Request) -> web.Response:
         return web.json_response({"status": "ok", "timestamp": ts_utc()})
+
+    async def version(self, _request: web.Request) -> web.Response:
+        """Resolve the running app's version via python._version.get_version_info.
+
+        Source order: $LLM_TESTBENCH_VERSION → ``git describe --tags --abbrev=0``
+        → ``VERSION`` file → "dev". Cached after the first call, so polling
+        this endpoint is cheap.
+        """
+        from python._version import get_version_info
+        info = get_version_info()
+        return web.json_response({
+            "status": "ok",
+            "version": info["version"],
+            "source": info["source"],
+            "timestamp": ts_utc(),
+        })
 
     # ---------- benchmark module/preset registry handlers ----------
 
@@ -426,7 +438,6 @@ class BenchmarkServer:
     # ---------- preset registry handlers ----------
 
     async def benchmark_presets(self, _request: web.Request) -> web.Response:
-        from python.models import BENCHMARK_PRESETS_BY_ID
         return web.json_response({
             "status": "ok",
             "presets": [preset.to_dict() for preset in BENCHMARK_PRESETS],
@@ -458,7 +469,7 @@ class BenchmarkServer:
                 "module_id": module_id,
                 "adapter": {
                     "module_id": module_id,
-                    "hooks": ["prepare", "select_tasks", "run_task", "score", "render", "cleanup"],
+                    "hooks": list(ADAPTER_LIFECYCLE_HOOKS),
                     "status": "planned_adapter",
                     "class": None,
                 },
@@ -498,6 +509,16 @@ class BenchmarkServer:
                 return float(v)
             except (TypeError, ValueError):
                 return None
+
+        def _ms_from_ms_or_s(ms_value: Any, s_value: Any) -> Optional[float]:
+            """Normalise legacy *_s rows to milliseconds before averaging."""
+            ms = _number(ms_value)
+            if ms is not None:
+                return ms
+            seconds = _number(s_value)
+            if seconds is not None:
+                return seconds * 1000.0
+            return None
 
         # Bucket structure: by_module[module_id][model] -> {counts, values}
         by_module: Dict[str, Dict[str, Any]] = {}
@@ -550,7 +571,7 @@ class BenchmarkServer:
                 elif success is False:
                     module_bucket["fail_count"] += 1
 
-                latency = _number(row.get("latency_ms")) or _number(row.get("latency_s"))
+                latency = _ms_from_ms_or_s(row.get("latency_ms"), row.get("latency_s"))
                 if latency is not None:
                     module_bucket["_latency_values"].append(latency)
 

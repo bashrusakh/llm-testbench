@@ -14,12 +14,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
+from python.aggregates import _compute_speed_aggregates
 from python.json_io import ts_utc
-
-# _compute_speed_aggregates lives in python/aggregates.py. Imported lazily
-# inside JobState._aggregated_speed to avoid a static import cycle while
-# the refactor is in progress; will be hoisted to the top once that file
-# is extracted.
 
 API_CONTRACT_VERSION = 1
 MODULE_SCHEMA_VERSION = 1
@@ -424,9 +420,6 @@ class BenchmarkRequest:
                 api_key=str(data.get("api_key", "")),
                 models=models,
             )]
-        if benchmark_type == "sql" and len(models) < 1:
-            raise ValueError(f"{benchmark_type} benchmark requires at least one model")
-
         mode = str(data.get("mode", "sequential")).strip().lower()
         if mode not in {"sequential", "parallel"}:
             raise ValueError("mode must be 'sequential' or 'parallel'")
@@ -604,10 +597,8 @@ class JobState:
         is called on every poll, but ``_compute_speed_aggregates`` walks
         every row; on a 20-model × 5-run job that's 100 rows per tick.
         """
-        from python.aggregates import _compute_speed_aggregates
         n = len(self.results)
         last_ts = self.results[-1].get("timestamp") if self.results else None
-        cache_key = (n, last_ts)
         if self._aggregates_cache is not None and self._aggregates_cache[0] == n and self._aggregates_cache[1] == last_ts:
             return self._aggregates_cache[2]
         agg = _compute_speed_aggregates(self.results)

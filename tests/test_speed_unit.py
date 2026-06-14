@@ -287,10 +287,11 @@ def test_benchmark_openai_anchors_first_token_on_reasoning_content(monkeypatch):
     assert result["decode_tps"] is not None
 
 
-def test_benchmark_openai_uses_chunk_counter_fallback_when_usage_missing(monkeypatch):
-    """Some backends ignore stream_options.include_usage. Fall back to
-    counting non-empty delta.content chunks so the row still gets a
-    completion_tokens value."""
+def test_benchmark_openai_returns_none_when_usage_missing(monkeypatch):
+    """Some backends ignore stream_options.include_usage. We must NOT derive a
+    token count from chunk-counting — one chunk can contain many tokens, so the
+    fake `decode_tps` it produced was off by N×. Better to surface None and let
+    the UI render 'n/a' than to show a misleading number."""
     monkeypatch.setattr(server_module, "_validate_endpoint_url", lambda *a, **kw: None)
 
     def make_lines() -> List[str]:
@@ -310,8 +311,10 @@ def test_benchmark_openai_uses_chunk_counter_fallback_when_usage_missing(monkeyp
     target = _make_target()
     result = run(_server()._benchmark_openai(spec, target, "m"))
 
-    assert result["completion_tokens"] == 3
-    assert result["decode_tps"] is not None
+    assert result["completion_tokens"] is None
+    assert result["decode_tps"] is None
+    # TTFT is still measurable from the first non-empty delta even without usage.
+    assert result["ttft_ms"] is not None
 
 
 def test_benchmark_openai_raises_on_error_body_in_stream(monkeypatch):

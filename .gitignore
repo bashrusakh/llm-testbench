@@ -16,3 +16,8 @@ python/_probe.txt
 .env.*
 *.log
 
+# Written by the Release workflow into the published archive — the runtime
+# version resolver reads it when git is unavailable. Never committed.
+VERSION
+dist/
+

@@ -1,0 +1,51 @@
+name: Release
+
+# Pin the release tag into a VERSION file inside the published archive so the
+# runtime version resolver (python/_version.py) has a source even when the
+# downloaded tarball has no .git directory.
+#
+# Trigger: any pushed tag matching v*. The workflow checks out the repo at
+# that tag, writes the tag string into ./VERSION, repackages the working
+# tree as llm-testbench-<tag>.zip, and attaches it to the GitHub release.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Package release archive
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Write VERSION file from tag
+        run: |
+          echo "${GITHUB_REF_NAME}" > VERSION
+          echo "VERSION pinned to: $(cat VERSION)"
+
+      - name: Build archive
+        run: |
+          name="llm-testbench-${GITHUB_REF_NAME}"
+          mkdir -p "dist"
+          # Exclude .git so the archive stays portable; VERSION is the source
+          # of truth for the runtime version resolver in that case.
+          zip -r "dist/${name}.zip" . \
+            -x ".git/*" ".github/*" "benchmarks/*" "tests/__pycache__/*" \
+            "python/__pycache__/*" "*.pyc"
+          echo "ARCHIVE_NAME=${name}.zip" >> "$GITHUB_ENV"
+          echo "ARCHIVE_PATH=dist/${name}.zip" >> "$GITHUB_ENV"
+
+      - name: Upload archive to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ARCHIVE_PATH }}
+          fail_on_unmatched_files: true

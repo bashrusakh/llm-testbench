@@ -27,6 +27,7 @@ Compare local LLMs on speed and SQL accuracy, with lightweight local fixture pac
 - [Quick Start](#quick-start)
 - [Screenshots](#screenshots)
 - [Workflow](#workflow)
+- [⚠️ Sampling settings live on the LLM server](#%EF%B8%8F-sampling-settings-live-on-the-llm-server-not-here-since-v022) — **read this before comparing pre-v0.2.2 results to anything**
 - [Speed Metrics](#speed-metrics)
 - [SQL Accuracy](#sql-accuracy)
 - [API](#api)
@@ -116,6 +117,21 @@ run.bat --host 127.0.0.1 --port 8765 --log-level INFO
 5. Choose benchmark modules and execution mode (sequential / parallel).
 6. Hit **Start** and watch live results stream in.
 7. Export saved runs from the history panel — JSONL, CSV, TSV, or Summary.
+
+---
+
+## ⚠️ Sampling settings live on the LLM server, not here (since v0.2.2)
+
+LLM Testbench does **not** send `temperature`, `top_p`, `presence_penalty`, or `frequency_penalty` in any payload. Your sampling config has to live on the LLM-server side — model settings in **LM Studio**, the `Modelfile` `PARAMETER` lines in **Ollama**, `--temp` / `--top-p` flags in **llama.cpp**, the model's `generation_config.json` in **vLLM**, etc.
+
+**Why:** before v0.2.2 we pushed our own values into every request. On OpenAI-compatible servers the client-sent value **replaces** the model's registered preset, so whatever you configured on the server side was being silently discarded.
+
+**The SQL benchmark in particular was broken by this:** the tool-calling path was pinned to `temperature: 0.1` (near-deterministic). When the model produced wrong SQL and DuckDB returned a `BinderException`, the retry loop fed the error back and asked for a fix — but at temperature 0.1 the model regenerated **the same wrong SQL**, ate the `MAX_TOOL_CALLS=10` budget, and recorded the question as `stop_reason=tool_call_limit`. Looked like a model failure; was actually our payload override. See the v0.2.2 entry in [CHANGELOG.md](CHANGELOG.md) for the full breakdown.
+
+**What to do:**
+- Pre-v0.2.2 benchmark numbers comparing models are partly compromised — re-run anything you care about.
+- If you want strict determinism for reproducibility, set `temperature=0` on the server side. Just understand the SQL retry loop will degrade the way described above.
+- For benchmarking, whatever sampling preset the model authors recommend is usually saner than forcing a value.
 
 ---
 

@@ -219,7 +219,7 @@ class SqlBenchmarkRunner:
 
         try:
             actual_execution = self._execute_sql(generated_sql)
-        except duckdb.Error as exc:
+        except (duckdb.Error, ValueError, TypeError) as exc:
             return self._build_failure_result(
                 question=question,
                 model=model,
@@ -603,7 +603,7 @@ class SqlBenchmarkRunner:
                     attempts += 1
                     try:
                         actual_execution = self._execute_sql(last_sql)
-                    except duckdb.Error as exc:
+                    except (duckdb.Error, ValueError, TypeError) as exc:
                         return self._build_failure_result(
                             question=question,
                             model=model,
@@ -754,7 +754,7 @@ class SqlBenchmarkRunner:
                             "content": result_summary,
                         })
                         retry_count = 0
-                    except duckdb.Error as exc:
+                    except (duckdb.Error, ValueError, TypeError) as exc:
                         retry_count += 1
                         if retry_count > max_retries:
                             return self._build_failure_result(
