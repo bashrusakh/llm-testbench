@@ -4,11 +4,12 @@ All notable release changes for LLM Testbench are tracked here.
 
 ## v0.2.2 (2026-06-14)
 
-Code-review cleanup pass — closes an SSRF gap in the SQL path, stops the
-backend from overriding server-side sampling settings, surfaces the
-tool-call budget and stop reason in the SQL detail card, adds a no-hardcode
-version resolver, and removes a pile of dead/misleading code uncovered by
-review.
+Major refactor — code-review cleanup pass closes an SSRF gap in the SQL
+path, stops the backend from overriding server-side sampling settings,
+surfaces the tool-call budget and stop reason in the SQL detail card, adds
+a no-hardcode version resolver, and removes a pile of dead/misleading code
+uncovered by review. **Sampling settings now live on the LLM server, not
+in the app** — see the ⚠️ heads-up below.
 
 > ### ⚠️ **MAJOR — Heads up before you re-run anything**
 >
