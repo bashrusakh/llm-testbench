@@ -7,7 +7,7 @@
 [![Release](https://img.shields.io/github/v/release/bashrusakh/llm-testbench?sort=semver&style=flat-square)](https://github.com/bashrusakh/llm-testbench/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Local first](https://img.shields.io/badge/local--first-yes-22c55e?style=flat-square)](https://github.com/bashrusakh/llm-testbench)
-[![Tests](https://img.shields.io/badge/tests-142%20passing-22c55e?style=flat-square)](https://github.com/bashrusakh/llm-testbench)
+[![Tests](https://img.shields.io/badge/tests-153%20passing-22c55e?style=flat-square)](https://github.com/bashrusakh/llm-testbench)
 [![No Docker](https://img.shields.io/badge/docker-not%20required-64748b?style=flat-square)](https://github.com/bashrusakh/llm-testbench)
 
 <img src="docs/screenshots/overview.png" alt="LLM Testbench — endpoint configuration and model selection" width="900" style="border-radius:8px">
@@ -216,7 +216,7 @@ Install dependencies:
 python -m pip install -r python/requirements.txt pytest
 ```
 
-Run the test suite (142 tests):
+Run the test suite (153 tests):
 
 ```bash
 python -m pytest tests -q

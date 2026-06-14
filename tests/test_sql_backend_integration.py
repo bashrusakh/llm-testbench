@@ -713,7 +713,7 @@ def test_openai_tool_call_reasoning_falls_back_when_unsupported(monkeypatch):
         async def __aexit__(self, exc_type, exc, tb):
             return False
 
-        async def post(self, url, json):
+        async def post(self, url, json=None, **kwargs):
             requests.append(json)
             if len(requests) == 1:
                 return FakeResponse(400, "Unsupported field: reasoning")
@@ -790,7 +790,7 @@ def test_openai_single_prefers_content_over_reasoning_content(monkeypatch):
         async def __aexit__(self, exc_type, exc, tb):
             return False
 
-        async def post(self, url, json):
+        async def post(self, url, json=None, **kwargs):
             requests.append(json)
             return FakeResponse()
 

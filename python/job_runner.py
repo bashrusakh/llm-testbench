@@ -93,9 +93,11 @@ async def post_openai_chat_with_reasoning_fallback(
     reasoning_effort: str,
     model: str,
     fallback_state: Optional[Dict[str, bool]] = None,
+    timeout: Optional[httpx.Timeout] = None,
+    headers: Optional[Dict[str, str]] = None,
 ) -> httpx.Response:
     request_payload = _with_reasoning(payload, reasoning_effort)
-    response = await client.post(url, json=request_payload)
+    response = await client.post(url, json=request_payload, timeout=timeout, headers=headers)
     if "reasoning" not in request_payload:
         return response
 
@@ -113,7 +115,7 @@ async def post_openai_chat_with_reasoning_fallback(
         fallback_state = REASONING_FALLBACK_STATE.get()
     if fallback_state is not None:
         fallback_state["used"] = True
-    return await client.post(url, json=payload)
+    return await client.post(url, json=payload, timeout=timeout, headers=headers)
 
 
 async def run_job(server: "BenchmarkServer", job: JobState) -> None:
@@ -302,6 +304,12 @@ async def call_llm_single(
         {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]
+    timeout = httpx.Timeout(
+        connect=30.0,
+        read=None if timeout_ms <= 0 else timeout_ms / 1000.0,
+        write=None if timeout_ms <= 0 else timeout_ms / 1000.0,
+        pool=30.0,
+    )
     if target.provider == "openai-compatible":
         headers = {"Content-Type": "application/json"}
         if target.api_key:
@@ -315,25 +323,20 @@ async def call_llm_single(
             "max_tokens": 4096,
             "stream": False,
         }
-        timeout = httpx.Timeout(
-            connect=30.0,
-            read=None if timeout_ms <= 0 else timeout_ms / 1000.0,
-            write=None if timeout_ms <= 0 else timeout_ms / 1000.0,
-            pool=30.0,
+        response = await post_openai_chat_with_reasoning_fallback(
+            server.http_client,
+            f"{target.base_url}{OPENAI_CHAT_PATH}",
+            payload,
+            reasoning_effort=reasoning_effort,
+            model=model,
+            timeout=timeout,
+            headers=headers,
         )
-        async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
-            response = await post_openai_chat_with_reasoning_fallback(
-                client,
-                f"{target.base_url}{OPENAI_CHAT_PATH}",
-                payload,
-                reasoning_effort=reasoning_effort,
-                model=model,
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"HTTP {response.status_code} from {target.base_url}{OPENAI_CHAT_PATH}: {response.text[:300]}"
             )
-            if response.status_code >= 400:
-                raise RuntimeError(
-                    f"HTTP {response.status_code} from {target.base_url}{OPENAI_CHAT_PATH}: {response.text[:300]}"
-                )
-            data = response.json()
+        data = response.json()
         choices = data.get("choices") or []
         if not choices:
             raise RuntimeError("OpenAI-compatible response did not include choices")
@@ -348,17 +351,12 @@ async def call_llm_single(
         "messages": messages,
         "stream": False,
     }
-    timeout = httpx.Timeout(
-        connect=30.0,
-        read=None if timeout_ms <= 0 else timeout_ms / 1000.0,
-        write=None if timeout_ms <= 0 else timeout_ms / 1000.0,
-        pool=30.0,
+    response = await server.http_client.post(
+        f"{target.base_url}{OLLAMA_CHAT_PATH}", json=payload, timeout=timeout
     )
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(f"{target.base_url}{OLLAMA_CHAT_PATH}", json=payload)
-        if response.status_code >= 400:
-            raise RuntimeError(f"HTTP {response.status_code} from {target.base_url}{OLLAMA_CHAT_PATH}: {response.text[:300]}")
-        data = response.json()
+    if response.status_code >= 400:
+        raise RuntimeError(f"HTTP {response.status_code} from {target.base_url}{OLLAMA_CHAT_PATH}: {response.text[:300]}")
+    data = response.json()
     message = data.get("message") or {}
     return _coerce_message_content_to_text(message.get("content"))
 
@@ -407,56 +405,61 @@ async def call_llm_tool_calling(
         pool=30.0,
     )
 
-    async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
-        response = await post_openai_chat_with_reasoning_fallback(
-            client,
-            f"{target.base_url}{OPENAI_CHAT_PATH}",
-            tool_payload,
-            reasoning_effort=reasoning_effort,
-            model=model,
-            fallback_state=fallback_state,
-        )
+    response = await post_openai_chat_with_reasoning_fallback(
+        server.http_client,
+        f"{target.base_url}{OPENAI_CHAT_PATH}",
+        tool_payload,
+        reasoning_effort=reasoning_effort,
+        model=model,
+        fallback_state=fallback_state,
+        timeout=timeout,
+        headers=headers,
+    )
 
-        # Some models reject tool_choice / tools entirely (400/422/501).
-        # Fall back to plain chat so the text-extraction branch can handle it.
-        if response.status_code in (400, 422, 501):
-            body_text = response.text
-            body_lower = body_text.lower()
-            # LM Studio: model was unloaded/reloaded mid-request — wait and retry once
-            if any(kw in body_lower for kw in ("unloaded", "reloaded")):
-                LOG.warning(
-                    "Model %s reported unloaded/reloaded — waiting 3s and retrying",
-                    model,
-                )
-                await asyncio.sleep(3)
-                response = await post_openai_chat_with_reasoning_fallback(
-                    client,
-                    f"{target.base_url}{OPENAI_CHAT_PATH}",
-                    tool_payload,
-                    reasoning_effort=reasoning_effort,
-                    model=model,
-                    fallback_state=fallback_state,
-                )
-            elif any(kw in body_lower for kw in ("tool", "function", "not support", "unsupported", "render")):
-                LOG.warning(
-                    "Model %s at %s rejected tool-calling (%s) — retrying without tools",
-                    model, target.base_url, response.status_code,
-                )
-                plain_payload = {"model": model, "messages": all_messages, "max_tokens": 4096, "stream": False}
-                response = await post_openai_chat_with_reasoning_fallback(
-                    client,
-                    f"{target.base_url}{OPENAI_CHAT_PATH}",
-                    plain_payload,
-                    reasoning_effort=reasoning_effort,
-                    model=model,
-                    fallback_state=fallback_state,
-                )
-
-        if response.status_code >= 400:
-            raise RuntimeError(
-                f"HTTP {response.status_code} from {target.base_url}{OPENAI_CHAT_PATH}: {response.text[:400]}"
+    # Some models reject tool_choice / tools entirely (400/422/501).
+    # Fall back to plain chat so the text-extraction branch can handle it.
+    if response.status_code in (400, 422, 501):
+        body_text = response.text
+        body_lower = body_text.lower()
+        # LM Studio: model was unloaded/reloaded mid-request — wait and retry once
+        if any(kw in body_lower for kw in ("unloaded", "reloaded")):
+            LOG.warning(
+                "Model %s reported unloaded/reloaded — waiting 3s and retrying",
+                model,
             )
-        data = response.json()
+            await asyncio.sleep(3)
+            response = await post_openai_chat_with_reasoning_fallback(
+                server.http_client,
+                f"{target.base_url}{OPENAI_CHAT_PATH}",
+                tool_payload,
+                reasoning_effort=reasoning_effort,
+                model=model,
+                fallback_state=fallback_state,
+                timeout=timeout,
+                headers=headers,
+            )
+        elif any(kw in body_lower for kw in ("tool", "function", "not support", "unsupported", "render")):
+            LOG.warning(
+                "Model %s at %s rejected tool-calling (%s) — retrying without tools",
+                model, target.base_url, response.status_code,
+            )
+            plain_payload = {"model": model, "messages": all_messages, "max_tokens": 4096, "stream": False}
+            response = await post_openai_chat_with_reasoning_fallback(
+                server.http_client,
+                f"{target.base_url}{OPENAI_CHAT_PATH}",
+                plain_payload,
+                reasoning_effort=reasoning_effort,
+                model=model,
+                fallback_state=fallback_state,
+                timeout=timeout,
+                headers=headers,
+            )
+
+    if response.status_code >= 400:
+        raise RuntimeError(
+            f"HTTP {response.status_code} from {target.base_url}{OPENAI_CHAT_PATH}: {response.text[:400]}"
+        )
+    data = response.json()
 
     choices = data.get("choices") or []
     if not choices:
@@ -664,38 +667,37 @@ async def benchmark_openai(
     # Lazy import so the test's ``monkeypatch.setattr(server_module, "_validate_endpoint_url", ...)`` takes effect
     from python.server import _validate_endpoint_url as _server_validate_endpoint_url
     _server_validate_endpoint_url(target.base_url)
-    async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
-        async with client.stream("POST", f"{target.base_url}{OPENAI_CHAT_PATH}", json=payload) as response:
-            if response.status_code >= 400:
-                body = (await response.aread()).decode("utf-8", errors="replace")
-                raise RuntimeError(f"HTTP {response.status_code} from {target.base_url}{OPENAI_CHAT_PATH}: {body[:300]}")
-            async for line in response.aiter_lines():
-                if not line or not line.startswith("data:"):
-                    continue
-                data_str = line[5:].strip()
-                if data_str == "[DONE]":
-                    break
-                data = json.loads(data_str)
-                if data.get("error"):
-                    err = data["error"]
-                    msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
-                    raise RuntimeError(f"Server error in stream: {msg}")
-                choices = data.get("choices") or []
-                if choices:
-                    choice_err = choices[0].get("error") or choices[0].get("finish_reason") == "error"
-                    if choice_err:
-                        raise RuntimeError(f"Server error in choice: {choices[0].get('error') or 'unknown'}")
-                    delta = choices[0].get("delta") or {}
-                    content = delta.get("content")
-                    reasoning = delta.get("reasoning_content")
-                    if first_token_at is None and (content is not None or reasoning is not None):
-                        first_token_at = time.perf_counter()
-                        if job is not None:
-                            await job.set_phase("streaming", f"Streaming response from {model}", model=model, run_index=run_index, benchmark_type="speed")
-                usage = data.get("usage") or {}
-                if usage:
-                    prompt_tokens = usage.get("prompt_tokens", prompt_tokens)
-                    completion_tokens = usage.get("completion_tokens", completion_tokens)
+    async with server.http_client.stream("POST", f"{target.base_url}{OPENAI_CHAT_PATH}", json=payload, headers=headers, timeout=timeout) as response:
+        if response.status_code >= 400:
+            body = (await response.aread()).decode("utf-8", errors="replace")
+            raise RuntimeError(f"HTTP {response.status_code} from {target.base_url}{OPENAI_CHAT_PATH}: {body[:300]}")
+        async for line in response.aiter_lines():
+            if not line or not line.startswith("data:"):
+                continue
+            data_str = line[5:].strip()
+            if data_str == "[DONE]":
+                break
+            data = json.loads(data_str)
+            if data.get("error"):
+                err = data["error"]
+                msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
+                raise RuntimeError(f"Server error in stream: {msg}")
+            choices = data.get("choices") or []
+            if choices:
+                choice_err = choices[0].get("error") or choices[0].get("finish_reason") == "error"
+                if choice_err:
+                    raise RuntimeError(f"Server error in choice: {choices[0].get('error') or 'unknown'}")
+                delta = choices[0].get("delta") or {}
+                content = delta.get("content")
+                reasoning = delta.get("reasoning_content")
+                if first_token_at is None and (content is not None or reasoning is not None):
+                    first_token_at = time.perf_counter()
+                    if job is not None:
+                        await job.set_phase("streaming", f"Streaming response from {model}", model=model, run_index=run_index, benchmark_type="speed")
+            usage = data.get("usage") or {}
+            if usage:
+                prompt_tokens = usage.get("prompt_tokens", prompt_tokens)
+                completion_tokens = usage.get("completion_tokens", completion_tokens)
     # Counting stream chunks is NOT a tokens fallback: one chunk can hold many
     # tokens, so deriving decode_tps from chunk count under-reports by N×. If
     # the server doesn't include usage, leave completion_tokens/decode_tps as
@@ -749,11 +751,10 @@ async def benchmark_ollama(
     # Lazy import so the test's ``monkeypatch.setattr(server_module, "_validate_endpoint_url", ...)`` takes effect
     from python.server import _validate_endpoint_url as _server_validate_endpoint_url
     _server_validate_endpoint_url(target.base_url)
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(f"{target.base_url}{OLLAMA_CHAT_PATH}", json=payload)
-        if response.status_code >= 400:
-            raise RuntimeError(f"HTTP {response.status_code} from {target.base_url}{OLLAMA_CHAT_PATH}: {response.text[:300]}")
-        data = response.json()
+    response = await server.http_client.post(f"{target.base_url}{OLLAMA_CHAT_PATH}", json=payload, timeout=timeout)
+    if response.status_code >= 400:
+        raise RuntimeError(f"HTTP {response.status_code} from {target.base_url}{OLLAMA_CHAT_PATH}: {response.text[:300]}")
+    data = response.json()
     prompt_tokens = data.get("prompt_eval_count")
     completion_tokens = data.get("eval_count")
     prompt_eval_duration = data.get("prompt_eval_duration")
