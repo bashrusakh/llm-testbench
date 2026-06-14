@@ -79,6 +79,7 @@ review.
   `Tool calls: 5 / 10` (instead of a bare `5`), highlighting the chip in
   amber at ≥80% of `MAX_TOOL_CALLS` and red at 100%. Lets the operator tell
   "model finished comfortably" from "scraped past the ceiling" at a glance.
+- **History table — `Questions` and `Thinking` columns** — two new columns between `Benchmark Type` and `Status` so you can scan saved runs and tell at a glance which SQL questions were exercised and which thinking variant ran. `Questions` shows `all (N)` when nothing was filtered, `K selected` (with the full ID list in the tooltip) for explicit subsets. `Thinking` is a coloured chip (`off` muted / `on` accent / `both` warn) — speed runs render `—` so the column stays clean across mixed history. Empty-state colspans bumped 9 → 11.
 - **SQL detail card — Stop reason** — the backend `stop_reason` (`results_ok`,
   `text_implicit_ok`, `duplicate_sql_forced_ok`, `limit_forced_ok`,
   `tool_call_limit`, `question_timeout`, `error`) is surfaced as a coloured

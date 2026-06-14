@@ -963,6 +963,50 @@
     }
   }
 
+  // Format the Questions cell for a history row. SQL runs get a compact
+  // summary ("all (N)" or "K selected" with the full list in the tooltip);
+  // anything else gets a dash so the column reads cleanly across benchmark types.
+  function formatHistoryQuestionsCell(item) {
+    const benchmarkType = item.request?.benchmark_type || 'speed';
+    if (benchmarkType !== 'sql') return { text: '—', title: '' };
+    const requested = item.request?.question_ids;
+    const distinctInResults = new Set(
+      (item.results || []).map(r => r?.question_id).filter(v => v !== undefined && v !== null)
+    );
+    if (requested == null) {
+      // null/undefined in saved record == "all questions" (no explicit selection)
+      const count = distinctInResults.size;
+      return {
+        text: count ? `all (${count})` : 'all',
+        title: count ? `${count} questions executed` : 'All available questions',
+      };
+    }
+    if (Array.isArray(requested)) {
+      const ids = requested.map(String);
+      const preview = ids.length <= 6 ? ids.join(', ') : `${ids.slice(0, 5).join(', ')} … +${ids.length - 5}`;
+      return {
+        text: `${ids.length} selected`,
+        title: `Question IDs: ${preview}`,
+      };
+    }
+    return { text: String(requested), title: '' };
+  }
+
+  // Map backend thinking_mode (off/on/both) to a small chip with severity-ish
+  // colour. Non-SQL runs render a dash so the column stays tidy.
+  function formatHistoryThinkingCell(item) {
+    const benchmarkType = item.request?.benchmark_type || 'speed';
+    if (benchmarkType !== 'sql') return '<span class="text-muted">—</span>';
+    const mode = String(item.request?.thinking_mode || '').toLowerCase();
+    const map = {
+      off:  { label: 'off',  cls: 'thinking-off',  title: 'Direct answer mode' },
+      on:   { label: 'on',   cls: 'thinking-on',   title: 'Reasoning enabled' },
+      both: { label: 'both', cls: 'thinking-both', title: 'Both off and on variants ran' },
+    };
+    const meta = map[mode] || { label: mode || '—', cls: '', title: 'Unknown thinking mode' };
+    return `<span class="history-thinking-chip ${meta.cls}" title="${escapeHtml(meta.title)}">${escapeHtml(meta.label)}</span>`;
+  }
+
   function renderHistory() {
     const historyBodyEl = $('historyBody');
     const historyStatusEl = $('historyStatus');
@@ -970,7 +1014,7 @@
 
     historyBodyEl.innerHTML = '';
     if (!state.history.length) {
-      historyBodyEl.innerHTML = emptyState('No saved benchmark history yet', { colspan: 9 });
+      historyBodyEl.innerHTML = emptyState('No saved benchmark history yet', { colspan: 11 });
       if (historyStatusEl) historyStatusEl.textContent = 'No saved benchmark history';
       updateHistorySelectionUi();
       return;
@@ -986,6 +1030,8 @@
       const providerLabel = item.results?.[0]?.provider_label || item.request?.base_url || '-';
       const endpoint = item.results?.[0]?.endpoint || item.request?.base_url || '-';
       const benchmarkType = item.request?.benchmark_type || 'speed';
+      const questionsCell = formatHistoryQuestionsCell(item);
+      const thinkingCellHtml = formatHistoryThinkingCell(item);
       const jsonlUrl = apiUrl(`/api/benchmark/${encodeURIComponent(item.job_id)}/results.jsonl`);
       const csvUrl = apiUrl(`/api/benchmark/${encodeURIComponent(item.job_id)}/results.csv`);
       const tsvUrl = apiUrl(`/api/benchmark/${encodeURIComponent(item.job_id)}/results.tsv`);
@@ -1005,6 +1051,8 @@
         <td>${escapeHtml(endpoint)}</td>
         <td>${escapeHtml(item.started_at || item.created_at || '-')}</td>
         <td>${escapeHtml(benchmarkTypeLabel(benchmarkType))}</td>
+        <td${questionsCell.title ? ` title="${escapeHtml(questionsCell.title)}"` : ''}>${escapeHtml(questionsCell.text)}</td>
+        <td>${thinkingCellHtml}</td>
         <td>${escapeHtml(item.status || '-')}</td>
         <td>${distinctModelCount !== null ? `${distinctModelCount} model${distinctModelCount === 1 ? '' : 's'}` : resultCount}</td>
         <td>${errorCount}</td>
@@ -1209,7 +1257,7 @@
       state.historySelection = new Set();
       renderHistory();
     } catch (error) {
-      if (historyBodyEl) historyBodyEl.innerHTML = emptyState('Failed to load saved benchmark history', { colspan: 9 });
+      if (historyBodyEl) historyBodyEl.innerHTML = emptyState('Failed to load saved benchmark history', { colspan: 11 });
       if (historyStatusEl) historyStatusEl.textContent = `History load failed: ${error.message}`;
     }
   }

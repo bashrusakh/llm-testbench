@@ -537,6 +537,35 @@
     flex-wrap: wrap;
     margin-bottom: 16px;
   }
+  /* Thinking-mode chip in the History table. Tiny, monochrome by default,
+     subtly tinted for the three valid values so a sweep of saved runs
+     reads at a glance. Hover for the human-readable explanation. */
+  .history-thinking-chip {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    line-height: 1.4;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    background: transparent;
+    text-transform: lowercase;
+    letter-spacing: 0.02em;
+    cursor: help;
+  }
+  .history-thinking-chip.thinking-off {
+    color: var(--text-muted);
+    border-color: var(--border);
+  }
+  .history-thinking-chip.thinking-on {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .history-thinking-chip.thinking-both {
+    color: var(--warn);
+    border-color: var(--warn);
+  }
   .history-actions {
     display: flex;
     gap: 8px;
