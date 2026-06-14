@@ -9,7 +9,9 @@
 - [Раздел 4: Мёртвый код / неиспользуемые импорты](#4-мёртвый-код--неиспользуемые-импорты)
 - [Раздел 5: Производительность / оптимизация](#5-производительность--оптимизация)
 - [Раздел 6: Поверхностные / косметические](#6-поверхностные--косметические)
-- [Раздел 7: План исправлений](#7-план-исправлений-порядок-и-меры-предосторожности) — включает **Фазу 8: SQL Benchmark Comparison View** (новая фича: точное сравнение thinking vs no-think, разных моделей, разных прогонов).
+- [Раздел 7: План исправлений](#7-план-исправлений-порядок-и-меры-предосторожности) — включает:
+  - **Фазу 8: SQL Benchmark Comparison View** (новая фича: точное сравнение thinking vs no-think, разных моделей, разных прогонов).
+  - **Фазу 9: Typography / dark-theme polish** (приглушение `#ffffff`-белого, добавление `--text-secondary`, замена 89 хардкод-хексов на переменные — по аналогии с [bashrusakh/hfdesk#16](https://github.com/bashrusakh/hfdesk/pull/16)).
 
 Приоритет: 🔴 высокий, 🟠 средний, 🟡 низкий, 🟢 чисто косметика.
 
@@ -644,6 +646,118 @@ except OSError: pass
 - DuckDB sandbox (`enable_external_access=False`) — потребует переустройства загрузки CSV.
 - thinking_mode='both' для SQL — переделать UI в группировку по модели.
 
+### Фаза 9 — Typography / dark-theme polish (по аналогии с hfdesk#16) — 📋 **PLANNED**
+
+**Зачем.** Сейчас основной текст в нашей тёмной теме — `--text-main: #f3f4f6` (яркость ~95%). Это «почти-белый» — при длительной работе режет глаза, особенно при множестве строк в SQL matrix / history table / conversation render. На соседнем проекте [bashrusakh/hfdesk#16](https://github.com/bashrusakh/hfdesk/pull/16) уже сделан тот же refactor — стоит зеркалить подход, чтобы у пользователя был согласованный визуальный язык между обоими приложениями.
+
+**Источник правды.** PR [bashrusakh/hfdesk#16](https://github.com/bashrusakh/hfdesk/pull/16) — «ui: soften dark theme typography and improve text hierarchy». 27/-10 строк, два файла.
+
+**Что делает hfdesk#16:**
+
+1. **Снижение яркости primary text** (главная мысль):
+   - `#ffffff` → `#c8c8d0` — ~78% brightness, ~10:1 contrast ratio. По WCAG AA с запасом, но без агрессивного блика.
+2. **Промежуточный уровень `text-secondary`** для второстепенных метаданных:
+   - `#b4b4c4` → `#a0a0b0`.
+3. **Более явный `text-muted`**:
+   - `#8a8a9c` → `#6a6a7a`.
+4. **Новый `--color-text-like: #c9a0a0`** — тёплый акцент для социальных сигналов (♥-чипы / like-счётчики).
+5. **Badge-style для technical labels** (`.cache-quant-subtitle`): фон + border + monospace = читается как «тех-лейбл», а не как обычный текст.
+6. **Удаление хардкод-хексов** из правил → замена на `var(--color-text-*)`. В hfdesk было 4 случая (`#e0e0e0`, `#b0b8c8`, `#8899aa`, `#9aa7ba`); **у нас грубо 89 хардкод-хексов** в [static/style.css](static/style.css) (см. `grep -E "#[0-9a-fA-F]{6}"`).
+7. **Поднятие иерархии:** некоторые метаданные были `muted`, сейчас стали `secondary` — потому что они важнее, чем «просто фоновая инфа».
+
+**Как перенести на llm-testbench (конкретный план):**
+
+#### Шаг 1 — Расширить palette в `:root`
+**Файл:** [static/style.css:1-14](static/style.css)
+
+```css
+:root {
+    --bg: #0b0f1a;
+    --sidebar-bg: #111827;
+    --card-bg: #1f2937;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    /* TEXT — снижено по аналогии с hfdesk#16 */
+    --text-main: #c8c8d0;          /* было #f3f4f6 — сняли ~17% яркости */
+    --text-secondary: #a0a0b0;     /* новый уровень — для метаданных */
+    --text-muted: #6a6a7a;         /* было #9ca3af — теперь явно muted */
+    --text-like: #c9a0a0;          /* warm accent для social signals (если будет нужно) */
+    --border: #374151;
+    --success: #10b981;
+    --error: #ef4444;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --radius: 6px;
+}
+```
+
+Acceptance: при просмотре существующих скринов (SQL matrix, history, conversation modal) текст становится мягче, но всё ещё читаем. Tests (frontend integration) — должны проходить без изменений, потому что значения в `.css` не покрываются.
+
+#### Шаг 2 — Заменить хардкод-хексы текста на переменные
+**Файл:** [static/style.css](static/style.css)
+
+Прогон команды:
+```bash
+grep -nE "color:\s*#[0-9a-fA-F]{3,6}" static/style.css | grep -v "var(--"
+```
+
+Каждый матч — кандидат на замену. Правила:
+- Если значение похоже на «основной» текст (`#e0e0e0`, `#f3f4f6`, `#ffffff`, `#fff`) → `var(--text-main)`.
+- Если «secondary» (`#b0b8c8`, `#9ca3af`, `#a0a0b0`) → `var(--text-secondary)`.
+- Если «muted» (`#6b7280`, `#8899aa`, `#9aa7ba`, `#4b5563`) → `var(--text-muted)`.
+- Семантические цвета (success/error/warn/accent) — оставить как есть, если они не дублируют существующие переменные.
+
+Особенно посмотреть:
+- `.conv-user-label { color: #6b7280; }` → `var(--text-muted)`
+- `.conv-thinking-label { color: #d97706; }` → `var(--warn)` (или оставить если оттенок специальный)
+- `.conv-tool-code { ... color: #e2e8f0; }` → `var(--text-main)`
+- `.conv-call-header { color: #4b5563; }` → `var(--text-muted)`
+
+Acceptance: `grep -E "color:\s*#" static/style.css | grep -v "var(--"` возвращает только семантику (success/warn/error/accent-вариации), не нейтральные серые.
+
+#### Шаг 3 — Поднять иерархию для важных «второстепенных» элементов
+По образцу hfdesk: `.model-card-author` и `.model-row-stat` подняты из `muted` в `secondary`. У нас аналог:
+- В speed aggregated table: provider label / min-max → сейчас `text-muted` ([app.js renderAggregatedSpeedResults]). Возможно поднять до `text-secondary` чтобы цифры читались увереннее.
+- В history table: provider / endpoint / started — сейчас обычный текст. Подсчёт результатов / errors — сейчас просто текст. Стоит дифференцировать: имя/время — `text-main`, цифры — `text-secondary`.
+- В SQL detail card meta strip (`.sql-run-meta-strip`) — сейчас `text-muted` ([style.css:578](static/style.css)). Поднять до `text-secondary`.
+- В sidebar `subtitle` — сейчас `text-muted` + opacity 0.7. Возможно оставить (там действительно фоновая инфа).
+
+Решение по каждому пункту — на этапе UI-ревью с автором.
+
+#### Шаг 4 — Badge-style для «технических» лейблов (опц.)
+hfdesk применил badge-style к `.cache-quant-subtitle`. У нас есть похожие места:
+- `.sql-quant-badge` — уже badge-style. Норм.
+- `.app-version` chip — уже сделан в Фазе 5 (v0.2.2). Норм.
+- Возможные кандидаты: `.app-version[data-source]` уже подсвечивает source. Стоп-цвета (см. `sql-meta-warn` / `sql-meta-bad`) — также badge. Норм.
+
+Скорее всего этот пункт уже закрыт ранее — но при ревью style.css стоит свериться.
+
+#### Шаг 5 — Опциональный warm accent для социальных сигналов
+У нас сейчас нет «like» сигналов (это не social-фронт). Этот пункт **DEFER** до появления.
+
+**Acceptance criteria для Фазы 9 целиком:**
+1. Все «текстовые» хексы в `style.css` идут через `var(--text-*)`. Семантика (success/error/warn) — через свои переменные.
+2. В `:root` появляется `--text-secondary` как промежуточный уровень.
+3. Зрительное сравнение до/после на тёмной теме: SQL matrix / history / conversation modal — текст мягче, иерархия (main / secondary / muted) явно различима, нет «слепящих» белых на фоне.
+4. 150 тестов остаются зелёными — это чисто CSS-правки.
+
+**Не делать в Фазе 9:**
+- Менять светлую тему — её сейчас нет.
+- Менять accent (`#3b82f6`) — это бренд-цвет, отдельная дискуссия.
+- Менять `--bg` / `--card-bg` / `--sidebar-bg` — тон фонов сейчас норм, hfdesk их не трогал.
+
+**Объём работы:**
+- 0.5 ч — расширение palette + первый smoke (Шаг 1).
+- 1.5 ч — прогон по 89 хексам и замена (Шаг 2). Большая часть механическая, ~10% потребуют решения «secondary vs muted».
+- 1.0 ч — UI-ревью со скриншотами до/после (Шаг 3).
+- 0.5 ч — финальный pytest + ручной smoke.
+
+Итого: ~3.5 ч.
+
+**Зависимости:** независима от Фазы 8 (Comparison view). Можно делать в любом порядке.
+
+---
+
 ### Фаза 8 — SQL Benchmark Comparison View (новая фича) — 📋 **PLANNED**
 
 **Цель.** Дать пользователю аккуратное, точное и лаконичное сравнение результатов SQL-бенчмарка между двумя выборками. Use-case'ы, которые должно покрыть:
@@ -754,11 +868,13 @@ except OSError: pass
 | Косметика | 9 | 3 | 0 | 0 | 6 | — |
 | **Новые фичи** | | | | | | |
 | SQL Comparison view | 1 | 0 | 0 | 0 | 0 | 1 (Фаза 8) |
+| Typography polish | 1 | 0 | 0 | 0 | 0 | 1 (Фаза 9, по hfdesk#16) |
 
 **Что вошло в v0.2.2 (одной строкой):** все 🔴 (4 шт.) + почти все 🟠, плюс ⚠️ MAJOR — полное удаление sampling override из всех LLM-payload'ов (включая хардкод `temperature=0.1` в SQL retry-loop). Полный список — в [CHANGELOG.md → v0.2.2](CHANGELOG.md).
 
 **Что осталось на потом:**
-- Фаза 8 — SQL Comparison view (новая фича, см. ниже план).
+- **Фаза 8** — SQL Comparison view (новая фича, см. ниже план).
+- **Фаза 9** — Typography / dark-theme polish (приглушение primary text + промежуточный `--text-secondary` + замена 89 хардкод-хексов; зеркалит [hfdesk#16](https://github.com/bashrusakh/hfdesk/pull/16) для согласованного визуального языка между проектами).
 - Перформанс-разделы (5.1-5.6) — по факту нагрузки.
 - DuckDB sandbox (2.2) — если приложение перестанет быть строго single-user local.
 - Несколько косметических правок (6.3, 6.4, 6.7, 6.8) — по желанию.
