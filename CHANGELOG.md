@@ -10,6 +10,55 @@ tool-call budget and stop reason in the SQL detail card, adds a no-hardcode
 version resolver, and removes a pile of dead/misleading code uncovered by
 review.
 
+> ### ⚠️ **MAJOR — Heads up before you re-run anything**
+>
+> **Sampling parameters (`temperature` / `top_p` / `presence_penalty` /
+> `frequency_penalty`) are no longer sent in any LLM request.**
+>
+> Previously the backend pushed these values into every OpenAI-compatible
+> payload. On OpenAI-compatible servers the client-sent value **replaces**
+> the model's registered preset, so whatever you configured in
+> LM Studio / llama.cpp / Ollama was being silently discarded by us. From
+> v0.2.2 the server uses its own preset — that's the source of truth now.
+>
+> **Why the old behaviour was actively harmful for SQL benchmarks:**
+> the SQL tool-calling path was pinned to `temperature: 0.1` (hard-coded
+> in `call_llm_single` and `call_llm_tool_calling`). That value runs the
+> model in near-deterministic mode. Combined with the tool-calling retry
+> loop (`run_question_tool_calling` — up to `max_retries=3` SQL retries
+> after a DuckDB error, plus the `MAX_TOOL_CALLS=10` overall ceiling)
+> the result was:
+>
+> 1. Model generates wrong SQL on attempt 1.
+> 2. DuckDB returns a `BinderException` / `ParserException`.
+> 3. We feed the error back and ask for a fix.
+> 4. At `temperature=0.1` the model produces **the same wrong SQL** again
+>    — sampling is too tight to escape the local optimum.
+> 5. Repeat until `MAX_TOOL_CALLS` is hit. Question fails with
+>    `stop_reason=tool_call_limit` even though the model had room to try
+>    something different at any other temperature.
+>
+> Why this snuck through upstream review in
+> [nlothian/llm-sql-benchmark](https://github.com/nlothian/llm-sql-benchmark)
+> is unclear — best guess is it was an early "make output stable" hack
+> that nobody pulled out once the retry loop arrived. We were mirroring
+> upstream behaviour, so we carried the same trap.
+>
+> **What you should do after upgrading:**
+> - **Re-run anything you compared between models** — earlier
+>   "model X can't recover from BinderException" results were partly our
+>   fault, not the model's.
+> - Set your sampling preset on the LLM server side (LM Studio model
+>   settings, Ollama `Modelfile`, llama.cpp launch flags). The backend
+>   no longer pushes back.
+> - If you want strict determinism for reproducibility runs, set
+>   `temperature=0` in the server preset — but understand the SQL retry
+>   loop will degrade exactly the way described above. For benchmarking,
+>   `temperature=0.7` or whatever the model recommends is usually saner.
+>
+> See [`Fixed → Stopped overriding server-side sampling parameters`](#fixed) below
+> for the full file-level breakdown.
+
 ### Added
 
 - **`GET /api/version` + sidebar version tag** — backend resolves the running
@@ -52,7 +101,14 @@ review.
 
 ### Fixed
 
-- **Stopped overriding server-side sampling parameters** — the backend was unconditionally injecting `temperature`/`top_p`/`presence_penalty`/`frequency_penalty` into every OpenAI-compatible payload, and `temperature: 0.1` was hard-coded into the SQL tool-calling path. On OpenAI-compatible servers the client value *replaces* the model's registered preset, so whatever the user configured in LM Studio / llama.cpp / Ollama was being silently discarded. Worse, the SQL retry loop ran at `temperature=0.1` — near-deterministic — which meant a model that produced wrong SQL on the first try usually produced *the same* wrong SQL on every retry, eating the 3-attempt budget without ever fixing itself. Sampling params are now omitted from all payloads (speed and SQL); the server uses its own preset. Matches upstream [nlothian/llm-sql-benchmark](https://github.com/nlothian/llm-sql-benchmark) behaviour.
+- **⚠️ MAJOR — Stopped overriding server-side sampling parameters** — see the heads-up box at the top of this release for the why-it-mattered story. File-level changes:
+  - `benchmark_openai` (speed): `temperature` / `top_p` / `presence_penalty` / `frequency_penalty` removed from the OpenAI-compatible chat-completions payload. `max_tokens` and `stream`/`stream_options` stay.
+  - `benchmark_ollama` (speed): `options.temperature` / `options.top_p` removed; only `options.num_predict` stays.
+  - `call_llm_single` (SQL, OpenAI-compatible branch): hard-coded `temperature: 0.1` removed.
+  - `call_llm_single` (SQL, Ollama branch): hard-coded `temperature: 0.1` removed.
+  - `call_llm_tool_calling` (SQL tool-calling main payload): hard-coded `temperature: 0.1` removed.
+  - `call_llm_tool_calling` (SQL fallback plain payload when server rejects tools): hard-coded `temperature: 0.1` removed.
+  - `BenchmarkRequest` dataclass keeps `temperature` / `top_p` / `presence_penalty` / `frequency_penalty` fields with their defaults (0.7 / 1.0 / 0.0 / 0.0). They aren't used in any payload anymore, but removing them would be a breaking API contract change for anything reading saved JSON records. Treat them as deprecated metadata.
 - **`timeoutMs` default was 12000 seconds (~3.3 hours)** — UI defaulted `<input value="12000">` while the JS payload multiplied by 1000 (`numVal('timeoutMs', 12000) * 1000`), producing a 12,000,000 ms HTTP timeout. Fixed to `120` (= 120 s real timeout) in `index.html`, `buildSpeedPayload`, and `buildSqlPayload`.
 - **Request-timeout field was hidden in SQL-only mode but its value was still used** — `timeoutMs` was wrapped in `.speed-only-setting`, so picking only "SQL Accuracy" hid the input entirely while `buildSqlPayload` kept reading it from the hidden DOM node. User had no way to change it. Moved the field (and its new hint) out of the speed-only group; the `Mode` select stays speed-only since it has no effect on SQL.
 - **Bare "Timeout (s)" label gave the user no clue what to put in it** — relabelled to "Request timeout (s)" with an inline hint explaining the unit, what it covers (one HTTP call in speed mode, one tool-calling round-trip in SQL mode), and rough typical values (60-120 s for 7-13B models, 300-600 s for reasoning models or weak hardware). Mirrors the hint style of `Per-question timeout`.
