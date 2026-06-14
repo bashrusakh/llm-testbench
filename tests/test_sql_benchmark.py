@@ -36,8 +36,15 @@ def test_strip_markdown_fences(raw, expected):
     ("SUM(s.[Sales Amount])", 'SUM(s."Sales Amount")'),
     ("[user_id]", '"user_id"'),
     ("a.[col 1], b.[col 2]", 'a."col 1", b."col 2"'),
+    ("SELECT [Revenue] FROM [Sales]", 'SELECT "Revenue" FROM "Sales"'),
     ("no brackets here", "no brackets here"),
     ("", ""),
+    # Hazards that must NOT be rewritten (valid DuckDB / string content):
+    ("SELECT [1,2,3] AS arr", "SELECT [1,2,3] AS arr"),   # list literal
+    ("SELECT arr[1] FROM t", "SELECT arr[1] FROM t"),     # list indexing
+    ("SELECT arr[1:2] FROM t", "SELECT arr[1:2] FROM t"), # list slice
+    ("WHERE path = '$[0]'", "WHERE path = '$[0]'"),       # bracket in string
+    ("WHERE name = '[Region]'", "WHERE name = '[Region]'"),  # ident-like in string
 ])
 def test_convert_mssql_brackets_to_duckdb(raw, expected):
     assert SqlBenchmarkRunner._convert_mssql_brackets_to_duckdb(raw) == expected
@@ -58,6 +65,41 @@ def test_convert_mssql_brackets_to_duckdb(raw, expected):
 def test_strip_and_bracket_convert(raw, expected):
     result = SqlBenchmarkRunner.strip_markdown_fences(raw)
     assert result == expected
+
+
+# ── numeric tolerance (_rounding_tolerance / _values_match) ───────────────────
+
+from python.sql_benchmark import _rounding_tolerance, _values_match  # noqa: E402
+
+
+@pytest.mark.parametrize("expected,tol", [
+    (12.7, 0.05),       # 1 decimal -> half of 0.1
+    (73.3, 0.05),
+    (3.14, 0.005),      # 2 decimals
+    (100, 0.5),         # integer -> half unit
+    (10918, 0.5),
+])
+def test_rounding_tolerance_normal(expected, tol):
+    assert _rounding_tolerance(expected) == pytest.approx(tol)
+
+
+def test_rounding_tolerance_handles_scientific_notation():
+    # str(1e-05) == '1e-05' has no '.', so the old digit-after-dot scan gave 0
+    # decimals -> tolerance 0.5, falsely matching wildly different values.
+    assert _rounding_tolerance(1e-05) == pytest.approx(5e-06)
+    assert _rounding_tolerance(1e20) == pytest.approx(0.5)
+
+
+@pytest.mark.parametrize("expected,actual,match", [
+    (1e-05, 0.4, False),    # was a false PASS before the fix
+    (1e-05, 1.0e-05, True),
+    (12.7, 12.72, True),    # model's unrounded value vs rounded reference
+    (12.7, 12.6, False),
+    (100, 100.4, True),     # int half-unit tolerance
+    (100, 101, False),
+])
+def test_values_match_numeric_tolerance(expected, actual, match):
+    assert _values_match(expected, actual) is match
 
 
 # ── normalize_sql ─────────────────────────────────────────────────────────────
