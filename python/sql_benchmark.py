@@ -7,7 +7,7 @@ import threading
 import time
 from dataclasses import dataclass
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence
 
@@ -92,7 +92,13 @@ class QueryExecutionResult:
 
 
 class SqlBenchmarkRunner:
-    _MSSQL_BRACKET_RE = re.compile(r'\[([^\]]+)]')
+    # Match an MSSQL-style bracketed identifier, optionally containing spaces
+    # (e.g. [Sales Amount], s.[Fiscal Year]). The lookbehind excludes list
+    # indexing (arr[1] — '[' preceded by a word char, ']' or ')'), and the
+    # content class (must start with a letter/underscore/space) excludes DuckDB
+    # list literals like [1,2,3]. Quoted string literals are skipped separately
+    # in _convert_mssql_brackets_to_duckdb.
+    _MSSQL_BRACKET_RE = re.compile(r'(?<![\w\])])\[([A-Za-z_ ][\w ]*)\]')
 
     def __init__(
         self,
@@ -1063,8 +1069,39 @@ class SqlBenchmarkRunner:
 
     @staticmethod
     def _convert_mssql_brackets_to_duckdb(sql: str) -> str:
-        """Convert [identifier] to "identifier" for DuckDB compatibility."""
-        return SqlBenchmarkRunner._MSSQL_BRACKET_RE.sub(r'"\1"', sql)
+        """Convert MSSQL-style ``[identifier]`` to DuckDB ``"identifier"``.
+
+        Only rewrites bracketed identifiers used in identifier position. DuckDB
+        list literals (``[1,2,3]``), list indexing (``arr[1]``) and bracket text
+        inside single-quoted string literals are left untouched — converting
+        them would corrupt otherwise-valid model SQL and cause a false fail.
+        """
+        out: List[str] = []
+        i = 0
+        n = len(sql)
+        while i < n:
+            if sql[i] == "'":
+                # Copy a single-quoted string literal verbatim, honoring the
+                # SQL '' escape so an embedded quote doesn't end it early.
+                j = i + 1
+                while j < n:
+                    if sql[j] == "'":
+                        if j + 1 < n and sql[j + 1] == "'":
+                            j += 2
+                            continue
+                        j += 1
+                        break
+                    j += 1
+                out.append(sql[i:j])
+                i = j
+            else:
+                # Apply the bracket regex only to this non-string chunk.
+                j = sql.find("'", i)
+                if j == -1:
+                    j = n
+                out.append(SqlBenchmarkRunner._MSSQL_BRACKET_RE.sub(r'"\1"', sql[i:j]))
+                i = j
+        return "".join(out)
 
     @staticmethod
     def normalize_sql(sql: str) -> str:
@@ -1235,10 +1272,7 @@ def _compute_first_row_diffs(
         ev = expected[col]
         av = actual[col]
         if _is_number(ev) and _is_number(av):
-            exp_str = str(ev)
-            dot_idx = exp_str.find('.')
-            decimals = len(exp_str) - dot_idx - 1 if dot_idx != -1 else 0
-            tolerance = 5 * (10 ** -(decimals + 1))
+            tolerance = _rounding_tolerance(ev)
             epsilon = 2.220446049250313e-16 * max(abs(float(av)), abs(float(ev)))
             if abs(float(av) - float(ev)) <= tolerance + epsilon:
                 continue
@@ -1324,12 +1358,10 @@ def _values_match(expected: Any, actual: Any) -> bool:
         return all(_values_match(exp, act) for exp, act in zip(expected, actual))
 
     if _is_number(expected) and _is_number(actual):
-        # Adaptive tolerance from original check.ts:
-        # tolerance = 5 * 10^(-(decimals + 1)) where decimals = digits after dot in expected.
-        exp_str = str(expected)
-        dot_idx = exp_str.find('.')
-        decimals = len(exp_str) - dot_idx - 1 if dot_idx != -1 else 0
-        tolerance = 5 * (10 ** -(decimals + 1))
+        # Adaptive tolerance from original check.ts: half a unit in the last
+        # decimal place of expected, so a model's unrounded value still matches
+        # the rounded reference.
+        tolerance = _rounding_tolerance(expected)
         epsilon = 2.220446049250313e-16 * max(abs(float(actual)), abs(float(expected)))
         return abs(float(actual) - float(expected)) <= tolerance + epsilon
 
@@ -1339,3 +1371,20 @@ def _values_match(expected: Any, actual: Any) -> bool:
 
 def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float, Decimal)) and not isinstance(value, bool)
+
+
+def _rounding_tolerance(expected: Any) -> float:
+    """Half a unit in the last decimal place of *expected*.
+
+    Absorbs exactly one rounding step at the precision the reference value was
+    rounded to (e.g. 12.7 -> 0.05, integer 100 -> 0.5). The decimal count comes
+    from ``Decimal`` so scientific-notation floats (``1e-05`` -> 5 decimals,
+    ``1e20`` -> 0) get the right exponent instead of the old ``str()`` scan,
+    which saw no ``.`` and fell back to a meaningless whole-unit tolerance.
+    """
+    try:
+        exponent = Decimal(str(expected)).as_tuple().exponent
+    except (InvalidOperation, ValueError):
+        exponent = 0
+    decimals = -exponent if isinstance(exponent, int) and exponent < 0 else 0
+    return 5 * (10 ** -(decimals + 1))
