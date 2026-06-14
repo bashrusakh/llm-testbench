@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import threading
 import time
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -15,6 +16,22 @@ import sqlparse
 
 LlmCallback = Callable[..., Awaitable[str]]
 ToolLlmCallback = Callable[..., Awaitable[Dict[str, Any]]]
+
+# Wall-clock cap on a single SQL query. A model can emit a runaway query
+# (huge cross join, accidental cartesian product) that would otherwise pin a
+# CPU and hang the job forever. DuckDB is blocking, so a watchdog thread calls
+# connection.interrupt() once the budget is exceeded; the running query then
+# raises a duckdb.Error which the existing call-site handlers already catch.
+SQL_EXECUTION_TIMEOUT_S = 30.0
+
+
+class SqlExecutionTimeout(duckdb.Error):
+    """Raised when a single query exceeds SQL_EXECUTION_TIMEOUT_S.
+
+    Subclasses ``duckdb.Error`` on purpose: every ``_execute_sql`` call site
+    already catches ``duckdb.Error``, so a timeout flows through the normal
+    failure/retry paths without any extra handling.
+    """
 
 RUN_SQL_QUERY_TOOL = {
     "type": "function",
@@ -75,16 +92,30 @@ class QueryExecutionResult:
 
 
 class SqlBenchmarkRunner:
-    def __init__(self, llm_callback: LlmCallback, data_dir: str | Path) -> None:
+    _MSSQL_BRACKET_RE = re.compile(r'\[([^\]]+)]')
+
+    def __init__(
+        self,
+        llm_callback: LlmCallback,
+        data_dir: str | Path,
+        *,
+        sql_execution_timeout_s: float = SQL_EXECUTION_TIMEOUT_S,
+    ) -> None:
         self.llm_callback = llm_callback
         self.data_dir = Path(data_dir)
         self.questions_path = self.data_dir / "questions.json"
         self.tables_dir = self.data_dir / "assets" / "tables"
-        self.questions = self._load_questions()
-        self.questions_by_id = {int(question["id"]): question for question in self.questions}
+        # Per-query wall-clock budget; <=0 disables the watchdog entirely.
+        self.sql_execution_timeout_s = sql_execution_timeout_s
         self.connection = duckdb.connect(database=":memory:")
         self._closed = False
-        self.table_schemas = self._load_tables_into_duckdb()
+        try:
+            self.questions = self._load_questions()
+            self.questions_by_id = {int(question["id"]): question for question in self.questions}
+            self.table_schemas = self._load_tables_into_duckdb()
+        except Exception:
+            self.close()
+            raise
 
     def close(self) -> None:
         if not self._closed:
@@ -1033,7 +1064,7 @@ class SqlBenchmarkRunner:
     @staticmethod
     def _convert_mssql_brackets_to_duckdb(sql: str) -> str:
         """Convert [identifier] to "identifier" for DuckDB compatibility."""
-        return re.sub(r'\[([^\]]+)]', r'"\1"', sql)
+        return SqlBenchmarkRunner._MSSQL_BRACKET_RE.sub(r'"\1"', sql)
 
     @staticmethod
     def normalize_sql(sql: str) -> str:
@@ -1089,6 +1120,40 @@ class SqlBenchmarkRunner:
         return f'Table {quoted_table}:\n  Columns: {col_list}'
 
     def _execute_sql(self, sql: str) -> QueryExecutionResult:
+        timeout_s = self.sql_execution_timeout_s
+        if not timeout_s or timeout_s <= 0:
+            return self._run_sql(sql)
+
+        # DuckDB is blocking, so we can't await a timeout. A watchdog thread
+        # fires connection.interrupt() if the query overruns; interrupt() is
+        # designed for exactly this cross-thread cancellation and makes the
+        # in-flight execute()/fetchall() raise a duckdb.Error.
+        timed_out = {"fired": False}
+
+        def _on_timeout() -> None:
+            timed_out["fired"] = True
+            try:
+                self.connection.interrupt()
+            except Exception:
+                pass
+
+        timer = threading.Timer(timeout_s, _on_timeout)
+        timer.start()
+        try:
+            return self._run_sql(sql)
+        except duckdb.Error as exc:
+            if timed_out["fired"]:
+                raise SqlExecutionTimeout(
+                    f"SQL execution exceeded {timeout_s:g}s and was cancelled"
+                ) from exc
+            raise
+        finally:
+            # cancel() is a no-op if the timer already fired; the tiny race
+            # where it fires just as the query finishes is harmless because the
+            # next _execute_sql starts its own fresh watchdog.
+            timer.cancel()
+
+    def _run_sql(self, sql: str) -> QueryExecutionResult:
         cursor = self.connection.execute(sql)
         rows = cursor.fetchall()
         description = cursor.description or []

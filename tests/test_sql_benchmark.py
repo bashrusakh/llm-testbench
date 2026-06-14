@@ -503,3 +503,70 @@ def test_run_question_grammar_mode_outcome_error_on_llm_failure():
 
     assert result['outcome'] == 'error'
     assert result['success'] is False
+
+
+# ── SQL execution timeout (watchdog) ─────────────────────────────────────────
+
+import time as _time  # noqa: E402
+
+import duckdb as _duckdb  # noqa: E402
+
+from python.sql_benchmark import SqlExecutionTimeout  # noqa: E402
+
+
+# Runaway cross join: ~10^10 rows with a per-row predicate so DuckDB cannot
+# shortcut it analytically. Slow enough to overrun a sub-second budget, and
+# connection.interrupt() cancels it promptly.
+_RUNAWAY_SQL = (
+    "SELECT count(*) FROM range(100000) a(x), range(100000) b(y) "
+    "WHERE a.x * b.y >= 0"
+)
+
+
+def test_execute_sql_times_out_on_runaway_query():
+    """A query exceeding sql_execution_timeout_s is interrupted and raises
+    SqlExecutionTimeout (a duckdb.Error); the connection stays usable."""
+    with SqlBenchmarkRunner(llm_callback=None, data_dir=DATA_DIR,
+                            sql_execution_timeout_s=0.3) as runner:
+        start = _time.perf_counter()
+        with pytest.raises(SqlExecutionTimeout):
+            runner._execute_sql(_RUNAWAY_SQL)
+        elapsed = _time.perf_counter() - start
+        # Cancelled near the budget, not run to completion.
+        assert elapsed < 10.0
+        # Subclasses duckdb.Error so existing call-site handlers catch it.
+        assert issubclass(SqlExecutionTimeout, _duckdb.Error)
+        # Connection survives the interrupt and serves the next query.
+        assert runner._execute_sql("SELECT 1").rows == [(1,)]
+
+
+def test_execute_sql_disabled_timeout_runs_without_watchdog():
+    """timeout <= 0 disables the watchdog; normal queries still work."""
+    with SqlBenchmarkRunner(llm_callback=None, data_dir=DATA_DIR,
+                            sql_execution_timeout_s=0) as runner:
+        result = runner._execute_sql("SELECT 1 AS a")
+        assert result.columns == ["a"]
+        assert result.rows == [(1,)]
+
+
+def test_run_question_reports_error_on_runaway_generated_sql():
+    """A model that emits a runaway query yields outcome='error': the timeout
+    flows through the normal duckdb.Error failure path in run_question."""
+    async def llm_callback(system, user, *, model, provider, endpoint, timeout_ms):
+        return _RUNAWAY_SQL
+
+    with SqlBenchmarkRunner(llm_callback=llm_callback, data_dir=DATA_DIR,
+                            sql_execution_timeout_s=0.3) as runner:
+        result = run(
+            runner.run_question(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+            )
+        )
+
+    assert result['outcome'] == 'error'
+    assert result['success'] is False
+    assert 'exceeded' in result['error'].lower()
