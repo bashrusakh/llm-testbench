@@ -404,7 +404,7 @@ class SqlBenchmarkRunner:
         endpoint: str,
         timeout_ms: int,
         tool_llm_callback: ToolLlmCallback,
-        max_retries: int = 3,
+        max_retries: int = 5,
         abort_signal: Optional[Any] = None,
         thinking_mode: str = "on",
         question_timeout_ms: int = 0,
@@ -458,7 +458,7 @@ class SqlBenchmarkRunner:
         retry_count = 0
         total_calls = 0
         no_tool_call_retries = 0
-        MAX_NO_TOOL_CALL_RETRIES = 2
+        MAX_NO_TOOL_CALL_RETRIES = 3
         input_tokens = 0
         output_tokens = 0
         cost: Optional[float] = None
