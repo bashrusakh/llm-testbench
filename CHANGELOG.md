@@ -2,11 +2,71 @@
 
 All notable release changes for LLM Testbench are tracked here.
 
-## Unreleased
+## v0.2.3 (2026-06-16)
+
+Robustness pass + run annotations — HTTP connection pooling, SQL execution watchdog,
+scoring accuracy fixes, a per-model circuit breaker, and free-form run comments.
 
 ### Added
 
-- **SQL-bench run comment** — free-form note saved with the run, visible in History and when the run is opened. Optional textarea in the SQL benchmark settings (max 1000 chars). The History table gains a `Comment` column between `Thinking` and `Status`; a one-line clipped preview with the full text in the native title tooltip. When a run is opened (live or from history) a 📝 banner appears in the Live Results card above the result container, so the comment is visible without scrolling. `closeHistoryView` and the `pollJob` history-view path explicitly leave the banner alone or clear it, so it never lingers across re-renders. Field is `BenchmarkRequest.comment`, validated server-side (length cap, string type), persisted on the on-disk record, and propagated through `JobState.to_dict()` and the JSONL/CSV/TSV/manifest/summary exports without additional wiring. Legacy records without the field load cleanly. Touches `python/models.py`, `python/persistence.py`, `index.html`, `static/app.js`, `static/style.css`. 12 new tests across `tests/test_sql_backend_integration.py`, `tests/test_adapter_and_dashboard.py`, `tests/test_sql_frontend_integration.py`.
+- **SQL-bench run comment** — free-form note saved with the run, visible in History
+  and when the run is opened. Optional textarea in the SQL benchmark settings (max
+  1000 chars). The History table gains a `Comment` column between `Thinking` and
+  `Status`; a one-line clipped preview with the full text in the native title tooltip.
+  When a run is opened (live or from history) a 📝 banner appears in the Live Results
+  card above the result container. Field is `BenchmarkRequest.comment`, validated
+  server-side (length cap, string type), persisted on the on-disk record, and
+  propagated through `JobState.to_dict()` and the JSONL/CSV/TSV/manifest/summary
+  exports without additional wiring. Legacy records without the field load cleanly.
+  Touches `python/models.py`, `python/persistence.py`, `index.html`, `static/app.js`,
+  `static/style.css`. (#43)
+- **Per-model circuit breaker in SQL benchmark** — if the LLM call fails with an
+  explicit availability error ("model not found", "out of memory", connection refused,
+  HTTP 502/503, …) the model is tripped immediately; two consecutive generic
+  `LLM callback failed` errors also trip it. All remaining questions for that model
+  are skipped without retrying, with `stop_reason="skipped_model_unavailable"`.
+  Models absent from the `/api/tags` (Ollama) or `/v1/models` list are also skipped
+  non-fatally. This eliminates the previous behaviour where a failed model caused
+  `MAX_QUESTIONS × MAX_RETRIES` (up to ~250) fruitless requests. (#42)
+- **SQL execution watchdog** — `SqlBenchmarkRunner` now accepts
+  `sql_execution_timeout_s` (default 30 s). A `threading.Timer` fires
+  `connection.interrupt()` if DuckDB blocks beyond the budget, raising
+  `SqlExecutionTimeout(duckdb.Error)` so existing `except duckdb.Error` handlers
+  catch it without changes. Disable with `sql_execution_timeout_s=0`. (#40)
+
+### Performance
+
+- **Shared `httpx.AsyncClient`** — a single `AsyncClient` is created on
+  `BenchmarkServer` startup and reused for every LLM call (speed, SQL OpenAI-compat,
+  SQL Ollama, tool-calling initial + retry). Eliminates per-request TCP handshakes;
+  `server.http_client.aclose()` is awaited in `shutdown()`. (#40)
+
+### Fixed
+
+- **MSSQL bracket conversion corrupted non-identifier brackets** — the
+  `[A-Z…]` → `"…"` rewrite was applied inside single-quoted string literals
+  (`'[Region]'`), to list literals (`[1,2,3]`), and to array indexing (`arr[1]`).
+  The regex is now quote-aware (string literals are copied verbatim) and uses a
+  lookbehind `(?<![\w\]])` to skip non-identifier positions. (#41)
+- **Numeric tolerance wrong for scientific-notation expected values** — when the
+  reference answer was e.g. `1e-05`, `str(1e-05) == '1e-05'` has no `.`, so
+  `find('.')` returned -1, `decimals=0`, tolerance=0.5 — masking a mismatch
+  between `1e-05` and `0.4`. Fixed with `Decimal(...).as_tuple().exponent`. (#41)
+- **DuckDB connection leaked on `__init__` failure** — if table loading raised after
+  `duckdb.connect()`, the connection was never closed. The constructor now opens
+  the connection first, wraps the rest in `try/except`, and calls `self.close()`
+  in the `except` branch. (#40)
+
+### Tests
+
+- 37 new tests: SQL-bench run comment (12 across `test_sql_backend_integration.py`,
+  `test_adapter_and_dashboard.py`, `test_sql_frontend_integration.py`); bracket
+  conversion hazard cases, `_rounding_tolerance` scientific notation, SQL watchdog,
+  and circuit-breaker scenarios (25 across `test_sql_benchmark.py` and
+  `test_sql_backend_integration.py`).
+- Test suite: **187 passed**.
+
+---
 
 ## v0.2.2 (2026-06-14)
 
