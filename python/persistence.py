@@ -244,6 +244,7 @@ async def append_job_to_results_store(server: "BenchmarkServer", job: "JobState"
             "thinking_mode": job.request.thinking_mode,
             "reasoning_effort": job.request.reasoning_effort,
             "question_timeout_ms": job.request.question_timeout_ms,
+            "comment": job.request.comment,
         },
         "progress": {
             "completed": job.progress_completed,

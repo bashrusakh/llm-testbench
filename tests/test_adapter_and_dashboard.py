@@ -485,3 +485,74 @@ def test_dashboard_multi_run_aggregation(tmp_path):
     assert sql_m["result_count"] == 4
     assert sql_m["pass_count"] == 2
     assert sql_m["pass_rate"] == 0.5
+
+
+# ── run-comment persistence ──────────────────────────────────────────────────
+
+def test_persisted_record_round_trips_comment(tmp_path):
+    """Comment written via append_job_to_results_store survives a save+load."""
+    from python.models import BenchmarkRequest, JobState
+
+    server = BenchmarkServer(INDEX_HTML)
+    server.results_store_dir = tmp_path / "benchmarks"
+
+    spec = BenchmarkRequest.from_dict({
+        "benchmark_type": "sql",
+        "base_url": "http://127.0.0.1:1234",
+        "provider": "openai-compatible",
+        "model": "sql-model",
+        "comment": "9B-class on RTX 4090, q5_k_m, no reasoning",
+    })
+    job = JobState(request=spec)
+    job.created_at = "2026-06-15T00:00:00+00:00"
+
+    run(server._append_job_to_results_store(job))
+
+    items = run(server._load_results_store())
+    matching = [item for item in items if item.get("job_id") == job.job_id]
+    assert len(matching) == 1
+    record = matching[0]
+    assert record["request"]["comment"] == "9B-class on RTX 4090, q5_k_m, no reasoning"
+
+    # And the summary / manifest exports pull the same field through,
+    # so the comment is visible in every export path without extra wiring.
+    summary = json.loads(server._build_run_summary(record))
+    assert summary["request"]["comment"] == "9B-class on RTX 4090, q5_k_m, no reasoning"
+    manifest = json.loads(server._build_run_manifest(record))
+    assert manifest["request"]["comment"] == "9B-class on RTX 4090, q5_k_m, no reasoning"
+
+
+def test_legacy_record_without_comment_loads_cleanly(tmp_path):
+    """A record written before the comment field existed must not break
+    on read — the field is optional in the persisted shape."""
+    server = BenchmarkServer(INDEX_HTML)
+    server.results_store_dir = tmp_path / "benchmarks"
+
+    legacy = _make_record("legacy", "sql", [
+        {"model": "m", "success": True},
+    ])
+    # Pre-comment records do not carry the field at all.
+    legacy["request"].pop("comment", None)
+    run(server._save_job_record("legacy", legacy))
+
+    items = run(server._load_results_store())
+    legacy_loaded = next(item for item in items if item.get("job_id") == "legacy")
+    assert legacy_loaded["request"].get("comment") is None
+
+
+def test_run_summary_includes_comment_when_absent(tmp_path):
+    """A record with no comment must serialise to JSON without raising and
+    must surface the missing field as null, not the string 'None'."""
+    server = BenchmarkServer(INDEX_HTML)
+    server.results_store_dir = tmp_path / "benchmarks"
+
+    record = _make_record("no-comment", "sql", [
+        {"model": "m", "success": True},
+    ])
+    record["request"].pop("comment", None)
+    run(server._save_job_record("no-comment", record))
+
+    items = run(server._load_results_store())
+    record = next(item for item in items if item.get("job_id") == "no-comment")
+    summary = json.loads(server._build_run_summary(record))
+    assert summary["request"].get("comment") is None

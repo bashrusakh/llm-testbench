@@ -333,6 +333,8 @@
     if (reg) reg.classList.toggle('hidden', !sqlOn);
     const qtg = $('questionTimeoutGroup');
     if (qtg) qtg.classList.toggle('hidden', !sqlOn);
+    const rcg = $('runCommentGroup');
+    if (rcg) rcg.classList.toggle('hidden', !sqlOn);
 
     const sqlHint = $('sqlModeHint');
     if (sqlHint) sqlHint.classList.toggle('hidden', !sqlOn);
@@ -871,6 +873,7 @@
       question_ids: parseQuestionIds($('questionIds') ? $('questionIds').value : ''),
       timeout_ms: (Number($('timeoutMs') ? $('timeoutMs').value : '120') || 120) * 1000,
       question_timeout_ms: (Number($('questionTimeoutMs') && $('questionTimeoutMs').value !== '' ? $('questionTimeoutMs').value : 0) || 0) * 1000,
+      comment: ($('runComment') ? ($('runComment').value || '').trim() : '') || null,
     };
   }
 
@@ -1007,6 +1010,53 @@
     return `<span class="history-thinking-chip ${meta.cls}" title="${escapeHtml(meta.title)}">${escapeHtml(meta.label)}</span>`;
   }
 
+  // Run-level comment as it appears in the History table. Clipped to a
+  // single line with the full text in the native title tooltip; a muted
+  // em-dash for runs without a comment keeps the column readable across
+  // a mixed history.
+  function formatHistoryCommentCell(item) {
+    const comment = String(item.request?.comment || '').trim();
+    if (!comment) return '<span class="history-comment-empty">—</span>';
+    return `<span class="history-comment-cell" title="${escapeHtml(comment)}">${escapeHtml(comment)}</span>`;
+  }
+
+  // Render the run-comment banner above the speed/sql result container in
+  // the Live Results card. Idempotent: rewrites the existing banner if it
+  // is already in the DOM, otherwise inserts a new one immediately after
+  // the progress wrapper. Removes itself when the comment is empty so an
+  // uncommented run shows nothing.
+  //
+  // Critical: the banner is a sibling of #speedResultsContainer /
+  // #sqlResultsContainer (placed BEFORE them in document order), so the
+  // innerHTML rewrites in renderResults() and setResultsTableMode() do
+  // not touch it. closeHistoryView() also clears it explicitly.
+  function renderRunCommentBanner(job) {
+    const liveCard = document.querySelector('main .results-card');
+    if (!liveCard) return;
+    const progress = liveCard.querySelector('.progress-wrapper');
+    if (!progress) return;
+
+    let banner = document.getElementById('runCommentBanner');
+    const comment = job && job.request && String(job.request.comment || '').trim();
+
+    if (!comment) {
+      if (banner) banner.remove();
+      return;
+    }
+
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'runCommentBanner';
+      banner.className = 'run-comment-banner';
+      const anchor = progress.nextElementSibling || progress;
+      anchor.parentNode.insertBefore(banner, anchor.nextSibling);
+    }
+    banner.innerHTML =
+      '<span class="run-comment-icon">📝</span>' +
+      '<span class="run-comment-label">Comment</span>' +
+      `<span class="run-comment-text">${escapeHtml(comment)}</span>`;
+  }
+
   function renderHistory() {
     const historyBodyEl = $('historyBody');
     const historyStatusEl = $('historyStatus');
@@ -1014,7 +1064,7 @@
 
     historyBodyEl.innerHTML = '';
     if (!state.history.length) {
-      historyBodyEl.innerHTML = emptyState('No saved benchmark history yet', { colspan: 11 });
+      historyBodyEl.innerHTML = emptyState('No saved benchmark history yet', { colspan: 12 });
       if (historyStatusEl) historyStatusEl.textContent = 'No saved benchmark history';
       updateHistorySelectionUi();
       return;
@@ -1032,6 +1082,7 @@
       const benchmarkType = item.request?.benchmark_type || 'speed';
       const questionsCell = formatHistoryQuestionsCell(item);
       const thinkingCellHtml = formatHistoryThinkingCell(item);
+      const commentCellHtml = formatHistoryCommentCell(item);
       const jsonlUrl = apiUrl(`/api/benchmark/${encodeURIComponent(item.job_id)}/results.jsonl`);
       const csvUrl = apiUrl(`/api/benchmark/${encodeURIComponent(item.job_id)}/results.csv`);
       const tsvUrl = apiUrl(`/api/benchmark/${encodeURIComponent(item.job_id)}/results.tsv`);
@@ -1053,6 +1104,7 @@
         <td>${escapeHtml(benchmarkTypeLabel(benchmarkType))}</td>
         <td${questionsCell.title ? ` title="${escapeHtml(questionsCell.title)}"` : ''}>${escapeHtml(questionsCell.text)}</td>
         <td>${thinkingCellHtml}</td>
+        <td>${commentCellHtml}</td>
         <td>${escapeHtml(item.status || '-')}</td>
         <td>${distinctModelCount !== null ? `${distinctModelCount} model${distinctModelCount === 1 ? '' : 's'}` : resultCount}</td>
         <td>${errorCount}</td>
@@ -1101,6 +1153,9 @@
     const progressText = $('progressText');
     if (progressFill) progressFill.style.width = '0%';
     if (progressText) progressText.textContent = '0 / 0';
+    // Drop the run-comment banner so an unviewed run starts clean.
+    const commentBanner = $('runCommentBanner');
+    if (commentBanner) commentBanner.remove();
     // Hide close button
     const closeBtn = $('closeHistoryViewBtn');
     if (closeBtn) closeBtn.classList.add('hidden');
@@ -1147,6 +1202,7 @@
     setResultsTableMode(state.activeBenchmarkType);
     renderResults(job, job.request?.benchmark_type || 'speed');
     updateSummary(job, job.request?.benchmark_type || 'speed');
+    renderRunCommentBanner(job);
     const completed = job.progress?.completed || 0;
     const total = job.progress?.total || 0;
     const percent = total > 0 ? (completed / total) * 100 : 0;
@@ -1170,6 +1226,7 @@
           state.liveJobId = jobId;
           applyButtonState(liveStatus);
           try { sessionStorage.setItem('llmSpeedTest.jobId', jobId); } catch (_) {}
+          renderRunCommentBanner(data.job);
           if (!state.pollTimer) pollJob();
           setStatusBoth(`Attached to running benchmark ${jobId.slice(0,8)}… (${completed}/${total}).`, 'info');
           return;
@@ -1193,6 +1250,7 @@
     setResultsTableMode(state.activeBenchmarkType);
     renderResults(job, state.activeBenchmarkType);
     updateSummary(job, state.activeBenchmarkType);
+    renderRunCommentBanner(job);
     const completed = job.progress?.completed || 0;
     const total = job.progress?.total || 0;
     const pct = total > 0 ? (completed / total) * 100 : 0;
@@ -1257,7 +1315,7 @@
       state.historySelection = new Set();
       renderHistory();
     } catch (error) {
-      if (historyBodyEl) historyBodyEl.innerHTML = emptyState('Failed to load saved benchmark history', { colspan: 11 });
+      if (historyBodyEl) historyBodyEl.innerHTML = emptyState('Failed to load saved benchmark history', { colspan: 12 });
       if (historyStatusEl) historyStatusEl.textContent = `History load failed: ${error.message}`;
     }
   }
@@ -2518,6 +2576,7 @@
         state.activeBenchmarkType = job.request?.benchmark_type || 'speed';
         renderResults(job, job.request?.benchmark_type || 'speed');
         updateSummary(job, job.request?.benchmark_type || 'speed');
+        renderRunCommentBanner(job);
         setCurrentOperation(job);
 
         const progressFill = $('progressFill');
