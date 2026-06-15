@@ -40,6 +40,41 @@ REASONING_FALLBACK_STATE: contextvars.ContextVar[Optional[Dict[str, bool]]] = co
 OPENAI_CHAT_PATH = "/v1/chat/completions"
 OLLAMA_CHAT_PATH = "/api/chat"
 
+# SQL circuit breaker: if a model can't be loaded (OOM, weights absent, endpoint
+# down) every question would otherwise re-attempt the load — up to 25x per model,
+# untimed. Instead we trip a per-model breaker. Error-string fragments below mark
+# an *unavailability* failure (won't recover by retrying) and trip on the first
+# occurrence; any other LLM-call failure is treated as possibly transient and
+# trips only after two in a row.
+_MODEL_UNAVAILABLE_MARKERS = (
+    "failed to load", "could not load", "cannot load", "unable to load",
+    "model not found", "model_not_found", "not found", "no models loaded",
+    "no model loaded", "model is not loaded", "out of memory",
+    "cannot allocate", "insufficient memory", "connection refused", "refused",
+    "connect", "all connection attempts failed", "name or service not known",
+    "could not resolve", "http 404", "http 502", "http 503",
+)
+
+# A failure result whose error starts with one of these came from the LLM call
+# itself (model/endpoint), not from per-question logic (bad SQL, mismatch, a
+# slow question hitting its budget). Only the former feeds the breaker.
+_LLM_CALL_FAILURE_PREFIXES = (
+    "LLM callback failed:",
+    "LLM tool-calling callback failed:",
+)
+
+
+def _is_llm_call_failure(result: Dict[str, Any]) -> bool:
+    """True if *result* is a failure raised by the LLM call (not per-question)."""
+    error = str(result.get("error") or "")
+    return any(error.startswith(prefix) for prefix in _LLM_CALL_FAILURE_PREFIXES)
+
+
+def _is_model_unavailable_error(result: Dict[str, Any]) -> bool:
+    """True if the call-failure error looks like the model can't be loaded/reached."""
+    error = str(result.get("error") or "").lower()
+    return any(marker in error for marker in _MODEL_UNAVAILABLE_MARKERS)
+
 
 def _coerce_message_content_to_text(content: Any) -> str:
     if isinstance(content, str):
@@ -189,9 +224,10 @@ async def run_sql_job(server: "BenchmarkServer", job: JobState) -> None:
     available_models = await server._discover_models(target.base_url, normalized_provider, target.api_key)
 
     requested_models = target.models
-    missing = [m for m in requested_models if m not in available_models]
-    if missing:
-        raise RuntimeError(f"Requested model(s) not found for {target.provider_label}: {', '.join(missing)}")
+    # A model that isn't in /v1/models (weights absent, not downloaded) is no
+    # longer a hard job failure: it's skipped per-model below, like a model that
+    # is listed but fails to load. Other requested models still run.
+    available_set = set(available_models)
 
     # Determine which thinking variants to run
     thinking_mode_req = job.request.thinking_mode
@@ -237,10 +273,44 @@ async def run_sql_job(server: "BenchmarkServer", job: JobState) -> None:
 
         for model in requested_models:
             job.current_model = model
+            # Per-model circuit breaker. Once tripped, the remaining questions
+            # (and thinking variants) for this model are recorded as skipped
+            # instead of re-attempting a load that won't succeed.
+            consecutive_call_failures = 0
+            if model in available_set:
+                model_unavailable_reason: Optional[str] = None
+            else:
+                model_unavailable_reason = (
+                    f"Model '{model}' not available at {runtime_target.provider_label} "
+                    f"(not listed by the endpoint) — questions skipped"
+                )
+                LOG.warning(
+                    "SQL benchmark: model %s not listed at %s; skipping all its questions",
+                    model, runtime_target.base_url,
+                )
+
             for thinking_mode in thinking_variants:
                 for question_id in question_ids:
                     if job.stop_requested:
                         return
+
+                    if model_unavailable_reason is not None:
+                        result = runner.build_skipped_result(
+                            question_id=question_id,
+                            model=model,
+                            provider=runtime_target.provider,
+                            endpoint=runtime_target.base_url,
+                            thinking_mode=thinking_mode,
+                            reason=model_unavailable_reason,
+                        )
+                        result["reasoning_effort"] = job.request.reasoning_effort
+                        result["reasoning_fallback"] = False
+                        job.results.append(sql_result_row(job, runtime_target, result))
+                        job.progress_completed += 1
+                        save_task = asyncio.ensure_future(flush_job_record(server, job))
+                        job.track_save(save_task)
+                        continue
+
                     reasoning_fallback_state = {"used": False}
                     fallback_token = REASONING_FALLBACK_STATE.set(reasoning_fallback_state)
                     try:
@@ -284,6 +354,24 @@ async def run_sql_job(server: "BenchmarkServer", job: JobState) -> None:
                     job.progress_completed += 1
                     save_task = asyncio.ensure_future(flush_job_record(server, job))
                     job.track_save(save_task)
+
+                    # Circuit-breaker bookkeeping. Only LLM-call failures count;
+                    # a per-question failure (bad SQL, mismatch, question budget)
+                    # means the model is alive, so reset the streak.
+                    if _is_llm_call_failure(result):
+                        consecutive_call_failures += 1
+                        if _is_model_unavailable_error(result) or consecutive_call_failures >= 2:
+                            model_unavailable_reason = (
+                                "Model unavailable — remaining questions skipped after "
+                                f"load/connection failure: {result.get('error', '')}"
+                            )
+                            LOG.warning(
+                                "SQL benchmark: model %s appears unavailable (%s); "
+                                "skipping its remaining questions",
+                                model, result.get("error", ""),
+                            )
+                    else:
+                        consecutive_call_failures = 0
 
 
 async def call_llm_single(
