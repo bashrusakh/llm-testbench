@@ -1197,6 +1197,42 @@ class SqlBenchmarkRunner:
         columns = [str(item[0]) for item in description]
         return QueryExecutionResult(columns=columns, rows=rows)
 
+    def build_skipped_result(
+        self,
+        *,
+        question_id: int,
+        model: str,
+        provider: str,
+        endpoint: str,
+        thinking_mode: str,
+        reason: str,
+    ) -> Dict[str, Any]:
+        """Result for a question deliberately NOT run because the model is
+        unavailable (load/connection failure or absent weights).
+
+        No SQL is executed; expected_* are read straight from the question so
+        the row shape matches a real failure. ``stop_reason`` is
+        ``"skipped_model_unavailable"`` so the UI/aggregates can tell a skip
+        apart from a genuine attempt that errored.
+        """
+        question = self.questions_by_id.get(int(question_id)) or {"id": int(question_id)}
+        first_row = question.get("first_row")
+        return self._build_failure_result(
+            question=question,
+            model=model,
+            provider=provider,
+            endpoint=endpoint,
+            expected_sql=str(question.get("sql", "")),
+            expected_row_count=_safe_optional_int(question.get("row_count")),
+            expected_columns=[str(column) for column in question.get("columns") or []],
+            expected_first_row=_normalize_mapping(first_row) if isinstance(first_row, dict) else None,
+            generated_sql="",
+            error=reason,
+            conversation=[],
+            thinking_mode=thinking_mode,
+            stop_reason="skipped_model_unavailable",
+        )
+
     def _build_failure_result(
         self,
         *,

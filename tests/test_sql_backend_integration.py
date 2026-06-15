@@ -956,3 +956,137 @@ def test_speed_job_exposes_progress_phase_before_first_result(tmp_path, monkeypa
     assert progress["current_run_index"] == 1
     assert progress["current_benchmark_type"] == "speed"
     assert job.status == "completed"
+
+
+# ── SQL per-model circuit breaker (model-load failures) ───────────────────────
+
+def _make_breaker_runner(*, calls, skipped, question_ids, error):
+    """Build a FakeSqlBenchmarkRunner whose tool-calling call always returns a
+    failure result carrying *error*, and which records attempted vs skipped ids."""
+
+    class FakeSqlBenchmarkRunner:
+        def __init__(self, llm_callback, data_dir):
+            self.questions_by_id = {qid: {"id": qid} for qid in question_ids}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        async def run_question_tool_calling(self, *, question_id, model, provider, endpoint, thinking_mode="on", **kwargs):
+            calls.append(question_id)
+            return {
+                "benchmark_type": "sql", "question_id": question_id, "model": model,
+                "thinking_mode": thinking_mode, "provider": provider, "endpoint": endpoint,
+                "generated_sql": "", "expected_sql": "", "success": False,
+                "outcome": "error", "error": error, "stop_reason": "error",
+                "conversation": [],
+            }
+
+        def build_skipped_result(self, *, question_id, model, provider, endpoint, thinking_mode, reason):
+            skipped.append(question_id)
+            return {
+                "benchmark_type": "sql", "question_id": question_id, "model": model,
+                "thinking_mode": thinking_mode, "provider": provider, "endpoint": endpoint,
+                "generated_sql": "", "expected_sql": "", "success": False,
+                "outcome": "error", "error": reason, "stop_reason": "skipped_model_unavailable",
+                "conversation": [],
+            }
+
+    return FakeSqlBenchmarkRunner
+
+
+def _run_sql_breaker_job(tmp_path, monkeypatch, runner_cls, *, models_available, question_ids):
+    async def fake_detect_provider(self, base_url, requested_provider, api_key, client=None):
+        return "openai-compatible"
+
+    async def fake_discover_models(self, base_url, provider, api_key):
+        return models_available
+
+    monkeypatch.setattr(server_module, "SqlBenchmarkRunner", runner_cls)
+    monkeypatch.setattr(BenchmarkServer, "_detect_provider", fake_detect_provider)
+    monkeypatch.setattr(BenchmarkServer, "_discover_models", fake_discover_models)
+
+    server = BenchmarkServer(INDEX_HTML)
+    server.results_store_dir = tmp_path / "benchmarks"
+    spec = BenchmarkRequest.from_dict({
+        "benchmark_type": "sql",
+        "base_url": "http://127.0.0.1:1234",
+        "provider": "openai-compatible",
+        "model": "sql-model",
+        "thinking_mode": "off",
+        "question_ids": question_ids,
+    })
+    job = JobState(request=spec)
+    run(server._run_job(job))
+    return job
+
+
+def test_sql_circuit_breaker_trips_immediately_on_availability_error(tmp_path, monkeypatch):
+    """An explicit load/availability error (model not found) skips the model's
+    remaining questions after the first attempt."""
+    calls, skipped = [], []
+    qids = [1, 2, 3, 4]
+    runner_cls = _make_breaker_runner(
+        calls=calls, skipped=skipped, question_ids=qids,
+        error="LLM tool-calling callback failed: HTTP 404 from endpoint: model not found",
+    )
+    job = _run_sql_breaker_job(tmp_path, monkeypatch, runner_cls, models_available=["sql-model"], question_ids=qids)
+
+    assert job.status == "completed"
+    assert calls == [1]            # only the first question was actually attempted
+    assert skipped == [2, 3, 4]    # the rest were skipped, not retried
+    assert job.progress_completed == 4
+    skip_rows = [r for r in job.results if r["stop_reason"] == "skipped_model_unavailable"]
+    assert [r["question_id"] for r in skip_rows] == [2, 3, 4]
+    assert all(r["success"] is False for r in job.results)
+
+
+def test_sql_circuit_breaker_needs_two_consecutive_generic_errors(tmp_path, monkeypatch):
+    """A generic (possibly transient) call failure trips only after two in a row."""
+    calls, skipped = [], []
+    qids = [1, 2, 3, 4]
+    runner_cls = _make_breaker_runner(
+        calls=calls, skipped=skipped, question_ids=qids,
+        error="LLM tool-calling callback failed: HTTP 500 from endpoint: internal error",
+    )
+    job = _run_sql_breaker_job(tmp_path, monkeypatch, runner_cls, models_available=["sql-model"], question_ids=qids)
+
+    assert job.status == "completed"
+    assert calls == [1, 2]         # two attempts before tripping
+    assert skipped == [3, 4]
+    assert job.progress_completed == 4
+
+
+def test_sql_circuit_breaker_ignores_per_question_failures(tmp_path, monkeypatch):
+    """Per-question failures (bad SQL / mismatch) keep the model alive — every
+    question is attempted, nothing is skipped."""
+    calls, skipped = [], []
+    qids = [1, 2, 3, 4]
+    runner_cls = _make_breaker_runner(
+        calls=calls, skipped=skipped, question_ids=qids,
+        error="Result mismatch: row_count",   # not an LLM-call failure
+    )
+    job = _run_sql_breaker_job(tmp_path, monkeypatch, runner_cls, models_available=["sql-model"], question_ids=qids)
+
+    assert job.status == "completed"
+    assert calls == [1, 2, 3, 4]   # all attempted
+    assert skipped == []           # none skipped
+
+
+def test_sql_absent_model_is_skipped_not_fatal(tmp_path, monkeypatch):
+    """A requested model missing from /v1/models skips its questions instead of
+    failing the whole job."""
+    calls, skipped = [], []
+    qids = [1, 2, 3]
+    runner_cls = _make_breaker_runner(
+        calls=calls, skipped=skipped, question_ids=qids, error="unused",
+    )
+    job = _run_sql_breaker_job(tmp_path, monkeypatch, runner_cls, models_available=["other-model"], question_ids=qids)
+
+    assert job.status == "completed"   # not "failed"
+    assert calls == []                 # never attempted — model isn't there
+    assert skipped == [1, 2, 3]
+    assert job.progress_completed == 3
+    assert all(r["stop_reason"] == "skipped_model_unavailable" for r in job.results)
