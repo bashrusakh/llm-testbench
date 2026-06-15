@@ -214,8 +214,8 @@ class FakeStreamClient:
     async def __aexit__(self, *exc):
         return False
 
-    def stream(self, method: str, url: str, json: Dict[str, Any]):
-        self.last_json = json
+    def stream(self, method: str, url: str, **kwargs):
+        self.last_json = kwargs.get("json", {})
         return self._response
 
 
@@ -276,11 +276,12 @@ def test_benchmark_openai_anchors_first_token_on_reasoning_content(monkeypatch):
 
     response = FakeStreamResponse(200, make_lines())
     fake = FakeStreamClient(response)
-    monkeypatch.setattr(server_module.httpx, "AsyncClient", lambda *a, **kw: fake)
 
     spec = _make_request()
     target = _make_target()
-    result = run(_server()._benchmark_openai(spec, target, "m"))
+    server = _server()
+    server.http_client = fake
+    result = run(server._benchmark_openai(spec, target, "m"))
 
     assert result["ttft_ms"] is not None
     assert result["completion_tokens"] == 5
@@ -305,11 +306,12 @@ def test_benchmark_openai_returns_none_when_usage_missing(monkeypatch):
 
     response = FakeStreamResponse(200, make_lines())
     fake = FakeStreamClient(response)
-    monkeypatch.setattr(server_module.httpx, "AsyncClient", lambda *a, **kw: fake)
 
     spec = _make_request()
     target = _make_target()
-    result = run(_server()._benchmark_openai(spec, target, "m"))
+    server = _server()
+    server.http_client = fake
+    result = run(server._benchmark_openai(spec, target, "m"))
 
     assert result["completion_tokens"] is None
     assert result["decode_tps"] is None
@@ -334,42 +336,33 @@ def test_benchmark_openai_raises_on_error_body_in_stream(monkeypatch):
 
     response = FakeStreamResponse(200, make_lines())
     fake = FakeStreamClient(response)
-    monkeypatch.setattr(server_module.httpx, "AsyncClient", lambda *a, **kw: fake)
 
     spec = _make_request()
     target = _make_target()
+    server = _server()
+    server.http_client = fake
     with pytest.raises(RuntimeError, match="Server error in stream"):
-        run(_server()._benchmark_openai(spec, target, "m"))
+        run(server._benchmark_openai(spec, target, "m"))
 
 
-def test_benchmark_openai_allows_local_endpoint(monkeypatch):
+def test_benchmark_openai_allows_local_endpoint():
     """Local LLM servers (Ollama on 11434, LM Studio on 1234, llama.cpp
     on 8080) live on 127.0.0.1. The SSRF guard must NOT block them, so
-    the benchmark proceeds and AsyncClient gets constructed."""
-    import python.server as server_module
-    calls = []
+    the benchmark proceeds to make the HTTP call."""
 
     class _BoomClient:
-        def __init__(self, *a, **kw):
-            calls.append((a, kw))
-        async def __aenter__(self):
-            return self
-        async def __aexit__(self, *a):
-            return False
         def stream(self, *a, **kw):
-            raise AssertionError("stream() not exercised in this test; "
-                                 "we only verify the guard let us through")
+            raise AssertionError("stream() reached: SSRF guard let the URL through")
 
-    monkeypatch.setattr(server_module.httpx, "AsyncClient", _BoomClient)
+    server = _server()
+    server.http_client = _BoomClient()
 
     spec = _make_request()
     target = _make_target(base_url="http://127.0.0.1:11434")
-    # Guard must NOT raise; AsyncClient must be constructed. The call will
-    # then fail inside stream(), but that proves the guard let the URL
-    # through.
-    with pytest.raises(AssertionError, match="stream\\(\\) not exercised"):
-        run(_server()._benchmark_openai(spec, target, "m"))
-    assert len(calls) == 1
+    # Guard must NOT raise; http_client.stream() is reached and raises,
+    # proving the guard let the URL through.
+    with pytest.raises(AssertionError, match="stream\\(\\) reached"):
+        run(server._benchmark_openai(spec, target, "m"))
 
 
 def test_benchmark_openai_rejects_link_local_metadata(monkeypatch):
@@ -404,8 +397,8 @@ class FakePostClient:
     async def __aexit__(self, *exc):
         return False
 
-    async def post(self, url: str, json: Dict[str, Any]):
-        self.last_json = json
+    async def post(self, url: str, **kwargs):
+        self.last_json = kwargs.get("json", {})
         self.last_url = url
 
         class Resp:
@@ -433,11 +426,12 @@ def test_benchmark_ollama_parses_eval_count_and_duration(monkeypatch):
         "eval_duration": 2_000_000_000,         # 2s
     }
     fake = FakePostClient(payload)
-    monkeypatch.setattr(server_module.httpx, "AsyncClient", lambda *a, **kw: fake)
 
     spec = _make_request()
     target = _make_target(provider="ollama")
-    result = run(_server()._benchmark_ollama(spec, target, "m"))
+    server = _server()
+    server.http_client = fake
+    result = run(server._benchmark_ollama(spec, target, "m"))
     assert result["prompt_tokens"] == 12
     assert result["completion_tokens"] == 30
     assert result["ttft_ms"] == 1000.0
@@ -448,10 +442,11 @@ def test_benchmark_ollama_returns_none_when_eval_count_missing(monkeypatch):
     monkeypatch.setattr(server_module, "_validate_endpoint_url", lambda *a, **kw: None)
     payload = {"model": "m"}
     fake = FakePostClient(payload)
-    monkeypatch.setattr(server_module.httpx, "AsyncClient", lambda *a, **kw: fake)
     spec = _make_request()
     target = _make_target(provider="ollama")
-    result = run(_server()._benchmark_ollama(spec, target, "m"))
+    server = _server()
+    server.http_client = fake
+    result = run(server._benchmark_ollama(spec, target, "m"))
     assert result["decode_tps"] is None
     assert result["completion_tokens"] is None
 
@@ -474,10 +469,11 @@ def test_ollama_latency_ms_equals_total_time_ms(monkeypatch):
         "eval_duration": 1_500_000_000,        # 1.5s
     }
     fake = FakePostClient(payload)
-    monkeypatch.setattr(server_module.httpx, "AsyncClient", lambda *a, **kw: fake)
     spec = _make_request()
     target = _make_target(provider="ollama")
-    result = run(_server()._benchmark_ollama(spec, target, "m"))
+    server = _server()
+    server.http_client = fake
+    result = run(server._benchmark_ollama(spec, target, "m"))
     # Total wall-clock is 0.5s + 1.5s = 2.0s = 2000ms
     assert result["total_time_ms"] == 2000.0
     assert result["latency_ms"] == 2000.0

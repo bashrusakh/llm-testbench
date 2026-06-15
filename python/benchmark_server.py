@@ -102,6 +102,7 @@ class BenchmarkServer:
         self.ollama_tags_path = ollama_tags_path if ollama_tags_path is not None else OLLAMA_TAGS_PATH
         self.jobs: Dict[str, JobState] = {}
         self._results_lock = asyncio.Lock()
+        self.http_client = httpx.AsyncClient()
 
     # ---------- delegate helpers (back-compat for tests that hit server_module._xxx) ----------
 
@@ -238,11 +239,13 @@ class BenchmarkServer:
     async def _post_openai_chat_with_reasoning_fallback(
         self, client: httpx.AsyncClient, url: str, payload: Dict[str, Any], *,
         reasoning_effort: str, model: str, fallback_state: Optional[Dict[str, bool]] = None,
+        timeout: Optional[httpx.Timeout] = None, headers: Optional[Dict[str, str]] = None,
     ) -> httpx.Response:
         from python.job_runner import post_openai_chat_with_reasoning_fallback
         return await post_openai_chat_with_reasoning_fallback(
             client, url, payload,
             reasoning_effort=reasoning_effort, model=model, fallback_state=fallback_state,
+            timeout=timeout, headers=headers,
         )
 
     @staticmethod
@@ -854,15 +857,15 @@ class BenchmarkServer:
         )
 
     async def shutdown(self) -> None:
-        """Drain in-flight save tasks for every job.
+        """Drain in-flight save tasks for every job and close the shared HTTP client.
 
         Registered as ``app.on_cleanup`` in :func:`create_app`. Without
         this, a SIGTERM between the ``ensure_future`` for an incremental
         save and its ``path.write_text`` would drop the row.
         """
-        if not self.jobs:
-            return
-        await asyncio.gather(*(j.drain_pending_saves() for j in self.jobs.values()), return_exceptions=True)
+        if self.jobs:
+            await asyncio.gather(*(j.drain_pending_saves() for j in self.jobs.values()), return_exceptions=True)
+        await self.http_client.aclose()
 
     # ---------- endpoint scanning & provider detection ----------
 

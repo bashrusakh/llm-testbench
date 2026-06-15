@@ -40,6 +40,41 @@ REASONING_FALLBACK_STATE: contextvars.ContextVar[Optional[Dict[str, bool]]] = co
 OPENAI_CHAT_PATH = "/v1/chat/completions"
 OLLAMA_CHAT_PATH = "/api/chat"
 
+# SQL circuit breaker: if a model can't be loaded (OOM, weights absent, endpoint
+# down) every question would otherwise re-attempt the load — up to 25x per model,
+# untimed. Instead we trip a per-model breaker. Error-string fragments below mark
+# an *unavailability* failure (won't recover by retrying) and trip on the first
+# occurrence; any other LLM-call failure is treated as possibly transient and
+# trips only after two in a row.
+_MODEL_UNAVAILABLE_MARKERS = (
+    "failed to load", "could not load", "cannot load", "unable to load",
+    "model not found", "model_not_found", "not found", "no models loaded",
+    "no model loaded", "model is not loaded", "out of memory",
+    "cannot allocate", "insufficient memory", "connection refused", "refused",
+    "connect", "all connection attempts failed", "name or service not known",
+    "could not resolve", "http 404", "http 502", "http 503",
+)
+
+# A failure result whose error starts with one of these came from the LLM call
+# itself (model/endpoint), not from per-question logic (bad SQL, mismatch, a
+# slow question hitting its budget). Only the former feeds the breaker.
+_LLM_CALL_FAILURE_PREFIXES = (
+    "LLM callback failed:",
+    "LLM tool-calling callback failed:",
+)
+
+
+def _is_llm_call_failure(result: Dict[str, Any]) -> bool:
+    """True if *result* is a failure raised by the LLM call (not per-question)."""
+    error = str(result.get("error") or "")
+    return any(error.startswith(prefix) for prefix in _LLM_CALL_FAILURE_PREFIXES)
+
+
+def _is_model_unavailable_error(result: Dict[str, Any]) -> bool:
+    """True if the call-failure error looks like the model can't be loaded/reached."""
+    error = str(result.get("error") or "").lower()
+    return any(marker in error for marker in _MODEL_UNAVAILABLE_MARKERS)
+
 
 def _coerce_message_content_to_text(content: Any) -> str:
     if isinstance(content, str):
@@ -93,9 +128,11 @@ async def post_openai_chat_with_reasoning_fallback(
     reasoning_effort: str,
     model: str,
     fallback_state: Optional[Dict[str, bool]] = None,
+    timeout: Optional[httpx.Timeout] = None,
+    headers: Optional[Dict[str, str]] = None,
 ) -> httpx.Response:
     request_payload = _with_reasoning(payload, reasoning_effort)
-    response = await client.post(url, json=request_payload)
+    response = await client.post(url, json=request_payload, timeout=timeout, headers=headers)
     if "reasoning" not in request_payload:
         return response
 
@@ -113,7 +150,7 @@ async def post_openai_chat_with_reasoning_fallback(
         fallback_state = REASONING_FALLBACK_STATE.get()
     if fallback_state is not None:
         fallback_state["used"] = True
-    return await client.post(url, json=payload)
+    return await client.post(url, json=payload, timeout=timeout, headers=headers)
 
 
 async def run_job(server: "BenchmarkServer", job: JobState) -> None:
@@ -187,9 +224,10 @@ async def run_sql_job(server: "BenchmarkServer", job: JobState) -> None:
     available_models = await server._discover_models(target.base_url, normalized_provider, target.api_key)
 
     requested_models = target.models
-    missing = [m for m in requested_models if m not in available_models]
-    if missing:
-        raise RuntimeError(f"Requested model(s) not found for {target.provider_label}: {', '.join(missing)}")
+    # A model that isn't in /v1/models (weights absent, not downloaded) is no
+    # longer a hard job failure: it's skipped per-model below, like a model that
+    # is listed but fails to load. Other requested models still run.
+    available_set = set(available_models)
 
     # Determine which thinking variants to run
     thinking_mode_req = job.request.thinking_mode
@@ -235,10 +273,44 @@ async def run_sql_job(server: "BenchmarkServer", job: JobState) -> None:
 
         for model in requested_models:
             job.current_model = model
+            # Per-model circuit breaker. Once tripped, the remaining questions
+            # (and thinking variants) for this model are recorded as skipped
+            # instead of re-attempting a load that won't succeed.
+            consecutive_call_failures = 0
+            if model in available_set:
+                model_unavailable_reason: Optional[str] = None
+            else:
+                model_unavailable_reason = (
+                    f"Model '{model}' not available at {runtime_target.provider_label} "
+                    f"(not listed by the endpoint) — questions skipped"
+                )
+                LOG.warning(
+                    "SQL benchmark: model %s not listed at %s; skipping all its questions",
+                    model, runtime_target.base_url,
+                )
+
             for thinking_mode in thinking_variants:
                 for question_id in question_ids:
                     if job.stop_requested:
                         return
+
+                    if model_unavailable_reason is not None:
+                        result = runner.build_skipped_result(
+                            question_id=question_id,
+                            model=model,
+                            provider=runtime_target.provider,
+                            endpoint=runtime_target.base_url,
+                            thinking_mode=thinking_mode,
+                            reason=model_unavailable_reason,
+                        )
+                        result["reasoning_effort"] = job.request.reasoning_effort
+                        result["reasoning_fallback"] = False
+                        job.results.append(sql_result_row(job, runtime_target, result))
+                        job.progress_completed += 1
+                        save_task = asyncio.ensure_future(flush_job_record(server, job))
+                        job.track_save(save_task)
+                        continue
+
                     reasoning_fallback_state = {"used": False}
                     fallback_token = REASONING_FALLBACK_STATE.set(reasoning_fallback_state)
                     try:
@@ -283,6 +355,24 @@ async def run_sql_job(server: "BenchmarkServer", job: JobState) -> None:
                     save_task = asyncio.ensure_future(flush_job_record(server, job))
                     job.track_save(save_task)
 
+                    # Circuit-breaker bookkeeping. Only LLM-call failures count;
+                    # a per-question failure (bad SQL, mismatch, question budget)
+                    # means the model is alive, so reset the streak.
+                    if _is_llm_call_failure(result):
+                        consecutive_call_failures += 1
+                        if _is_model_unavailable_error(result) or consecutive_call_failures >= 2:
+                            model_unavailable_reason = (
+                                "Model unavailable — remaining questions skipped after "
+                                f"load/connection failure: {result.get('error', '')}"
+                            )
+                            LOG.warning(
+                                "SQL benchmark: model %s appears unavailable (%s); "
+                                "skipping its remaining questions",
+                                model, result.get("error", ""),
+                            )
+                    else:
+                        consecutive_call_failures = 0
+
 
 async def call_llm_single(
     server: "BenchmarkServer",
@@ -302,6 +392,12 @@ async def call_llm_single(
         {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]
+    timeout = httpx.Timeout(
+        connect=30.0,
+        read=None if timeout_ms <= 0 else timeout_ms / 1000.0,
+        write=None if timeout_ms <= 0 else timeout_ms / 1000.0,
+        pool=30.0,
+    )
     if target.provider == "openai-compatible":
         headers = {"Content-Type": "application/json"}
         if target.api_key:
@@ -315,25 +411,20 @@ async def call_llm_single(
             "max_tokens": 4096,
             "stream": False,
         }
-        timeout = httpx.Timeout(
-            connect=30.0,
-            read=None if timeout_ms <= 0 else timeout_ms / 1000.0,
-            write=None if timeout_ms <= 0 else timeout_ms / 1000.0,
-            pool=30.0,
+        response = await post_openai_chat_with_reasoning_fallback(
+            server.http_client,
+            f"{target.base_url}{OPENAI_CHAT_PATH}",
+            payload,
+            reasoning_effort=reasoning_effort,
+            model=model,
+            timeout=timeout,
+            headers=headers,
         )
-        async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
-            response = await post_openai_chat_with_reasoning_fallback(
-                client,
-                f"{target.base_url}{OPENAI_CHAT_PATH}",
-                payload,
-                reasoning_effort=reasoning_effort,
-                model=model,
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"HTTP {response.status_code} from {target.base_url}{OPENAI_CHAT_PATH}: {response.text[:300]}"
             )
-            if response.status_code >= 400:
-                raise RuntimeError(
-                    f"HTTP {response.status_code} from {target.base_url}{OPENAI_CHAT_PATH}: {response.text[:300]}"
-                )
-            data = response.json()
+        data = response.json()
         choices = data.get("choices") or []
         if not choices:
             raise RuntimeError("OpenAI-compatible response did not include choices")
@@ -348,17 +439,12 @@ async def call_llm_single(
         "messages": messages,
         "stream": False,
     }
-    timeout = httpx.Timeout(
-        connect=30.0,
-        read=None if timeout_ms <= 0 else timeout_ms / 1000.0,
-        write=None if timeout_ms <= 0 else timeout_ms / 1000.0,
-        pool=30.0,
+    response = await server.http_client.post(
+        f"{target.base_url}{OLLAMA_CHAT_PATH}", json=payload, timeout=timeout
     )
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(f"{target.base_url}{OLLAMA_CHAT_PATH}", json=payload)
-        if response.status_code >= 400:
-            raise RuntimeError(f"HTTP {response.status_code} from {target.base_url}{OLLAMA_CHAT_PATH}: {response.text[:300]}")
-        data = response.json()
+    if response.status_code >= 400:
+        raise RuntimeError(f"HTTP {response.status_code} from {target.base_url}{OLLAMA_CHAT_PATH}: {response.text[:300]}")
+    data = response.json()
     message = data.get("message") or {}
     return _coerce_message_content_to_text(message.get("content"))
 
@@ -407,56 +493,61 @@ async def call_llm_tool_calling(
         pool=30.0,
     )
 
-    async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
-        response = await post_openai_chat_with_reasoning_fallback(
-            client,
-            f"{target.base_url}{OPENAI_CHAT_PATH}",
-            tool_payload,
-            reasoning_effort=reasoning_effort,
-            model=model,
-            fallback_state=fallback_state,
-        )
+    response = await post_openai_chat_with_reasoning_fallback(
+        server.http_client,
+        f"{target.base_url}{OPENAI_CHAT_PATH}",
+        tool_payload,
+        reasoning_effort=reasoning_effort,
+        model=model,
+        fallback_state=fallback_state,
+        timeout=timeout,
+        headers=headers,
+    )
 
-        # Some models reject tool_choice / tools entirely (400/422/501).
-        # Fall back to plain chat so the text-extraction branch can handle it.
-        if response.status_code in (400, 422, 501):
-            body_text = response.text
-            body_lower = body_text.lower()
-            # LM Studio: model was unloaded/reloaded mid-request — wait and retry once
-            if any(kw in body_lower for kw in ("unloaded", "reloaded")):
-                LOG.warning(
-                    "Model %s reported unloaded/reloaded — waiting 3s and retrying",
-                    model,
-                )
-                await asyncio.sleep(3)
-                response = await post_openai_chat_with_reasoning_fallback(
-                    client,
-                    f"{target.base_url}{OPENAI_CHAT_PATH}",
-                    tool_payload,
-                    reasoning_effort=reasoning_effort,
-                    model=model,
-                    fallback_state=fallback_state,
-                )
-            elif any(kw in body_lower for kw in ("tool", "function", "not support", "unsupported", "render")):
-                LOG.warning(
-                    "Model %s at %s rejected tool-calling (%s) — retrying without tools",
-                    model, target.base_url, response.status_code,
-                )
-                plain_payload = {"model": model, "messages": all_messages, "max_tokens": 4096, "stream": False}
-                response = await post_openai_chat_with_reasoning_fallback(
-                    client,
-                    f"{target.base_url}{OPENAI_CHAT_PATH}",
-                    plain_payload,
-                    reasoning_effort=reasoning_effort,
-                    model=model,
-                    fallback_state=fallback_state,
-                )
-
-        if response.status_code >= 400:
-            raise RuntimeError(
-                f"HTTP {response.status_code} from {target.base_url}{OPENAI_CHAT_PATH}: {response.text[:400]}"
+    # Some models reject tool_choice / tools entirely (400/422/501).
+    # Fall back to plain chat so the text-extraction branch can handle it.
+    if response.status_code in (400, 422, 501):
+        body_text = response.text
+        body_lower = body_text.lower()
+        # LM Studio: model was unloaded/reloaded mid-request — wait and retry once
+        if any(kw in body_lower for kw in ("unloaded", "reloaded")):
+            LOG.warning(
+                "Model %s reported unloaded/reloaded — waiting 3s and retrying",
+                model,
             )
-        data = response.json()
+            await asyncio.sleep(3)
+            response = await post_openai_chat_with_reasoning_fallback(
+                server.http_client,
+                f"{target.base_url}{OPENAI_CHAT_PATH}",
+                tool_payload,
+                reasoning_effort=reasoning_effort,
+                model=model,
+                fallback_state=fallback_state,
+                timeout=timeout,
+                headers=headers,
+            )
+        elif any(kw in body_lower for kw in ("tool", "function", "not support", "unsupported", "render")):
+            LOG.warning(
+                "Model %s at %s rejected tool-calling (%s) — retrying without tools",
+                model, target.base_url, response.status_code,
+            )
+            plain_payload = {"model": model, "messages": all_messages, "max_tokens": 4096, "stream": False}
+            response = await post_openai_chat_with_reasoning_fallback(
+                server.http_client,
+                f"{target.base_url}{OPENAI_CHAT_PATH}",
+                plain_payload,
+                reasoning_effort=reasoning_effort,
+                model=model,
+                fallback_state=fallback_state,
+                timeout=timeout,
+                headers=headers,
+            )
+
+    if response.status_code >= 400:
+        raise RuntimeError(
+            f"HTTP {response.status_code} from {target.base_url}{OPENAI_CHAT_PATH}: {response.text[:400]}"
+        )
+    data = response.json()
 
     choices = data.get("choices") or []
     if not choices:
@@ -664,38 +755,37 @@ async def benchmark_openai(
     # Lazy import so the test's ``monkeypatch.setattr(server_module, "_validate_endpoint_url", ...)`` takes effect
     from python.server import _validate_endpoint_url as _server_validate_endpoint_url
     _server_validate_endpoint_url(target.base_url)
-    async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
-        async with client.stream("POST", f"{target.base_url}{OPENAI_CHAT_PATH}", json=payload) as response:
-            if response.status_code >= 400:
-                body = (await response.aread()).decode("utf-8", errors="replace")
-                raise RuntimeError(f"HTTP {response.status_code} from {target.base_url}{OPENAI_CHAT_PATH}: {body[:300]}")
-            async for line in response.aiter_lines():
-                if not line or not line.startswith("data:"):
-                    continue
-                data_str = line[5:].strip()
-                if data_str == "[DONE]":
-                    break
-                data = json.loads(data_str)
-                if data.get("error"):
-                    err = data["error"]
-                    msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
-                    raise RuntimeError(f"Server error in stream: {msg}")
-                choices = data.get("choices") or []
-                if choices:
-                    choice_err = choices[0].get("error") or choices[0].get("finish_reason") == "error"
-                    if choice_err:
-                        raise RuntimeError(f"Server error in choice: {choices[0].get('error') or 'unknown'}")
-                    delta = choices[0].get("delta") or {}
-                    content = delta.get("content")
-                    reasoning = delta.get("reasoning_content")
-                    if first_token_at is None and (content is not None or reasoning is not None):
-                        first_token_at = time.perf_counter()
-                        if job is not None:
-                            await job.set_phase("streaming", f"Streaming response from {model}", model=model, run_index=run_index, benchmark_type="speed")
-                usage = data.get("usage") or {}
-                if usage:
-                    prompt_tokens = usage.get("prompt_tokens", prompt_tokens)
-                    completion_tokens = usage.get("completion_tokens", completion_tokens)
+    async with server.http_client.stream("POST", f"{target.base_url}{OPENAI_CHAT_PATH}", json=payload, headers=headers, timeout=timeout) as response:
+        if response.status_code >= 400:
+            body = (await response.aread()).decode("utf-8", errors="replace")
+            raise RuntimeError(f"HTTP {response.status_code} from {target.base_url}{OPENAI_CHAT_PATH}: {body[:300]}")
+        async for line in response.aiter_lines():
+            if not line or not line.startswith("data:"):
+                continue
+            data_str = line[5:].strip()
+            if data_str == "[DONE]":
+                break
+            data = json.loads(data_str)
+            if data.get("error"):
+                err = data["error"]
+                msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
+                raise RuntimeError(f"Server error in stream: {msg}")
+            choices = data.get("choices") or []
+            if choices:
+                choice_err = choices[0].get("error") or choices[0].get("finish_reason") == "error"
+                if choice_err:
+                    raise RuntimeError(f"Server error in choice: {choices[0].get('error') or 'unknown'}")
+                delta = choices[0].get("delta") or {}
+                content = delta.get("content")
+                reasoning = delta.get("reasoning_content")
+                if first_token_at is None and (content is not None or reasoning is not None):
+                    first_token_at = time.perf_counter()
+                    if job is not None:
+                        await job.set_phase("streaming", f"Streaming response from {model}", model=model, run_index=run_index, benchmark_type="speed")
+            usage = data.get("usage") or {}
+            if usage:
+                prompt_tokens = usage.get("prompt_tokens", prompt_tokens)
+                completion_tokens = usage.get("completion_tokens", completion_tokens)
     # Counting stream chunks is NOT a tokens fallback: one chunk can hold many
     # tokens, so deriving decode_tps from chunk count under-reports by N×. If
     # the server doesn't include usage, leave completion_tokens/decode_tps as
@@ -749,11 +839,10 @@ async def benchmark_ollama(
     # Lazy import so the test's ``monkeypatch.setattr(server_module, "_validate_endpoint_url", ...)`` takes effect
     from python.server import _validate_endpoint_url as _server_validate_endpoint_url
     _server_validate_endpoint_url(target.base_url)
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(f"{target.base_url}{OLLAMA_CHAT_PATH}", json=payload)
-        if response.status_code >= 400:
-            raise RuntimeError(f"HTTP {response.status_code} from {target.base_url}{OLLAMA_CHAT_PATH}: {response.text[:300]}")
-        data = response.json()
+    response = await server.http_client.post(f"{target.base_url}{OLLAMA_CHAT_PATH}", json=payload, timeout=timeout)
+    if response.status_code >= 400:
+        raise RuntimeError(f"HTTP {response.status_code} from {target.base_url}{OLLAMA_CHAT_PATH}: {response.text[:300]}")
+    data = response.json()
     prompt_tokens = data.get("prompt_eval_count")
     completion_tokens = data.get("eval_count")
     prompt_eval_duration = data.get("prompt_eval_duration")
