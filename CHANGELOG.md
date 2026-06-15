@@ -2,6 +2,12 @@
 
 All notable release changes for LLM Testbench are tracked here.
 
+## Unreleased
+
+### Added
+
+- **SQL-bench run comment** — free-form note saved with the run, visible in History and when the run is opened. Optional textarea in the SQL benchmark settings (max 1000 chars). The History table gains a `Comment` column between `Thinking` and `Status`; a one-line clipped preview with the full text in the native title tooltip. When a run is opened (live or from history) a 📝 banner appears in the Live Results card above the result container, so the comment is visible without scrolling. `closeHistoryView` and the `pollJob` history-view path explicitly leave the banner alone or clear it, so it never lingers across re-renders. Field is `BenchmarkRequest.comment`, validated server-side (length cap, string type), persisted on the on-disk record, and propagated through `JobState.to_dict()` and the JSONL/CSV/TSV/manifest/summary exports without additional wiring. Legacy records without the field load cleanly. Touches `python/models.py`, `python/persistence.py`, `index.html`, `static/app.js`, `static/style.css`. 12 new tests across `tests/test_sql_backend_integration.py`, `tests/test_adapter_and_dashboard.py`, `tests/test_sql_frontend_integration.py`.
+
 ## v0.2.2 (2026-06-14)
 
 Major refactor — code-review cleanup pass closes an SSRF gap in the SQL

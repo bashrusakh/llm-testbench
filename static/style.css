@@ -566,6 +566,66 @@
     color: var(--warn);
     border-color: var(--warn);
   }
+  /* Run comment in the History table. Single-line clip + full text in the
+     native title tooltip. The column is the only place the comment is
+     visible in history; the opened-run banner lives in the Live Results
+     card. */
+  .history-comment-cell {
+    display: inline-block;
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+    color: var(--text-main);
+  }
+  .history-comment-empty { color: var(--text-muted); }
+
+  /* Banner rendered in the Live Results card while a run is being
+     viewed (live or opened from history). Sits ABOVE the
+     speed/sql container so re-renders of those innerHTML blocks
+     do not wipe it out. */
+  .run-comment-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    margin: 12px 0 16px;
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.28);
+    border-radius: 8px;
+    color: var(--text-main);
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+  .run-comment-banner .run-comment-icon {
+    font-size: 1rem;
+    line-height: 1.4;
+    flex-shrink: 0;
+  }
+  .run-comment-banner .run-comment-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #a5b4fc;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .run-comment-banner .run-comment-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #runComment {
+    width: 100%;
+    min-height: 48px;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    padding: 6px 8px;
+    border-radius: 6px;
+  }
   .history-actions {
     display: flex;
     gap: 8px;

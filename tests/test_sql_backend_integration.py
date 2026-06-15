@@ -691,6 +691,64 @@ def test_benchmark_request_rejects_invalid_reasoning_effort():
         })
 
 
+def test_benchmark_request_accepts_optional_comment():
+    spec = BenchmarkRequest.from_dict({
+        "benchmark_type": "sql",
+        "base_url": "http://127.0.0.1:1234",
+        "provider": "openai-compatible",
+        "model": "sql-model",
+        "comment": "9B q5_k_m, no reasoning, 12-question smoke pass",
+    })
+    assert spec.comment == "9B q5_k_m, no reasoning, 12-question smoke pass"
+
+
+def test_benchmark_request_strips_and_normalises_blank_comment_to_none():
+    for blank in ("", "   ", "\n\t"):
+        spec = BenchmarkRequest.from_dict({
+            "benchmark_type": "sql",
+            "base_url": "http://127.0.0.1:1234",
+            "provider": "openai-compatible",
+            "model": "sql-model",
+            "comment": blank,
+        })
+        assert spec.comment is None, f"expected None for blank={blank!r}"
+
+
+def test_benchmark_request_rejects_oversized_comment():
+    with pytest.raises(ValueError, match="comment"):
+        BenchmarkRequest.from_dict({
+            "benchmark_type": "sql",
+            "base_url": "http://127.0.0.1:1234",
+            "provider": "openai-compatible",
+            "model": "sql-model",
+            "comment": "a" * 1001,
+        })
+
+
+def test_benchmark_request_rejects_non_string_comment():
+    with pytest.raises(ValueError, match="comment"):
+        BenchmarkRequest.from_dict({
+            "benchmark_type": "sql",
+            "base_url": "http://127.0.0.1:1234",
+            "provider": "openai-compatible",
+            "model": "sql-model",
+            "comment": 42,
+        })
+
+
+def test_job_state_to_dict_exposes_request_comment():
+    spec = BenchmarkRequest.from_dict({
+        "benchmark_type": "sql",
+        "base_url": "http://127.0.0.1:1234",
+        "provider": "openai-compatible",
+        "model": "sql-model",
+        "comment": "leaderboard v2 — fresh build",
+    })
+    job = JobState(request=spec)
+    payload = job.to_dict()
+    assert payload["request"]["comment"] == "leaderboard v2 — fresh build"
+
+
 def test_openai_tool_call_reasoning_falls_back_when_unsupported(monkeypatch):
     requests = []
 

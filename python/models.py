@@ -24,6 +24,7 @@ EXPORT_SCHEMA_VERSION = 1
 ADAPTER_LIFECYCLE_HOOKS = ["prepare", "select_tasks", "run_task", "score", "render", "cleanup"]
 REASONING_EFFORTS = {"disabled", "none", "minimal", "low", "medium", "high", "xhigh"}
 DEFAULT_TIMEOUT_MS = 120_000
+MAX_RUN_COMMENT_LEN = 1000
 
 
 @dataclass
@@ -346,6 +347,7 @@ class BenchmarkRequest:
     thinking_mode: str
     reasoning_effort: str
     question_timeout_ms: int
+    comment: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "BenchmarkRequest":
@@ -454,6 +456,22 @@ class BenchmarkRequest:
         # load. 0 (default) disables it. Negative values are treated as 0.
         question_timeout_ms = max(0, int(data.get("question_timeout_ms", 0) or 0))
 
+        # Free-form note saved with the run. Empty / whitespace-only
+        # normalises to None so the persisted record and downstream JSON
+        # consumers can rely on a single shape ("present string" or "absent").
+        # Cap is enforced here, not only in the UI, so the backend never
+        # trusts an oversized payload.
+        comment_raw = data.get("comment")
+        if comment_raw is None or (isinstance(comment_raw, str) and not comment_raw.strip()):
+            comment: Optional[str] = None
+        else:
+            if not isinstance(comment_raw, str):
+                raise ValueError("comment must be a string")
+            comment_stripped = comment_raw.strip()
+            if len(comment_stripped) > MAX_RUN_COMMENT_LEN:
+                raise ValueError(f"comment must be {MAX_RUN_COMMENT_LEN} characters or fewer")
+            comment = comment_stripped
+
         concurrency = max(1, int(data.get("concurrency", 1) or 1))
         repeat_count = max(1, int(data.get("repeat_count", 1) or 1))
         warmup_runs = max(0, int(data.get("warmup_runs", 0) or 0))
@@ -499,6 +517,7 @@ class BenchmarkRequest:
             thinking_mode=thinking_mode,
             reasoning_effort=reasoning_effort,
             question_timeout_ms=question_timeout_ms,
+            comment=comment,
         )
 
 
@@ -581,6 +600,7 @@ class JobState:
                 "thinking_mode": self.request.thinking_mode,
                 "reasoning_effort": self.request.reasoning_effort,
                 "question_timeout_ms": self.request.question_timeout_ms,
+                "comment": self.request.comment,
             },
             "results": self.results,
             "errors": self.errors,

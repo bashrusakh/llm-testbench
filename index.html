@@ -104,6 +104,13 @@
           Max wall-clock per question, excluding model load (first call to each model is untimed). 0 disables.
         </div>
       </div>
+      <div id="runCommentGroup" class="form-group hidden">
+        <label for="runComment">Run comment (optional)</label>
+        <textarea id="runComment" rows="2" maxlength="1000" placeholder="e.g. 9B-class on RTX 4090, q5_k_m, no reasoning, 12-question smoke pass..."></textarea>
+        <div class="status-message info status-message--compact">
+          Free-form note saved with the run. Visible in History and when the run is opened. Max 1000 chars.
+        </div>
+      </div>
       <div class="settings-subsection speed-only-setting">
         <div class="subsection-label">Speed Preset</div>
         <div class="speed-preset-grid">
@@ -293,6 +300,7 @@
               <th>Benchmark Type</th>
               <th>Questions</th>
               <th>Thinking</th>
+              <th>Comment</th>
               <th>Status</th>
               <th>Results</th>
               <th>Errors</th>

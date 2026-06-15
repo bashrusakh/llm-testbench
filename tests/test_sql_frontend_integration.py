@@ -122,4 +122,61 @@ def test_frontend_quant_parser_recognizes_unsloth_dynamic_formats():
     assert "UD_IQ1_S" in frontend
     assert "unslothDynamic" in frontend
     assert "UNSLOTH" in frontend
+
+
+# ── run-comment feature wiring ────────────────────────────────────────────────
+
+def test_frontend_has_run_comment_field_in_sql_settings():
+    """The sidebar exposes a textarea tied to the SQL benchmark selection."""
+    html = INDEX_HTML.read_text("utf-8")
+    frontend = _read_frontend()
+
+    assert 'id="runCommentGroup"' in html
+    assert 'id="runComment"' in html
+    assert 'maxlength="1000"' in html
+    # The JS that wires the field is also present, so the sidebar group
+    # is gated on SQL the same way the other SQL-only controls are.
+    assert "runCommentGroup" in frontend
+
+
+def test_frontend_passes_comment_in_sql_payload():
+    frontend = _read_frontend()
+    # buildSqlPayload must include the field so the backend can persist it.
+    assert "comment:" in frontend
+    assert "runComment" in frontend
+
+
+def test_frontend_history_renders_comment_column():
+    """History table gains a Comment column rendered from request.comment."""
+    html = INDEX_HTML.read_text("utf-8")
+    frontend = _read_frontend()
+
+    assert ">Comment<" in html
+    assert "formatHistoryCommentCell" in frontend
+    assert "history-comment-cell" in frontend
+    assert "item.request?.comment" in frontend
+    # History empty-state colspan now includes the new column (was 11).
+    assert "colspan: 12" in frontend
+
+
+def test_frontend_opened_run_renders_comment_banner():
+    """renderRunCommentBanner is invoked on open + live-attach + poll paths
+    and is cleared by closeHistoryView — so the comment never lingers
+    across re-renders or back-to-idle transitions."""
+    frontend = _read_frontend()
+
+    assert "function renderRunCommentBanner" in frontend
+    assert "runCommentBanner" in frontend
+    # openHistoryJob renders the banner after rendering results.
+    assert "renderRunCommentBanner(job);" in frontend
+    # closeHistoryView removes the banner explicitly.
+    assert "if (commentBanner) commentBanner.remove();" in frontend
+    # Banner is also rendered during poll (for the live view) but NOT when
+    # the user is viewing a *different* finished run in the history view.
+    assert "renderRunCommentBanner(data.job);" in frontend
+    # CSS for the banner is in the shared stylesheet.
+    css = (Path(__file__).resolve().parents[1] / "static" / "style.css").read_text("utf-8")
+    assert ".run-comment-banner" in css
+    assert ".history-comment-cell" in css
+    assert "#runComment" in css
     assert "DYNAMIC" in frontend

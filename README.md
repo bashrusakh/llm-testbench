@@ -155,6 +155,11 @@ Supports tool-calling and grammar-style SQL generation modes. Additional control
 - **Reasoning effort** — provider default, none, minimal, low, medium, high, xhigh
 - **Per-question timeout** and stop/reload recovery
 - **Mismatch details** — row count, columns, first row, generated SQL
+- **Run comment** — optional free-form note (max 1000 chars) saved with the
+  run, visible in the History table's `Comment` column and as a 📝 banner in
+  the Live Results card when the run is opened. Survives all re-renders
+  (`renderResults`, `setResultsTableMode`, `closeHistoryView`, the poll loop
+  history-view path) so a comment set on the live run is never lost.
 
 `Provider default (omit)` does not send a reasoning field. `none` sends an explicit request to disable reasoning. Servers that reject unknown reasoning fields get an automatic retry without it.
 
