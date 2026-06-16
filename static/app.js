@@ -1802,12 +1802,14 @@
         const outTok = (r.output_tokens || 0).toLocaleString();
         const diff = difficultyLabel(r.difficulty || meta.difficulty);
 
+        const srLabel = SQL_STOP_REASON_META[r.stop_reason] ? SQL_STOP_REASON_META[r.stop_reason].label : (r.stop_reason || '');
         if (st === 'pass') {
           const tip = `<span class="sql-tooltip-status pass">PASS</span> — Q${qNum} [${diff}] — ${attempts} attempt(s) — ${inTok} in / ${outTok} out`;
           html += `<td${cellClass}><div class="sql-result-cell pass" data-qid="${qNum}" data-model-key="${escapeHtml(model)}" data-model="${escapeHtml(r.model || model)}" data-thinking="${escapeHtml(r.thinking_mode || '')}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
         } else if (st === 'error') {
           const errShort = (r.error || 'Unknown error').slice(0, 120);
-          const tip = `<span class="sql-tooltip-status error">ERROR</span> — Q${qNum} [${diff}]<br>${escapeHtml(errShort)}`;
+          const srLine = srLabel ? `<br><span style="opacity:0.7;">stop:</span> ${escapeHtml(srLabel)}` : '';
+          const tip = `<span class="sql-tooltip-status error">ERROR</span> — Q${qNum} [${diff}]<br>${escapeHtml(errShort)}${srLine}`;
           html += `<td${cellClass}><div class="sql-result-cell error" data-qid="${qNum}" data-model-key="${escapeHtml(model)}" data-model="${escapeHtml(r.model || model)}" data-thinking="${escapeHtml(r.thinking_mode || '')}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
         } else {
           const errShort = (r.error || 'Result mismatch').slice(0, 120);
@@ -1830,7 +1832,8 @@
               `<span style="opacity:0.6;">→</span> ` +
               `<span class="sql-tip-act">${escapeHtml(String(r.actual_row_count ?? '—'))}</span>`;
           }
-          const tip = `<span class="sql-tooltip-status fail">FAIL</span> — Q${qNum} [${diff}] — ${attempts} attempt(s)<br>${escapeHtml(errShort)}<br>${rc} · ${col} · ${fr}${diffLine}`;
+          const srLine = srLabel ? `<br><span style="opacity:0.7;">stop:</span> ${escapeHtml(srLabel)}` : '';
+          const tip = `<span class="sql-tooltip-status fail">FAIL</span> — Q${qNum} [${diff}] — ${attempts} attempt(s)<br>${escapeHtml(errShort)}<br>${rc} · ${col} · ${fr}${diffLine}${srLine}`;
           html += `<td${cellClass}><div class="sql-result-cell fail" data-qid="${qNum}" data-model-key="${escapeHtml(model)}" data-model="${escapeHtml(r.model || model)}" data-thinking="${escapeHtml(r.thinking_mode || '')}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
         }
       });
@@ -2410,13 +2413,14 @@
   //   warn  — we had to intervene (duplicate dedup, implicit ok, last-good fallback)
   //   bad   — hit the ceiling or timed out / errored
   const SQL_STOP_REASON_META = {
-    results_ok:              { label: 'model finished',              severity: 'ok'   },
-    text_implicit_ok:        { label: 'implicit ok (text)',          severity: 'warn' },
-    duplicate_sql_forced_ok: { label: 'duplicate SQL stopped',       severity: 'warn' },
-    limit_forced_ok:         { label: 'hit limit (used last SQL)',   severity: 'warn' },
-    tool_call_limit:         { label: 'hit limit (no SQL)',          severity: 'bad'  },
-    question_timeout:        { label: 'timed out',                   severity: 'bad'  },
-    error:                   { label: 'errored',                     severity: 'bad'  },
+    results_ok:               { label: 'model finished',                              severity: 'ok'   },
+    text_implicit_ok:         { label: 'model replied without calling results_ok',     severity: 'warn' },
+    duplicate_sql_forced_ok:  { label: 'looping — repeated the same SQL, stopped',     severity: 'warn' },
+    limit_forced_ok:          { label: 'stopped at 10 calls, scored last SQL',         severity: 'warn' },
+    tool_call_limit:          { label: 'gave up after 10 attempts, no valid SQL',      severity: 'bad'  },
+    question_timeout:         { label: 'timed out',                                    severity: 'bad'  },
+    error:                    { label: 'failed after 5 retries — could not fix SQL',   severity: 'bad'  },
+    skipped_model_unavailable:{ label: 'model failed to load',                         severity: 'bad'  },
   };
 
   function renderSqlDetailMeta(result) {

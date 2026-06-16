@@ -46,6 +46,10 @@ def test_strip_markdown_fences(raw, expected):
     ("  -- indented comment\n  SELECT 1", True),
     ("-- multiple\n-- comments\n-- before\nSELECT 1", True),
     ("-- only comments\n-- no sql here", False),
+    # Thinking text with ellipsis must NOT be recognised as SQL
+    ("SELECT p.\"Product\",\nFROM Product AS P\n\nJOIN Sales S ON ... etc.", False),
+    ("SELECT\n    p.\"Product\",\n    ...\nFROM Product", False),
+    ("SELECT ... FROM Product", False),
 ])
 def test_looks_like_sql(raw, expected):
     assert SqlBenchmarkRunner._looks_like_sql(raw) == expected
@@ -545,6 +549,54 @@ def test_tool_calling_extracts_sql_from_text_with_leading_comment():
     assert result['stop_reason'] == 'results_ok'
 
 
+def test_tool_calling_text_fallback_retry_on_sql_error():
+    """When text-only response is extracted as SQL but fails DuckDB execution,
+    the error is fed back and the model gets a chance to retry with a tool call.
+    Mirrors the normal tool-calling retry path (lines 794-815 of sql_benchmark.py)."""
+    runner = None
+    received_messages = []
+    call_count = [0]
+
+    async def tool_callback(*, system_prompt, messages, tools, model, provider, endpoint, timeout_ms):
+        call_count[0] += 1
+        received_messages.append(list(messages))
+        if call_count[0] == 1:
+            # First call: return text-only (no tool_calls) with SQL that will
+            # be extracted by strip_markdown_fences + _looks_like_sql, but
+            # fail DuckDB because the table doesn't exist.
+            return {
+                "content": "SELECT * FROM nonexistent_table_xyz",
+                "tool_calls": [],
+                "usage": {},
+                "model": "stub-model",
+            }
+        if call_count[0] == 2:
+            # Second call: after receiving error feedback, model uses the proper
+            # run_sql_query tool call with correct SQL.
+            return _make_tool_response("run_sql_query", {"sql": runner.questions_by_id[1]['sql']})
+        return _make_tool_response("results_ok", {})
+
+    with SqlBenchmarkRunner(llm_callback=None, data_dir=DATA_DIR) as created_runner:
+        runner = created_runner
+        result = run(
+            runner.run_question_tool_calling(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+                tool_llm_callback=tool_callback,
+            )
+        )
+
+    assert call_count[0] >= 2, f"Expected >=2 calls (retry after text-fallback error), got {call_count[0]}"
+    # Second call must have received the error feedback as a tool message
+    second_call_messages = received_messages[1]
+    tool_messages = [m for m in second_call_messages if m.get('role') == 'tool']
+    assert tool_messages, "LLM must receive a tool message with SQL error after text-fallback"
+    error_content = tool_messages[0]['content']
+    assert 'error' in error_content.lower() or 'Error' in error_content
+    assert result['success'] is True
 # ── grammar mode: run_question has outcome + conversation ────────────────────
 
 def test_run_question_grammar_mode_outcome_pass():
