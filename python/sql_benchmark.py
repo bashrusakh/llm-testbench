@@ -495,7 +495,10 @@ class SqlBenchmarkRunner:
         retry_count = 0
         total_calls = 0
         no_tool_call_retries = 0
-        MAX_NO_TOOL_CALL_RETRIES = 3
+        # In thinking mode the model outputs <think> blocks before tool calls —
+        # that's expected, not a failure. Reduce silent retries so we nudge sooner
+        # instead of burning total_calls on identical context replays.
+        MAX_NO_TOOL_CALL_RETRIES = 1 if thinking_mode.lower() == "on" else 3
         input_tokens = 0
         output_tokens = 0
         cost: Optional[float] = None
@@ -642,6 +645,15 @@ class SqlBenchmarkRunner:
                         actual_execution = self._execute_sql(last_sql)
                     except (duckdb.Error, ValueError, TypeError) as exc:
                         retry_count += 1
+                        messages.append({
+                            "role": "assistant",
+                            "content": text_content_clean or text_content or "",
+                        })
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": "text_fallback",
+                            "content": f"Error executing query. Fix this error and call run_sql_query again. Error: {exc}",
+                        })
                         if retry_count > max_retries:
                             return self._build_failure_result(
                                 question=question,
@@ -657,15 +669,6 @@ class SqlBenchmarkRunner:
                                 conversation=list(messages),
 
                                 thinking_mode=thinking_mode,)
-                        messages.append({
-                            "role": "assistant",
-                            "content": text_content_clean or text_content or "",
-                        })
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": "text_fallback",
-                            "content": f"Error executing query. Fix this error and call run_sql_query again. Error: {exc}",
-                        })
                         continue
                     actual_row_count = actual_execution.row_count
                     actual_columns = actual_execution.columns
@@ -805,6 +808,11 @@ class SqlBenchmarkRunner:
                         retry_count = 0
                     except (duckdb.Error, ValueError, TypeError) as exc:
                         retry_count += 1
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tc_id,
+                            "content": f"Error executing query. Fix this error and call run_sql_query again. Error: {exc}",
+                        })
                         if retry_count > max_retries:
                             return self._build_failure_result(
                                 question=question,
@@ -820,11 +828,6 @@ class SqlBenchmarkRunner:
                                 conversation=list(messages),
                             
                                 thinking_mode=thinking_mode,)
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tc_id,
-                            "content": f"Error executing query. Fix this error and call run_sql_query again. Error: {exc}",
-                        })
                 else:
                     messages.append({
                         "role": "tool",
@@ -1003,71 +1006,92 @@ class SqlBenchmarkRunner:
           call:results_ok{}                        — confirmation tool
         Returns (function_name, sql) or None. For results_ok, sql is "".
         """
+        # Try pipe-prefixed format: <|tool_call ... call:function(args)
         start_tag = "<|tool_call"
         end_tag = "<|tool_call|>"
         if end_tag not in text:
             end_tag = "<tool_call|>"
         si = text.find(start_tag)
-        ei = text.rfind(end_tag)
-        if si < 0 or ei < 0 or ei <= si:
-            return None
-        inner = text[si:ei + len(end_tag)]
-        call_prefix = "call:"
-        cp = inner.find(call_prefix)
-        if cp < 0:
-            return None
-        rest = inner[cp + len(call_prefix):]
+        ei = text.find(end_tag, si + len(start_tag)) if si >= 0 else -1
+        if si >= 0 and ei > si:
+            inner = text[si:ei + len(end_tag)]
+            call_prefix = "call:"
+            cp = inner.find(call_prefix)
+            if cp >= 0:
+                rest = inner[cp + len(call_prefix):]
 
-        # Find opening delimiter: ( or {
-        paren_pos = rest.find("(")
-        brace_pos = rest.find("{")
-        if paren_pos < 0 and brace_pos < 0:
-            return None
-        if paren_pos >= 0 and (brace_pos < 0 or paren_pos <= brace_pos):
-            close_delim = ")"
-            sep_pos = paren_pos
-        else:
-            close_delim = "}"
-            sep_pos = brace_pos
+                # Find opening delimiter: ( or {
+                paren_pos = rest.find("(")
+                brace_pos = rest.find("{")
+                if paren_pos >= 0 or brace_pos >= 0:
+                    if paren_pos >= 0 and (brace_pos < 0 or paren_pos <= brace_pos):
+                        close_delim = ")"
+                        sep_pos = paren_pos
+                    else:
+                        close_delim = "}"
+                        sep_pos = brace_pos
 
-        func_name = rest[:sep_pos].strip()
-        if ":" in func_name:
-            func_name = func_name.rsplit(":", 1)[-1]
+                    func_name = rest[:sep_pos].strip()
+                    if ":" in func_name:
+                        func_name = func_name.rsplit(":", 1)[-1]
 
-        args_raw = rest[sep_pos + 1:]
-        close_tag = close_delim + end_tag
-        ct_pos = args_raw.rfind(close_tag)
-        if ct_pos >= 0:
-            args_raw = args_raw[:ct_pos]
-        else:
-            close_pos = args_raw.rfind(close_delim)
-            if close_pos >= 0:
-                args_raw = args_raw[:close_pos]
-        args_raw = args_raw.strip()
+                    args_raw = rest[sep_pos + 1:]
+                    close_tag = close_delim + end_tag
+                    ct_pos = args_raw.rfind(close_tag)
+                    if ct_pos >= 0:
+                        args_raw = args_raw[:ct_pos]
+                    else:
+                        close_pos = args_raw.rfind(close_delim)
+                        if close_pos >= 0:
+                            args_raw = args_raw[:close_pos]
+                    args_raw = args_raw.strip()
 
-        # results_ok has no sql argument
-        if func_name == "results_ok":
-            return func_name, ""
+                    # results_ok has no sql argument
+                    if func_name == "results_ok":
+                        return func_name, ""
 
-        # Extract sql — try sql= first, then sql:
-        sql_raw = None
-        for sql_prefix in ("sql=", "sql:"):
-            si2 = args_raw.find(sql_prefix)
-            if si2 >= 0:
-                sql_raw = args_raw[si2 + len(sql_prefix):].lstrip()
-                break
-        if sql_raw is None:
-            return None
+                    # Extract sql — try sql= first, then sql:
+                    sql_raw = None
+                    for sql_prefix in ("sql=", "sql:"):
+                        si2 = args_raw.find(sql_prefix)
+                        if si2 >= 0:
+                            sql_raw = args_raw[si2 + len(sql_prefix):].lstrip()
+                            break
+                    if sql_raw is not None:
+                        # Strip Gemma-escaped quotes: <|"|> → "
+                        sql_raw = sql_raw.replace('<|"|>', '"').replace("<|\\\"|>", '"')
+                        # Strip wrapping quotes (single or double)
+                        if len(sql_raw) >= 2 and sql_raw[0] in ('"', "'") and sql_raw[-1] == sql_raw[0]:
+                            sql_raw = sql_raw[1:-1]
+                        sql_raw = sql_raw.strip()
+                        if sql_raw:
+                            return func_name, sql_raw
 
-        # Strip Gemma-escaped quotes: <|"|> → "
-        sql_raw = sql_raw.replace('<|"|>', '"').replace("<|\\\"|>", '"')
-        # Strip wrapping quotes (single or double)
-        if len(sql_raw) >= 2 and sql_raw[0] in ('"', "'") and sql_raw[-1] == sql_raw[0]:
-            sql_raw = sql_raw[1:-1]
-        sql_raw = sql_raw.strip()
-        if not sql_raw:
-            return None
-        return func_name, sql_raw
+        # Try Gemma-style <tool_call> format (no pipe prefix):
+        #   <tool_call>
+        #     <function=run_sql_query>
+        #       <parameter=sql>...SQL...</parameter>
+        #     </function>
+        #   </tool_call>
+        gemma_start = "<tool_call>"
+        gemma_end = "</tool_call>"
+        si = text.find(gemma_start)
+        ei = text.find(gemma_end, si + len(gemma_start)) if si >= 0 else -1
+        if si >= 0 and ei > si:
+            inner = text[si + len(gemma_start):ei].strip()
+            func_match = re.search(r'<function\s*=\s*(\w+)\s*>', inner)
+            if func_match:
+                func_name = func_match.group(1)
+                if func_name == "results_ok":
+                    return func_name, ""
+                if func_name == "run_sql_query":
+                    sql_match = re.search(r'<parameter\s*=\s*sql\s*>([\s\S]*?)</parameter>', inner)
+                    if sql_match:
+                        sql_raw = sql_match.group(1).strip()
+                        if sql_raw:
+                            return func_name, sql_raw
+
+        return None
     @staticmethod
     def strip_think_tags(text: str) -> str:
         """Strip <think>...</think> blocks from reasoning-model output (DeepSeek-R1, QwQ)."""

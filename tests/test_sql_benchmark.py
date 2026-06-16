@@ -464,15 +464,15 @@ def test_tool_calling_loop_sends_sql_error_back_to_llm():
 
 # ── no-tool-call path: LLM responds with text ────────────────────────────────
 
-def test_tool_calling_no_tool_call_prompts_llm_to_use_tool():
-    """When LLM returns text without a tool call:
+def test_tool_calling_no_tool_call_prompts_llm_to_use_tool_off():
+    """When LLM returns text without a tool call (thinking_mode=off):
     - First MAX_NO_TOOL_CALL_RETRIES (3) calls are silent retries (same messages).
     - After retries exhausted, a follow-up message is added asking to use run_sql_query.
     """
     runner = None
     received_messages = []
     call_count = [0]
-    MAX_RETRIES = 3  # must match sql_benchmark.py MAX_NO_TOOL_CALL_RETRIES
+    MAX_RETRIES = 3  # MAX_NO_TOOL_CALL_RETRIES for thinking_mode=off
 
     async def tool_callback(*, system_prompt, messages, tools, model, provider, endpoint, timeout_ms):
         call_count[0] += 1
@@ -493,6 +493,7 @@ def test_tool_calling_no_tool_call_prompts_llm_to_use_tool():
                 endpoint='http://127.0.0.1:1234',
                 timeout_ms=120000,
                 tool_llm_callback=tool_callback,
+                thinking_mode="off",
             )
         )
 
@@ -504,6 +505,43 @@ def test_tool_calling_no_tool_call_prompts_llm_to_use_tool():
         m.get("content", "") or "" for m in followup_call_messages if isinstance(m.get("content"), str)
     )
     assert "run_sql_query" in contents
+
+
+def test_tool_calling_no_tool_call_retries_less_for_thinking_on():
+    """With thinking_mode=on, MAX_NO_TOOL_CALL_RETRIES is 1 (not 3), so
+    after 1 silent retry we nudge immediately: total calls = 4
+    (1 silent + 1 nudge + 1 tool_call + 1 results_ok)."""
+    runner = None
+    call_count = [0]
+
+    async def tool_callback(*, system_prompt, messages, tools, model, provider, endpoint, timeout_ms):
+        call_count[0] += 1
+        if call_count[0] <= 2:
+            # Call 1: no tool call → silent retry
+            # Call 2: no tool call → nudge
+            return {"content": "<think>Let me reason...</think>", "tool_calls": [], "usage": {}, "model": "stub-model"}
+        if call_count[0] == 3:
+            # Call 3: after nudge, returns correct SQL
+            return _make_tool_response("run_sql_query", {"sql": runner.questions_by_id[1]['sql']})
+        # Call 4: results_ok to finish
+        return _make_tool_response("results_ok", {})
+
+    with SqlBenchmarkRunner(llm_callback=None, data_dir=DATA_DIR) as created_runner:
+        runner = created_runner
+        result = run(
+            runner.run_question_tool_calling(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+                tool_llm_callback=tool_callback,
+                thinking_mode="on",
+            )
+        )
+
+    assert call_count[0] == 4, f"Expected 4 calls (1 silent + 1 nudge + 1 tool + 1 ok), got {call_count[0]}"
+    assert result['success'] is True
 
 
 def test_tool_calling_extracts_sql_from_text_with_leading_comment():
@@ -597,6 +635,99 @@ def test_tool_calling_text_fallback_retry_on_sql_error():
     error_content = tool_messages[0]['content']
     assert 'error' in error_content.lower() or 'Error' in error_content
     assert result['success'] is True
+
+
+# ── _parse_custom_tool_call ──────────────────────────────────────────────────
+
+def test_parse_custom_tool_call_gemma_run_sql():
+    """Gemma-style <tool_call> with run_sql_query is parsed correctly."""
+    text = """Let me write the query.
+
+<tool_call>
+<function=run_sql_query>
+<parameter=sql>
+SELECT * FROM "Sales" LIMIT 5
+</parameter>
+</function>
+</tool_call>"""
+    result = SqlBenchmarkRunner._parse_custom_tool_call(text)
+    assert result is not None
+    func, sql = result
+    assert func == "run_sql_query"
+    assert "SELECT * FROM" in sql
+    assert '"Sales"' in sql
+
+
+def test_parse_custom_tool_call_gemma_results_ok():
+    """Gemma-style <tool_call> with results_ok is parsed correctly."""
+    text = "<tool_call>\n<function=results_ok>\n</function>\n</tool_call>"
+    result = SqlBenchmarkRunner._parse_custom_tool_call(text)
+    assert result == ("results_ok", "")
+
+
+def test_parse_custom_tool_call_gemma_missing_sql_param():
+    """Gemma block missing <parameter=sql> returns None (no SQL to extract)."""
+    text = "<tool_call>\n<function=run_sql_query>\n</function>\n</tool_call>"
+    result = SqlBenchmarkRunner._parse_custom_tool_call(text)
+    assert result is None
+
+
+def test_parse_custom_tool_call_gemma_missing_function_close():
+    """Gemma block missing </function> still parses if <parameter=sql> is present."""
+    text = "<tool_call>\n<function=run_sql_query>\n<parameter=sql>SELECT 1</parameter>\n</tool_call>"
+    result = SqlBenchmarkRunner._parse_custom_tool_call(text)
+    assert result is not None
+    assert result[0] == "run_sql_query"
+
+
+def test_parse_custom_tool_call_gemma_whitespace_around_equals():
+    """Gemma block with spaces around = is still parsed."""
+    text = "<tool_call>\n<function = run_sql_query>\n<parameter = sql>\nSELECT 1\n</parameter>\n</function>\n</tool_call>"
+    result = SqlBenchmarkRunner._parse_custom_tool_call(text)
+    assert result is not None
+    assert result[0] == "run_sql_query"
+
+
+def test_parse_custom_tool_call_pipe_format():
+    """Pipe-prefixed format still works (regression)."""
+    text = '<|tool_call|>call:run_sql_query(sql="SELECT 1")<|tool_call|>'
+    result = SqlBenchmarkRunner._parse_custom_tool_call(text)
+    assert result is not None
+    assert result[0] == "run_sql_query"
+    assert "SELECT 1" in result[1]
+
+
+def test_parse_custom_tool_call_gemma_first_block_only():
+    """Multiple Gemma blocks parse only the first, not spanning all."""
+    text = """<tool_call>
+<function=run_sql_query>
+<parameter=sql>
+SELECT 1
+</parameter>
+</function>
+</tool_call>
+some text
+<tool_call>
+<function=run_sql_query>
+<parameter=sql>
+SELECT 2
+</parameter>
+</function>
+</tool_call>"""
+    result = SqlBenchmarkRunner._parse_custom_tool_call(text)
+    assert result is not None
+    func, sql = result
+    assert func == "run_sql_query"
+    assert "SELECT 1" in sql
+    assert "SELECT 2" not in sql
+
+
+def test_parse_custom_tool_call_no_match():
+    """Plain text with no tool-call markers returns None."""
+    result = SqlBenchmarkRunner._parse_custom_tool_call("I think the answer is 42")
+    assert result is None
+
+
 # ── grammar mode: run_question has outcome + conversation ────────────────────
 
 def test_run_question_grammar_mode_outcome_pass():
