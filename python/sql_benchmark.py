@@ -781,6 +781,11 @@ class SqlBenchmarkRunner:
                     # exactly as if the model had called results_ok.
                     norm_key = last_sql or ""
                     if norm_key and norm_key in executed_sql:
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tc_id,
+                            "content": "Duplicate SQL — reusing previous result. If the result matches the request, call results_ok. If not, call run_sql_query with a corrected query.",
+                        })
                         return self._finalize_tool_run(
                             question=question, model=model, provider=provider,
                             endpoint=endpoint, expected_sql=expected_sql,
