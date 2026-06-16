@@ -4,8 +4,8 @@ All notable release changes for LLM Testbench are tracked here.
 
 ## v0.3.0 (2026-06-17)
 
-Design toggle — instrument-palette theme with teal/copper accent system, typography
-refresh, and sparkline throughput visualization.
+Design toggle, SQL run comparison heatmap, Gemma-style tool-call parsing, and
+text-fallback SQL retry improvements.
 
 ### Added
 
@@ -17,6 +17,12 @@ refresh, and sparkline throughput visualization.
   table showing per-run decode throughput. Bars use teal/copper/red gradient based on
   performance. Visible in the v2 design.
 - **Sora + JetBrains Mono fonts** — loaded alongside Inter for the v2 typography system.
+- **SQL run comparison heatmap** — visual heatmap table comparing SQL accuracy across
+  runs, with colour-coded cells for fast scanning of pass/fail per question. Accessible
+  from the history view. (#46)
+- **Model grouping in SQL run comparison heatmap** — heatmap rows are grouped by model
+  name for easier cross-run comparison when the same model appears in multiple runs.
+  (#48)
 
 ### Changed
 
@@ -32,6 +38,39 @@ refresh, and sparkline throughput visualization.
   `aria-pressed`, and `:focus-visible` keyboard support.
 - **CSS specificity** — v2 `.btn-danger` sidebar hover styles now correctly override
   the existing `(0,2,1)` base rule. (#49)
+- **SQL leading comments break text-only fallback** — when the model prefixed its SQL
+  with `--` comments, the text-fallback parser rejected the response as not looking
+  like SQL. Leading comment lines are now stripped before the SQL heuristic check.
+  (#45)
+- **SQL execution errors lost in text-fallback branch** — a `duckdb.Error` during
+  text-fallback SQL execution raised unhandled, crashing the job. Widened to
+  `(duckdb.Error, ValueError, TypeError)` and the error is reported back as a tool
+  result so the retry loop can continue. (#47)
+- **`stop_reason` label clarity** — retry and fallback labels in the SQL detail card
+  now distinguish "retry" from "fallback" instead of lumping both under the same
+  label. (#47)
+- **Gemma-style `<tool_call>` blocks not parsed** — models like Gemma emit tool calls
+  inside `<tool_call>` XML tags (often within think blocks). The parser now recognizes
+  the Gemma format in addition to the existing pipe-prefixed format. (#50)
+- **Last TOOL RESULT missing from conversation** — when `retry_count > max_retries`,
+  the final tool-result error was appended after the retry-limit break, leaving it off
+  the conversation history. Fixed by appending before the check. (#50)
+- **Think-mode wasted retry budget** — `MAX_NO_TOOL_CALL_RETRIES` reduced from 3 to 1
+  when `thinking_mode="on"`. Think blocks are expected output from reasoning models;
+  replaying identical context wastes the tool-call budget. (#50)
+
+### Documentation
+
+- **`_parse_custom_tool_call` docstring** — updated to document the Gemma-style XML
+  format alongside the existing pipe-prefixed formats. (#51)
+
+### Tests
+
+- 26 new tests: SQL leading comments (3 across `test_sql_benchmark.py`),
+  text-fallback SQL retry and stop-reason labels (6), model grouping heatmap (5),
+  Gemma-style tool-call parsing and think-mode retry counts (9),
+  design toggle regression (3).
+- Test suite: **213 passed** (up from 187).
 
 ---
 
