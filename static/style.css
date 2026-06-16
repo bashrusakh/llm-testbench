@@ -12,6 +12,7 @@
     --warn: #f59e0b;
     --danger: #ef4444;
     --radius: 6px;
+    --accent-glow: rgba(59,130,246,0.06);
   }
 
   * { box-sizing: border-box; }
@@ -1339,4 +1340,249 @@
     body { flex-direction: column; height: auto; overflow: auto; }
     aside { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
     main { padding: 24px; }
+  }
+
+  /* ─── Design v2: Instrument Palette ─────────────────────────────
+   * Toggle via html[data-design="v2"]. Keep all existing styles
+   * untouched; this block only overrides and adds.                    */
+
+  html[data-design="v2"] {
+    --bg: #0D1118;
+    --sidebar-bg: #161B24;
+    --card-bg: #161B24;
+    --accent: #14B8A6;
+    --accent-hover: #0D9488;
+    --text-muted: #64748B;
+    --text-dim: #475569;
+    --border: #262D38;
+    --border-light: #1E2530;
+    --radius: 8px;
+    --radius-sm: 4px;
+    --radius-lg: 12px;
+    --accent-glow: rgba(20,184,166,0.15);
+    --teal: #14B8A6;
+    --teal-light: #5EEAD4;
+    --teal-glow: rgba(20,184,166,0.15);
+    --copper: #C97A4B;
+    --copper-hover: #B56940;
+
+    --surface-alt: #1A202C;
+  }
+
+  /* ── Typography ── */
+  html[data-design="v2"] h1,
+  html[data-design="v2"] .section-title,
+  html[data-design="v2"] .metric-card .value {
+    font-family: 'Sora', sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  html[data-design="v2"] h1 {
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  html[data-design="v2"] .metric-card .value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--copper);
+  }
+  html[data-design="v2"] .metric-card .value.teal { color: var(--teal); }
+
+  html[data-design="v2"] table,
+  html[data-design="v2"] input[type="number"],
+  html[data-design="v2"] input[type="text"],
+  html[data-design="v2"] input[type="password"],
+  html[data-design="v2"] select,
+  html[data-design="v2"] textarea,
+  html[data-design="v2"] .model-item,
+  html[data-design="v2"] .sql-result-table td,
+  html[data-design="v2"] .sql-detail-modal-body,
+  html[data-design="v2"] .sql-detail-code,
+  html[data-design="v2"] .decode-badge {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Sidebar header ── */
+  html[data-design="v2"] .sidebar-section-title {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+  html[data-design="v2"] .sidebar-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-light);
+  }
+
+  /* ── Buttons ── */
+  html[data-design="v2"] .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 700;
+  }
+  html[data-design="v2"] .btn-primary:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 4px 16px var(--teal-glow);
+  }
+
+  html[data-design="v2"] .btn-danger {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  html[data-design="v2"] .btn-danger:hover {
+    background: rgba(228,107,107,0.1);
+    color: var(--error);
+    border-color: rgba(228,107,107,0.3);
+  }
+  html[data-design="v2"] .sidebar-actions-row .btn-danger:hover,
+  html[data-design="v2"] .sidebar-actions-row .btn-danger:focus-visible {
+    background: rgba(228,107,107,0.1);
+    color: var(--error);
+    border-color: rgba(228,107,107,0.3);
+  }
+  html[data-design="v2"] .sidebar-actions-row .btn-danger.running {
+    background: rgba(228,107,107,0.12);
+    color: var(--error);
+    border-color: rgba(228,107,107,0.3);
+  }
+
+  /* ── Cards / Surfaces ── */
+  html[data-design="v2"] .results-card {
+    border-radius: var(--radius-lg);
+  }
+
+  /* ── SQL result cells ── */
+  html[data-design="v2"] .sql-result-cell.pass { background: var(--teal); }
+  html[data-design="v2"] .sql-result-cell.fail { background: var(--copper); }
+
+  /* ── Speed preset buttons ── */
+  html[data-design="v2"] .speed-preset-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--teal-glow);
+  }
+
+  /* ── Compare bar ── */
+  html[data-design="v2"] .sql-compare-bar {
+    background: var(--accent-glow);
+  }
+
+  /* ── History thinking chip ── */
+  html[data-design="v2"] .history-thinking-chip.thinking-on {
+    color: var(--teal);
+    border-color: var(--teal);
+  }
+  html[data-design="v2"] .history-thinking-chip.thinking-both {
+    color: var(--copper);
+    border-color: var(--copper);
+  }
+
+  /* ── Progress bar ── */
+  html[data-design="v2"] .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--teal), var(--teal-light));
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  /* ── Endpoint cards ── */
+  html[data-design="v2"] .endpoint-card.selected {
+    border-color: var(--accent);
+    background: var(--teal-glow);
+  }
+  html[data-design="v2"] .endpoint-card:hover {
+    border-color: var(--accent);
+    background: var(--teal-glow);
+  }
+
+  /* ── Model items ── */
+  html[data-design="v2"] .model-item:hover {
+    background: var(--teal-glow);
+  }
+
+  /* ── Model list container ── */
+  html[data-design="v2"] .model-selector-container {
+    border-radius: var(--radius);
+  }
+
+  /* ── Settings subsection ── */
+  html[data-design="v2"] .settings-subsection {
+    border-radius: var(--radius);
+  }
+
+  /* ── Status messages ── */
+  html[data-design="v2"] .status-message.info {
+    background: var(--teal-glow);
+    color: var(--teal);
+    border-color: var(--teal-glow);
+  }
+
+  /* ── Speed view toggle active ── */
+  html[data-design="v2"] .speed-view-toggle button.active {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  /* ── Sparkline bars (v2 overrides) ── */
+  html[data-design="v2"] .sparkline-bar { min-width: 80px; }
+  html[data-design="v2"] .sparkline-bar__bar {
+    min-width: 5px;
+    transition: height 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  html[data-design="v2"] .sparkline-bar__bar.good { background: var(--teal); }
+  html[data-design="v2"] .sparkline-bar__bar.mid { background: var(--copper); }
+  html[data-design="v2"] .sparkline-bar__bar.poor { background: var(--error); }
+
+  /* ── Design toggle button ── */
+  .design-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    margin-left: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 4px);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.6rem;
+    line-height: 1;
+    cursor: pointer;
+    vertical-align: middle;
+    transition: all 0.15s;
+  }
+  .design-toggle:hover,
+  .design-toggle:focus-visible {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-glow);
+    outline: none;
+  }
+  html[data-design="v2"] .design-toggle {
+    border-color: var(--teal);
+    color: var(--teal);
+    background: var(--teal-glow);
+  }
+
+  /* ── SQL Compare run label (new in v2) ── */
+  html[data-design="v2"] .sql-compare-run-label {
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* ── SQL detail tabs active ── */
+  html[data-design="v2"] .sql-detail-tab.active {
+    color: var(--teal);
+    border-bottom-color: var(--teal);
   }
