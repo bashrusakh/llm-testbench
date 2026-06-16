@@ -1000,10 +1000,23 @@ class SqlBenchmarkRunner:
         """Parse non-standard tool-call formats that some models produce.
 
         Supported formats:
+
+        Pipe-prefixed (call: syntax):
           call:run_sql_query(sql="...")           — standard parenthesised
           call:duckdb:run_sql_query(sql='...')    — duckdb: prefix, single quotes
           call:run_sql_query{sql:"..."}           — JSON-ish braces
           call:results_ok{}                        — confirmation tool
+
+        Gemma-style XML:
+          <tool_call>
+            <function=run_sql_query>
+              <parameter=sql>...SQL...</parameter>
+            </function>
+          </tool_call>
+          <tool_call>
+            <function=results_ok></function>
+          </tool_call>
+
         Returns (function_name, sql) or None. For results_ok, sql is "".
         """
         # Try pipe-prefixed format: <|tool_call ... call:function(args)
