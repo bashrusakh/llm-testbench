@@ -30,6 +30,27 @@ def test_strip_markdown_fences(raw, expected):
     assert SqlBenchmarkRunner.strip_markdown_fences(raw) == expected
 
 
+# ── _looks_like_sql ────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("raw,expected", [
+    ("SELECT 1", True),
+    ("WITH cte AS (SELECT 1) SELECT * FROM cte", True),
+    ("select * from foo", True),
+    ("with x as (select 1) select * from x", True),
+    ("not sql text", False),
+    ("", False),
+    # Leading -- comments must be skipped
+    ("-- comment\nSELECT 1", True),
+    ("-- comment\n\nSELECT 1", True),
+    ("-- comment\nWITH cte AS (SELECT 1)\nSELECT * FROM cte", True),
+    ("  -- indented comment\n  SELECT 1", True),
+    ("-- multiple\n-- comments\n-- before\nSELECT 1", True),
+    ("-- only comments\n-- no sql here", False),
+])
+def test_looks_like_sql(raw, expected):
+    assert SqlBenchmarkRunner._looks_like_sql(raw) == expected
+
+
 # ── _convert_mssql_brackets_to_duckdb ─────────────────────────────────────────
 
 @pytest.mark.parametrize("raw,expected", [
@@ -479,6 +500,49 @@ def test_tool_calling_no_tool_call_prompts_llm_to_use_tool():
         m.get("content", "") or "" for m in followup_call_messages if isinstance(m.get("content"), str)
     )
     assert "run_sql_query" in contents
+
+
+def test_tool_calling_extracts_sql_from_text_with_leading_comment():
+    """Model returns text with SQL in ``` fences that has a leading -- comment.
+    _looks_like_sql must skip the comment and recognize the SELECT, not fall
+    into silent retries."""
+    runner = None
+    call_count = [0]
+
+    async def tool_callback(*, system_prompt, messages, tools, model, provider, endpoint, timeout_ms):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            # First call: return prose with --comment SQL inside ```sql fences
+            expected_sql = runner.questions_by_id[1]['sql']
+            return {
+                "content": f"""Here is the query:
+
+```sql
+-- This query answers the question
+{expected_sql}
+```""",
+                "tool_calls": [],
+                "usage": {},
+                "model": "stub-model",
+            }
+        return _make_tool_response("results_ok", {})
+
+    with SqlBenchmarkRunner(llm_callback=None, data_dir=DATA_DIR) as created_runner:
+        runner = created_runner
+        result = run(
+            runner.run_question_tool_calling(
+                question_id=1,
+                model='stub-model',
+                provider='openai-compatible',
+                endpoint='http://127.0.0.1:1234',
+                timeout_ms=120000,
+                tool_llm_callback=tool_callback,
+            )
+        )
+
+    assert call_count[0] < 3, f"Expected 1 or 2 calls (SQL extracted from text), got {call_count[0]}"
+    assert result['success'] is True
+    assert result['stop_reason'] == 'results_ok'
 
 
 # ── grammar mode: run_question has outcome + conversation ────────────────────
