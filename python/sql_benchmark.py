@@ -641,20 +641,32 @@ class SqlBenchmarkRunner:
                     try:
                         actual_execution = self._execute_sql(last_sql)
                     except (duckdb.Error, ValueError, TypeError) as exc:
-                        return self._build_failure_result(
-                            question=question,
-                            model=model,
-                            provider=provider,
-                            endpoint=endpoint,
-                            expected_sql=expected_sql,
-                            expected_row_count=expected_row_count,
-                            expected_columns=expected_columns,
-                            expected_first_row=expected_first_row,
-                            generated_sql=last_sql,
-                            error=f"Generated SQL execution failed: {exc}",
-                            conversation=list(messages),
+                        retry_count += 1
+                        if retry_count > max_retries:
+                            return self._build_failure_result(
+                                question=question,
+                                model=model,
+                                provider=provider,
+                                endpoint=endpoint,
+                                expected_sql=expected_sql,
+                                expected_row_count=expected_row_count,
+                                expected_columns=expected_columns,
+                                expected_first_row=expected_first_row,
+                                generated_sql=last_sql,
+                                error=f"Generated SQL execution failed after {max_retries} retries: {exc}",
+                                conversation=list(messages),
 
-                            thinking_mode=thinking_mode,)
+                                thinking_mode=thinking_mode,)
+                        messages.append({
+                            "role": "assistant",
+                            "content": text_content_clean or text_content or "",
+                        })
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": "text_fallback",
+                            "content": f"Error executing query. Fix this error and call run_sql_query again. Error: {exc}",
+                        })
+                        continue
                     actual_row_count = actual_execution.row_count
                     actual_columns = actual_execution.columns
                     actual_first_row = actual_execution.first_row
@@ -887,6 +899,8 @@ class SqlBenchmarkRunner:
     @staticmethod
     def _looks_like_sql(text: str) -> bool:
         """Heuristic check if text looks like a SQL SELECT statement."""
+        if "..." in text:
+            return False
         for line in text.strip().upper().splitlines():
             stripped = line.strip()
             if not stripped:
