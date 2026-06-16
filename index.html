@@ -245,6 +245,7 @@
       </div>
 
       <div id="sqlResultsContainer" style="display:none;"></div>
+      <div id="sqlCompareContainer" style="display:none;"></div>
       <div style="overflow-x: auto;">
         <div id="speedResultsContainer">
           <table>
@@ -281,8 +282,9 @@
             <input id="selectAllHistory" type="checkbox">
             Select all
           </label>
-          <button id="clearSelectedHistoryBtn" class="btn-danger btn-small" disabled>Clear Selected</button>
-          <button id="clearAllHistoryBtn" class="btn-danger btn-small">Clear All</button>
+            <button id="compareRunsBtn" class="btn-primary btn-small" disabled>Compare Runs</button>
+            <button id="clearSelectedHistoryBtn" class="btn-danger btn-small" disabled>Clear Selected</button>
+            <button id="clearAllHistoryBtn" class="btn-danger btn-small">Clear All</button>
         </div>
         <div style="display:flex; align-items:center; gap:12px;">
           <div id="historyStatus" class="text-muted">No saved history loaded yet</div>

@@ -1119,6 +1119,7 @@
   function updateHistorySelectionUi() {
     const allCheckbox = $('selectAllHistory');
     const clearSelectedBtn = $('clearSelectedHistoryBtn');
+    const compareBtn = $('compareRunsBtn');
     const total = state.history.length;
     const selected = state.historySelection.size;
     if (allCheckbox) {
@@ -1126,6 +1127,13 @@
       allCheckbox.indeterminate = selected > 0 && selected < total;
     }
     if (clearSelectedBtn) clearSelectedBtn.disabled = selected === 0;
+    if (compareBtn) {
+      const sqlSelected = selected > 1 && [...state.historySelection].some(jid => {
+        const job = state.history.find(j => j.job_id === jid);
+        return job && job.request?.benchmark_type === 'sql';
+      });
+      compareBtn.disabled = !sqlSelected;
+    }
   }
 
   let _openHistoryJobInFlight = false;
@@ -1147,6 +1155,8 @@
       sqlContainer.innerHTML = '';
       sqlContainer.style.display = 'none';
     }
+    const compareC = $('sqlCompareContainer');
+    if (compareC) { compareC.innerHTML = ''; compareC.style.display = 'none'; }
     // Reset summary
     resetSummaryForMode('speed');
     const progressFill = $('progressFill');
@@ -1853,6 +1863,225 @@
     });
     const sqlScroller = container.querySelector('.sql-result-scroll');
     if (sqlScroller) sqlScroller.addEventListener('scroll', hideSqlFloatingTooltip, { passive: true });
+  }
+
+  // ── Run comparison heatmap ─────────────────────────────────────
+
+  function renderSqlRunCompare() {
+    const container = $('sqlCompareContainer');
+    if (!container) return;
+
+    const sqlJobs = [...state.historySelection]
+      .map(jid => state.history.find(j => j.job_id === jid))
+      .filter(j => j && j.request?.benchmark_type === 'sql');
+
+    if (sqlJobs.length < 2) {
+      container.style.display = 'none';
+      return;
+    }
+
+    // Merge results from all selected jobs, tagging each with its run metadata.
+    const allResults = [];
+    for (const job of sqlJobs) {
+      const comment = job.request?.comment || '';
+      const label = job.started_at
+        ? new Date(job.started_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : '—';
+      for (const r of (job.results || [])) {
+        allResults.push({ ...r, _job_id: job.job_id, _run_comment: comment, _run_label: label, _run_started_at: job.started_at });
+      }
+    }
+
+    if (!allResults.length) {
+      container.innerHTML = emptyState('No SQL results in selected runs', { padding: '16px' });
+      container.style.display = '';
+      _sqlCompareHeader(container);
+      return;
+    }
+
+    const difficultyOrder = ['trivial', 'easy', 'medium', 'hard'];
+    const difficultyLabel = (v) => { const n = String(v || '').trim().toLowerCase(); return difficultyOrder.includes(n) ? n : 'unknown'; };
+    const difficultyRank = (v) => { const i = difficultyOrder.indexOf(difficultyLabel(v)); return i >= 0 ? i : difficultyOrder.length; };
+    const compareQids = (a, b) => { const an = Number(a), bn = Number(b); return Number.isFinite(an) && Number.isFinite(bn) && an !== bn ? an - bn : String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' }); };
+
+    // Question metadata
+    const qMap = new Map();
+    allResults.forEach(r => {
+      if (r.question_id == null) return;
+      const key = String(r.question_id);
+      const cur = qMap.get(key);
+      const d = difficultyLabel(r.difficulty);
+      if (!cur || difficultyRank(d) < difficultyRank(cur.difficulty)) qMap.set(key, { id: r.question_id, difficulty: d });
+    });
+    const qMeta = Array.from(qMap.values()).sort((a, b) => {
+      const rd = difficultyRank(a.difficulty) - difficultyRank(b.difficulty);
+      return rd !== 0 ? rd : compareQids(a.id, b.id);
+    });
+    const allQids = qMeta.map(q => q.id);
+    const groupStartByQid = new Set();
+    const groups = [];
+    qMeta.forEach((item, i) => {
+      const lbl = difficultyLabel(item.difficulty);
+      if (i === 0 || groups[groups.length - 1].label !== lbl) { groups.push({ label: lbl, count: 1 }); groupStartByQid.add(String(item.id)); }
+      else groups[groups.length - 1].count += 1;
+    });
+
+    // Group by model + job_id → each group is one "run" row
+    const byRun = {};
+    allResults.forEach(r => {
+      const key = (r.model || 'unknown') + '|||' + (r._job_id || '');
+      if (!byRun[key]) {
+        byRun[key] = {
+          model: r.model || 'unknown',
+          job_id: r._job_id,
+          comment: r._run_comment || '',
+          label: r._run_label || '',
+          started_at: r._run_started_at || '',
+          results: {}
+        };
+      }
+      byRun[key].results[String(r.question_id)] = r;
+    });
+
+    // Run verdict for a single question result
+    function runCellStatus(r) {
+      if (!r) return 'none';
+      if (r.success === true) return 'pass';
+      const err = (r.error || '').toLowerCase();
+      if (err.includes('failed') || err.includes('retry') || err.includes('empty') || err.includes('setup') || err.includes('aborted') || err.includes('callback') || err.includes('parser error'))
+        return 'error';
+      return 'fail';
+    }
+
+    const runs = Object.values(byRun).map(run => {
+      const passed = allQids.filter(qid => run.results[String(qid)] && run.results[String(qid)].success === true).length;
+      return { ...run, passed, total: allQids.length };
+    });
+
+    runs.sort((a, b) => {
+      const d = b.passed - a.passed;
+      if (d !== 0) return d;
+      return (a.started_at || '').localeCompare(b.started_at || '');
+    });
+
+    const bestScore = runs.length ? runs[0].passed : 0;
+
+    // Build table
+    const qCols = allQids.map(() => '<col class="sql-question-col">').join('');
+    let html = `<div class="sql-result-scroll"><table class="sql-result-table"><colgroup><col class="sql-model-col">${qCols}<col class="sql-comment-col"></colgroup><thead>`;
+
+    // Category header row
+    html += '<tr class="sql-category-row">';
+    html += '<th class="sql-model-header" rowspan="2">Run</th>';
+    groups.forEach(g => { html += `<th class="sql-category-header" colspan="${g.count}">${escapeHtml(g.label)}</th>`; });
+    html += '<th class="sql-category-header sql-comment-col-header" rowspan="2">Comment</th>';
+    html += '</tr>';
+
+    // Question header row
+    html += '<tr class="sql-question-row">';
+    qMeta.forEach(q => {
+      const cls = groupStartByQid.has(String(q.id)) ? 'sql-group-start' : '';
+      html += `<th class="${cls}" title="Q${q.id} · ${escapeHtml(q.difficulty)}">Q${q.id}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    // Run rows
+    runs.forEach((run, idx) => {
+      const isBest = idx === 0 && runs.length > 1 && run.passed === bestScore;
+      const pct = run.passed / Math.max(run.total, 1);
+      const countCls = pct >= 1 ? 'all-pass' : pct > 0 ? 'partial' : 'none';
+
+      html += '<tr class="sql-result-model-row"><td class="sql-result-model-name">';
+      html += `<div class="name-text" title="${escapeHtml(run.model)}">${escapeHtml(run.model)}`;
+      if (isBest) html += '<span class="sql-quant-badge" style="color:#fbbf24;border-color:rgba(251,191,36,0.3);">Best</span>';
+      html += `<span class="sql-result-count ${countCls}">${run.passed}/${run.total}</span>`;
+      html += '</div>';
+      html += `<div class="name-text" style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">${escapeHtml(run.label)}</div>`;
+      html += '</td>';
+
+      allQids.forEach(qid => {
+        const cls = groupStartByQid.has(String(qid)) ? 'sql-group-start' : '';
+        const r = run.results[String(qid)];
+        const st = runCellStatus(r);
+        const marker = st === 'pass' ? '' : st === 'fail' ? '' : st === 'error' ? '' : '';
+        const qNum = r ? r.question_id : qid;
+        const diff = r ? difficultyLabel(r.difficulty || '') : '—';
+
+        if (st === 'pass') {
+          const tip = `<span class="sql-tooltip-status pass">PASS</span> — Q${qNum} [${diff}]`;
+          html += `<td class="${cls}"><div class="sql-result-cell pass" data-qid="${qNum}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
+        } else if (st === 'error') {
+          const errShort = (r ? (r.error || 'Unknown error') : 'No result').slice(0, 120);
+          const tip = `<span class="sql-tooltip-status error">ERROR</span> — Q${qNum} [${diff}]<br>${escapeHtml(errShort)}`;
+          html += `<td class="${cls}"><div class="sql-result-cell error" data-qid="${qNum}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
+        } else {
+          const errShort = (r ? (r.error || 'Result mismatch') : 'No result').slice(0, 120);
+          const tip = `<span class="sql-tooltip-status fail">FAIL</span> — Q${qNum} [${diff}]<br>${escapeHtml(errShort)}`;
+          html += `<td class="${cls}"><div class="sql-result-cell fail" data-qid="${qNum}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
+        }
+      });
+
+      // Comment column
+      html += `<td class="sql-comment-cell">${escapeHtml(run.comment || '—')}</td>`;
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+    container.style.display = '';
+    _sqlCompareHeader(container);
+    applySqlComparePopups(container);
+    syncSqlMatrixLayout(container);
+  }
+
+  // Tooltip on hover for compare cells (reuses the same floating-tip mechanism).
+  function applySqlComparePopups(container) {
+    if (!container) return;
+    container.querySelectorAll('.sql-result-cell').forEach(cell => {
+      cell.addEventListener('mouseenter', () => showSqlFloatingTooltip(cell));
+      cell.addEventListener('mousemove', () => positionSqlFloatingTooltip(cell));
+      cell.addEventListener('mouseleave', hideSqlFloatingTooltip);
+    });
+    const scroller = container.querySelector('.sql-result-scroll');
+    if (scroller) scroller.addEventListener('scroll', hideSqlFloatingTooltip, { passive: true });
+  }
+
+  function _sqlCompareHeader(container) {
+    let bar = container.querySelector('.sql-compare-bar');
+    if ((state.historySelection || new Set()).size < 2) {
+      if (bar) bar.remove();
+      container.style.display = 'none';
+      return;
+    }
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'sql-compare-bar';
+      bar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(59,130,246,0.06);';
+      const label = document.createElement('span');
+      label.className = 'text-muted';
+      label.style.cssText = 'font-size:0.78rem;';
+      label.textContent = `Comparing ${state.historySelection.size} runs`;
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'btn-small';
+      closeBtn.textContent = 'Close';
+      closeBtn.addEventListener('click', () => {
+        state.historySelection.clear();
+        container.style.display = 'none';
+        container.innerHTML = '';
+        updateHistorySelectionUi();
+        renderHistory();
+      });
+      bar.appendChild(label);
+      bar.appendChild(closeBtn);
+      container.insertBefore(bar, container.firstChild);
+    } else {
+      bar.querySelector('span').textContent = `Comparing ${state.historySelection.size} runs`;
+    }
+  }
+
+  function closeSqlRunCompare() {
+    const container = $('sqlCompareContainer');
+    if (container) { container.style.display = 'none'; container.innerHTML = ''; }
   }
 
   function sqlDetailStatus(result) {
@@ -2704,6 +2933,11 @@
 
   const clearAllHistoryBtn = $('clearAllHistoryBtn');
   if (clearAllHistoryBtn) clearAllHistoryBtn.addEventListener('click', () => clearHistory({ all: true }));
+
+  const compareRunsBtn = $('compareRunsBtn');
+  if (compareRunsBtn) compareRunsBtn.addEventListener('click', () => {
+    if (state.historySelection.size >= 2) renderSqlRunCompare();
+  });
 
   const selectAllHistory = $('selectAllHistory');
   if (selectAllHistory) {
