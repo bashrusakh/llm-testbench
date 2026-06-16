@@ -2088,7 +2088,7 @@
     if (!bar) {
       bar = document.createElement('div');
       bar.className = 'sql-compare-bar';
-      bar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(59,130,246,0.06);';
+      bar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--accent-glow);';
       const label = document.createElement('span');
       label.className = 'text-muted';
       label.style.cssText = 'font-size:0.78rem;';
@@ -3129,6 +3129,31 @@
       }
     } catch (_) { /* leave the placeholder */ }
   }
+
+  // ── Design toggle ──
+  function applyDesign(name) {
+    const html = document.documentElement;
+    const btn = document.getElementById('designToggle');
+    if (name === 'v2') {
+      html.dataset.design = 'v2';
+      if (btn) btn.setAttribute('aria-pressed', 'true');
+      try { localStorage.setItem('llmTestbench.design', 'v2'); } catch (_) {}
+    } else {
+      delete html.dataset.design;
+      if (btn) btn.setAttribute('aria-pressed', 'false');
+      try { localStorage.setItem('llmTestbench.design', 'v1'); } catch (_) {}
+    }
+  }
+  (function initDesign() {
+    let saved;
+    try { saved = localStorage.getItem('llmTestbench.design'); } catch (_) {}
+    if (saved === 'v2') applyDesign('v2');
+    const btn = document.getElementById('designToggle');
+    if (btn) btn.addEventListener('click', () => {
+      const next = document.documentElement.dataset.design === 'v2' ? 'v1' : 'v2';
+      applyDesign(next);
+    });
+  })();
 
   // ── Init ──
   loadStoredManualProviders();

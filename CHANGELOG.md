@@ -2,6 +2,39 @@
 
 All notable release changes for LLM Testbench are tracked here.
 
+## v0.3.0 (2026-06-17)
+
+Design toggle — instrument-palette theme with teal/copper accent system, typography
+refresh, and sparkline throughput visualization.
+
+### Added
+
+- **Design toggle** — ✦ button in the sidebar header switches between the default
+  dark-blue theme and a new instrument-palette theme (teal accent, copper secondary,
+  Sora for headings, JetBrains Mono for data). Preference persisted in `localStorage`.
+  Touches `index.html`, `static/style.css`, `static/app.js`.
+- **Sparkline throughput bars** — miniature animated bar charts in the speed results
+  table showing per-run decode throughput. Bars use teal/copper/red gradient based on
+  performance. Visible in the v2 design.
+- **Sora + JetBrains Mono fonts** — loaded alongside Inter for the v2 typography system.
+
+### Changed
+
+- **CSS architecture** — all v2 design overrides live in a single
+  `html[data-design="v2"]` block appended to `static/style.css`. The default v1 design
+  is completely untouched.
+- **SQL run compare bar** — hardcoded blue glow replaced with `var(--accent-glow)`
+  CSS variable so it respects whichever design is active.
+
+### Fixed
+
+- **Accessibility** — design toggle button has `type="button"`, `aria-label`,
+  `aria-pressed`, and `:focus-visible` keyboard support.
+- **CSS specificity** — v2 `.btn-danger` sidebar hover styles now correctly override
+  the existing `(0,2,1)` base rule. (#49)
+
+---
+
 ## v0.2.3 (2026-06-16)
 
 Robustness pass + run annotations — HTTP connection pooling, SQL execution watchdog,
