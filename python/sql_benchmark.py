@@ -218,7 +218,7 @@ class SqlBenchmarkRunner:
                 expected_columns=expected_columns,
                 expected_first_row=expected_first_row,
                 generated_sql="",
-                error=f"LLM callback failed: {exc}",
+                error=f"LLM callback failed: {type(exc).__name__}: {exc!r}",
             
                 thinking_mode=thinking_mode,)
 
@@ -587,7 +587,7 @@ class SqlBenchmarkRunner:
                     expected_columns=expected_columns,
                     expected_first_row=expected_first_row,
                     generated_sql=last_sql or "",
-                    error=f"LLM tool-calling callback failed: {exc}",
+                    error=f"LLM tool-calling callback failed: {type(exc).__name__}: {exc!r}",
                     conversation=list(messages),
 
                     thinking_mode=thinking_mode,)
@@ -887,8 +887,14 @@ class SqlBenchmarkRunner:
     @staticmethod
     def _looks_like_sql(text: str) -> bool:
         """Heuristic check if text looks like a SQL SELECT statement."""
-        upper = text.strip().upper()
-        return upper.startswith("SELECT") or upper.startswith("WITH")
+        for line in text.strip().upper().splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith("--"):
+                continue
+            return stripped.startswith("SELECT") or stripped.startswith("WITH")
+        return False
 
     @staticmethod
     def _build_result_summary(result: QueryExecutionResult) -> str:
