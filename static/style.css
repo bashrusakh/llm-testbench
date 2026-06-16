@@ -756,6 +756,35 @@
     word-break: break-word;
   }
 
+  /* ── Run comparison: model group header row ────────────────────
+     Spans the full table width, non-sticky so it scrolls with the
+     content. Separates model groups visually with a top border. */
+  .sql-result-table .sql-compare-model-head td {
+    width: auto !important;
+    min-width: auto !important;
+    max-width: none !important;
+    position: static !important;
+    left: auto !important;
+    box-shadow: none !important;
+    padding: 8px 12px;
+    background: #131a26;
+    border-top: 2px solid var(--border);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+  .sql-compare-model-label {
+    font-weight: 600;
+    color: var(--text-main);
+    margin-right: 8px;
+  }
+  .sql-compare-run-label {
+    font-size: 0.76rem;
+    color: var(--text-main);
+    font-weight: 500;
+    margin-right: 8px;
+  }
+
   .sql-result-table thead th {
     width: var(--sql-question-column-width);
     min-width: var(--sql-question-column-width);
