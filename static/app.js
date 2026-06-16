@@ -1929,13 +1929,14 @@
       else groups[groups.length - 1].count += 1;
     });
 
-    // Group by model + job_id → each group is one "run" row
-    const byRun = {};
+    // Group by model, then by job_id within each model → model → [runs].
+    const byModel = {};
     allResults.forEach(r => {
-      const key = (r.model || 'unknown') + '|||' + (r._job_id || '');
-      if (!byRun[key]) {
-        byRun[key] = {
-          model: r.model || 'unknown',
+      const modelName = r.model || 'unknown';
+      if (!byModel[modelName]) byModel[modelName] = { model: modelName, runs: {} };
+      const runKey = r._job_id || '';
+      if (!byModel[modelName].runs[runKey]) {
+        byModel[modelName].runs[runKey] = {
           job_id: r._job_id,
           comment: r._run_comment || '',
           label: r._run_label || '',
@@ -1943,7 +1944,7 @@
           results: {}
         };
       }
-      byRun[key].results[String(r.question_id)] = r;
+      byModel[modelName].runs[runKey].results[String(r.question_id)] = r;
     });
 
     // Run verdict for a single question result
@@ -1956,18 +1957,33 @@
       return 'fail';
     }
 
-    const runs = Object.values(byRun).map(run => {
-      const passed = allQids.filter(qid => run.results[String(qid)] && run.results[String(qid)].success === true).length;
-      return { ...run, passed, total: allQids.length };
-    });
-
-    runs.sort((a, b) => {
-      const d = b.passed - a.passed;
+    // Build model groups: sort models by their best run's score, runs within model by score.
+    const models = [];
+    for (const [modelName, modelData] of Object.entries(byModel)) {
+      const runObjs = Object.values(modelData.runs).map(run => {
+        const passed = allQids.filter(qid => run.results[String(qid)] && run.results[String(qid)].success === true).length;
+        return { ...run, passed, total: allQids.length };
+      });
+      runObjs.sort((a, b) => {
+        const d = b.passed - a.passed;
+        if (d !== 0) return d;
+        return (a.started_at || '').localeCompare(b.started_at || '');
+      });
+      models.push({
+        model: modelName,
+        runs: runObjs,
+        bestRunScore: runObjs.length ? runObjs[0].passed : 0,
+        runCount: runObjs.length,
+      });
+    }
+    models.sort((a, b) => {
+      const d = b.bestRunScore - a.bestRunScore;
       if (d !== 0) return d;
-      return (a.started_at || '').localeCompare(b.started_at || '');
+      return a.model.localeCompare(b.model);
     });
 
-    const bestScore = runs.length ? runs[0].passed : 0;
+    const globalBestScore = models.length ? Math.max(...models.map(m => m.bestRunScore)) : 0;
+    const totalCols = allQids.length + 2; // model col + questions + comment col
 
     // Build table
     const qCols = allQids.map(() => '<col class="sql-question-col">').join('');
@@ -1975,7 +1991,7 @@
 
     // Category header row
     html += '<tr class="sql-category-row">';
-    html += '<th class="sql-model-header" rowspan="2">Run</th>';
+    html += '<th class="sql-model-header" rowspan="2">Model / Run</th>';
     groups.forEach(g => { html += `<th class="sql-category-header" colspan="${g.count}">${escapeHtml(g.label)}</th>`; });
     html += '<th class="sql-category-header sql-comment-col-header" rowspan="2">Comment</th>';
     html += '</tr>';
@@ -1988,45 +2004,58 @@
     });
     html += '</tr></thead><tbody>';
 
-    // Run rows
-    runs.forEach((run, idx) => {
-      const isBest = idx === 0 && runs.length > 1 && run.passed === bestScore;
-      const pct = run.passed / Math.max(run.total, 1);
-      const countCls = pct >= 1 ? 'all-pass' : pct > 0 ? 'partial' : 'none';
+    // ── Model + run rows ──
 
-      html += '<tr class="sql-result-model-row"><td class="sql-result-model-name">';
-      html += `<div class="name-text" title="${escapeHtml(run.model)}">${escapeHtml(run.model)}`;
-      if (isBest) html += '<span class="sql-quant-badge" style="color:#fbbf24;border-color:rgba(251,191,36,0.3);">Best</span>';
-      html += `<span class="sql-result-count ${countCls}">${run.passed}/${run.total}</span>`;
-      html += '</div>';
-      html += `<div class="name-text" style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">${escapeHtml(run.label)}</div>`;
-      html += '</td>';
+    models.forEach((m, mi) => {
+      // Model header row
+      const isBestModel = m.model !== 'unknown' && mi === 0 && models.length > 1 && m.bestRunScore === globalBestScore;
+      html += '<tr class="sql-result-model-row sql-compare-model-head">';
+      const bestPct = m.bestRunScore / Math.max(allQids.length, 1);
+      const mCountCls = bestPct >= 1 ? 'all-pass' : bestPct > 0 ? 'partial' : 'none';
+      html += `<td class="sql-result-model-name" colspan="${totalCols}"><div class="name-text">`;
+      html += `<span class="sql-compare-model-label">${escapeHtml(m.model)}</span>`;
+      if (isBestModel) html += '<span class="sql-quant-badge" style="color:#fbbf24;border-color:rgba(251,191,36,0.35);margin-left:6px;">Best model</span>';
+      html += `<span class="sql-result-count ${mCountCls}">best ${m.bestRunScore}/${allQids.length} &middot; ${m.runCount} run${m.runCount !== 1 ? 's' : ''}</span>`;
+      html += '</div></td></tr>';
 
-      allQids.forEach(qid => {
-        const cls = groupStartByQid.has(String(qid)) ? 'sql-group-start' : '';
-        const r = run.results[String(qid)];
-        const st = runCellStatus(r);
-        const marker = st === 'pass' ? '' : st === 'fail' ? '' : st === 'error' ? '' : '';
-        const qNum = r ? r.question_id : qid;
-        const diff = r ? difficultyLabel(r.difficulty || '') : '—';
+      // Run rows for this model
+      m.runs.forEach((run, ri) => {
+        const isBestRun = ri === 0 && m.runs.length > 1;
+        const pct = run.passed / Math.max(run.total, 1);
+        const countCls = pct >= 1 ? 'all-pass' : pct > 0 ? 'partial' : 'none';
 
-        if (st === 'pass') {
-          const tip = `<span class="sql-tooltip-status pass">PASS</span> — Q${qNum} [${diff}]`;
-          html += `<td class="${cls}"><div class="sql-result-cell pass" data-qid="${qNum}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
-        } else if (st === 'error') {
-          const errShort = (r ? (r.error || 'Unknown error') : 'No result').slice(0, 120);
-          const tip = `<span class="sql-tooltip-status error">ERROR</span> — Q${qNum} [${diff}]<br>${escapeHtml(errShort)}`;
-          html += `<td class="${cls}"><div class="sql-result-cell error" data-qid="${qNum}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
-        } else {
-          const errShort = (r ? (r.error || 'Result mismatch') : 'No result').slice(0, 120);
-          const tip = `<span class="sql-tooltip-status fail">FAIL</span> — Q${qNum} [${diff}]<br>${escapeHtml(errShort)}`;
-          html += `<td class="${cls}"><div class="sql-result-cell fail" data-qid="${qNum}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
-        }
+        html += '<tr class="sql-result-model-row"><td class="sql-result-model-name">';
+        html += `<div class="name-text" title="${escapeHtml(run.comment)}">`;
+        html += `<span class="sql-compare-run-label">${escapeHtml(run.label)}</span>`;
+        if (isBestRun) html += '<span class="sql-quant-badge" style="color:#fbbf24;border-color:rgba(251,191,36,0.3);">Best run</span>';
+        html += `<span class="sql-result-count ${countCls}">${run.passed}/${run.total}</span>`;
+        html += '</div></td>';
+
+        allQids.forEach(qid => {
+          const cls = groupStartByQid.has(String(qid)) ? 'sql-group-start' : '';
+          const r = run.results[String(qid)];
+          const st = runCellStatus(r);
+          const qNum = r ? r.question_id : qid;
+          const diff = r ? difficultyLabel(r.difficulty || '') : '—';
+
+          if (st === 'pass') {
+            const tip = `<span class="sql-tooltip-status pass">PASS</span> — Q${qNum} [${diff}]`;
+            html += `<td class="${cls}"><div class="sql-result-cell pass" data-qid="${qNum}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
+          } else if (st === 'error') {
+            const errShort = (r ? (r.error || 'Unknown error') : 'No result').slice(0, 120);
+            const tip = `<span class="sql-tooltip-status error">ERROR</span> — Q${qNum} [${diff}]<br>${escapeHtml(errShort)}`;
+            html += `<td class="${cls}"><div class="sql-result-cell error" data-qid="${qNum}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
+          } else {
+            const errShort = (r ? (r.error || 'Result mismatch') : 'No result').slice(0, 120);
+            const tip = `<span class="sql-tooltip-status fail">FAIL</span> — Q${qNum} [${diff}]<br>${escapeHtml(errShort)}`;
+            html += `<td class="${cls}"><div class="sql-result-cell fail" data-qid="${qNum}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
+          }
+        });
+
+        // Comment column
+        html += `<td class="sql-comment-cell">${escapeHtml(run.comment || '—')}</td>`;
+        html += '</tr>';
       });
-
-      // Comment column
-      html += `<td class="sql-comment-cell">${escapeHtml(run.comment || '—')}</td>`;
-      html += '</tr>';
     });
 
     html += '</tbody></table></div>';
