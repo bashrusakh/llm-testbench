@@ -1730,8 +1730,8 @@
       const m = r.model || 'unknown';
       const tm = r.thinking_mode && r.thinking_mode !== 'off' ? ` [${r.thinking_mode}]` : '';
       const key = m + tm;
-      if (!byModel[key]) byModel[key] = {};
-      byModel[key][String(r.question_id)] = r;
+      if (!byModel[key]) byModel[key] = { displayModel: m, thinkMode: r.thinking_mode && r.thinking_mode !== 'off' ? r.thinking_mode : '', results: {} };
+      byModel[key].results[String(r.question_id)] = r;
     });
 
     // Determine status per cell: 'pass' | 'fail' | 'error'
@@ -1748,11 +1748,12 @@
 
     // Build fixed-step matrix: first column stays sticky, each question column keeps the same width.
     const questionColGroup = allQuestionIds.map(() => '<col class="sql-question-col">').join('');
-    let html = `<div class="sql-result-scroll" data-question-count="${allQuestionIds.length}"><table class="sql-result-table"><colgroup><col class="sql-model-col">${questionColGroup}</colgroup><thead>`;
+    let html = `<div class="sql-result-scroll" data-question-count="${allQuestionIds.length}"><table class="sql-result-table"><colgroup><col class="sql-model-col">${questionColGroup}<col class="sql-think-col"></colgroup><thead>`;
     html += '<tr class="sql-category-row"><th class="sql-model-header" rowspan="2">Model</th>';
     groups.forEach(group => {
       html += `<th class="sql-category-header" colspan="${group.count}">${escapeHtml(group.label)}</th>`;
     });
+    html += '<th class="sql-think-header" rowspan="2">Think</th>';
     html += '</tr><tr class="sql-question-row">';
     questionMeta.forEach(meta => {
       const groupClass = groupStartByQid.has(String(meta.id)) ? ' sql-group-start' : '';
@@ -1763,7 +1764,7 @@
     // Sort models by number of passed questions (best on top); tie-break by
     // name so ordering stays stable.
     const passedCount = (modelKey) => {
-      const mr = byModel[modelKey];
+      const mr = byModel[modelKey].results;
       return allQuestionIds.filter(qid => mr[String(qid)] && mr[String(qid)].success === true).length;
     };
     const modelNames = Object.keys(byModel).sort((a, b) => {
@@ -1772,16 +1773,16 @@
       return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
     });
     modelNames.forEach(modelKey => {
-      const modelResults = byModel[modelKey];
+      const modelInfo = byModel[modelKey];
+      const modelResults = modelInfo.results;
       const passed = allQuestionIds.filter(qid => modelResults[String(qid)] && modelResults[String(qid)].success === true).length;
       const total = allQuestionIds.length;
       const countClass = passed === total ? 'all-pass' : passed > 0 ? 'partial' : 'none';
-      // modelKey may be "model-name" or "model-name [thinking]"
-      const model = modelKey;
+      const displayName = modelInfo.displayModel;
 
-      const quantLabel = extractQuant(model);
+      const quantLabel = extractQuant(displayName);
       html += '<tr class="sql-result-model-row"><td class="sql-result-model-name">';
-      html += `<div class="name-text" title="${escapeHtml(model)}">${escapeHtml(model)}`;
+      html += `<div class="name-text" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}`;
       if (quantLabel) html += `<span class="sql-quant-badge">${escapeHtml(quantLabel)}</span>`;
       html += `</div>`;
       html += `<span class="sql-result-count ${countClass}">${passed}/${total}</span>`;
@@ -1805,12 +1806,12 @@
         const srLabel = SQL_STOP_REASON_META[r.stop_reason] ? SQL_STOP_REASON_META[r.stop_reason].label : (r.stop_reason || '');
         if (st === 'pass') {
           const tip = `<span class="sql-tooltip-status pass">PASS</span> — Q${qNum} [${diff}] — ${attempts} attempt(s) — ${inTok} in / ${outTok} out`;
-          html += `<td${cellClass}><div class="sql-result-cell pass" data-qid="${qNum}" data-model-key="${escapeHtml(model)}" data-model="${escapeHtml(r.model || model)}" data-thinking="${escapeHtml(r.thinking_mode || '')}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
+          html += `<td${cellClass}><div class="sql-result-cell pass" data-qid="${qNum}" data-model-key="${escapeHtml(displayName)}" data-model="${escapeHtml(r.model || displayName)}" data-thinking="${escapeHtml(r.thinking_mode || '')}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
         } else if (st === 'error') {
           const errShort = (r.error || 'Unknown error').slice(0, 120);
           const srLine = srLabel ? `<br><span style="opacity:0.7;">stop:</span> ${escapeHtml(srLabel)}` : '';
           const tip = `<span class="sql-tooltip-status error">ERROR</span> — Q${qNum} [${diff}]<br>${escapeHtml(errShort)}${srLine}`;
-          html += `<td${cellClass}><div class="sql-result-cell error" data-qid="${qNum}" data-model-key="${escapeHtml(model)}" data-model="${escapeHtml(r.model || model)}" data-thinking="${escapeHtml(r.thinking_mode || '')}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
+          html += `<td${cellClass}><div class="sql-result-cell error" data-qid="${qNum}" data-model-key="${escapeHtml(displayName)}" data-model="${escapeHtml(r.model || displayName)}" data-thinking="${escapeHtml(r.thinking_mode || '')}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
         } else {
           const errShort = (r.error || 'Result mismatch').slice(0, 120);
           const rc = r.row_count_match === true ? '✓ rows' : '✗ rows';
@@ -1834,9 +1835,14 @@
           }
           const srLine = srLabel ? `<br><span style="opacity:0.7;">stop:</span> ${escapeHtml(srLabel)}` : '';
           const tip = `<span class="sql-tooltip-status fail">FAIL</span> — Q${qNum} [${diff}] — ${attempts} attempt(s)<br>${escapeHtml(errShort)}<br>${rc} · ${col} · ${fr}${diffLine}${srLine}`;
-          html += `<td${cellClass}><div class="sql-result-cell fail" data-qid="${qNum}" data-model-key="${escapeHtml(model)}" data-model="${escapeHtml(r.model || model)}" data-thinking="${escapeHtml(r.thinking_mode || '')}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
+          html += `<td${cellClass}><div class="sql-result-cell fail" data-qid="${qNum}" data-model-key="${escapeHtml(displayName)}" data-model="${escapeHtml(r.model || displayName)}" data-thinking="${escapeHtml(r.thinking_mode || '')}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
         }
       });
+      if (modelInfo.thinkMode) {
+        html += `<td class="sql-think-cell">[${escapeHtml(modelInfo.thinkMode)}]</td>`;
+      } else {
+        html += '<td class="sql-think-cell"></td>';
+      }
       html += '</tr>';
     });
 
@@ -1929,17 +1935,20 @@
       else groups[groups.length - 1].count += 1;
     });
 
-    // Group by model, then by job_id within each model → model → [runs].
+    // Group by model, then by (job_id, thinking_mode) within each model.
     const byModel = {};
     allResults.forEach(r => {
       const modelName = r.model || 'unknown';
       if (!byModel[modelName]) byModel[modelName] = { model: modelName, runs: {} };
-      const runKey = r._job_id || '';
+      const thinkMode = r.thinking_mode && r.thinking_mode !== 'off' ? r.thinking_mode : '';
+      const runKey = (r._job_id || '') + '|' + (r.thinking_mode || 'off');
       if (!byModel[modelName].runs[runKey]) {
         byModel[modelName].runs[runKey] = {
           job_id: r._job_id,
           comment: r._run_comment || '',
           label: r._run_label || '',
+          thinkLabel: thinkMode ? ' (' + thinkMode + ')' : '',
+          think: thinkMode,
           started_at: r._run_started_at || '',
           results: {}
         };
@@ -1983,16 +1992,17 @@
     });
 
     const globalBestScore = models.length ? Math.max(...models.map(m => m.bestRunScore)) : 0;
-    const totalCols = allQids.length + 2; // model col + questions + comment col
+    const questionCols = allQids.length;
 
     // Build table
     const qCols = allQids.map(() => '<col class="sql-question-col">').join('');
-    let html = `<div class="sql-result-scroll"><table class="sql-result-table"><colgroup><col class="sql-model-col">${qCols}<col class="sql-comment-col"></colgroup><thead>`;
+    let html = `<div class="sql-result-scroll" data-question-count="${allQids.length}"><table class="sql-result-table"><colgroup><col class="sql-model-col">${qCols}<col class="sql-think-col"><col class="sql-comment-col"></colgroup><thead>`;
 
     // Category header row
     html += '<tr class="sql-category-row">';
     html += '<th class="sql-model-header" rowspan="2">Model / Run</th>';
     groups.forEach(g => { html += `<th class="sql-category-header" colspan="${g.count}">${escapeHtml(g.label)}</th>`; });
+    html += '<th class="sql-think-header" rowspan="2">Think</th>';
     html += '<th class="sql-category-header sql-comment-col-header" rowspan="2">Comment</th>';
     html += '</tr>';
 
@@ -2012,11 +2022,12 @@
       html += '<tr class="sql-result-model-row sql-compare-model-head">';
       const bestPct = m.bestRunScore / Math.max(allQids.length, 1);
       const mCountCls = bestPct >= 1 ? 'all-pass' : bestPct > 0 ? 'partial' : 'none';
-      html += `<td class="sql-result-model-name" colspan="${totalCols}"><div class="name-text">`;
+      const modelHeadSpan = questionCols + 1; // model col + question cols
+      html += `<td class="sql-result-model-name" colspan="${modelHeadSpan}"><div class="name-text">`;
       html += `<span class="sql-compare-model-label">${escapeHtml(m.model)}</span>`;
       if (isBestModel) html += '<span class="sql-quant-badge" style="color:#fbbf24;border-color:rgba(251,191,36,0.35);margin-left:6px;">Best model</span>';
       html += `<span class="sql-result-count ${mCountCls}">best ${m.bestRunScore}/${allQids.length} &middot; ${m.runCount} run${m.runCount !== 1 ? 's' : ''}</span>`;
-      html += '</div></td></tr>';
+      html += '</div></td><td class="sql-think-cell"></td><td class="sql-comment-cell"></td></tr>';
 
       // Run rows for this model
       m.runs.forEach((run, ri) => {
@@ -2026,7 +2037,7 @@
 
         html += '<tr class="sql-result-model-row"><td class="sql-result-model-name">';
         html += `<div class="name-text" title="${escapeHtml(run.comment)}">`;
-        html += `<span class="sql-compare-run-label">${escapeHtml(run.label)}</span>`;
+        html += `<span class="sql-compare-run-label">${escapeHtml(run.label)}${escapeHtml(run.thinkLabel)}</span>`;
         if (isBestRun) html += '<span class="sql-quant-badge" style="color:#fbbf24;border-color:rgba(251,191,36,0.3);">Best run</span>';
         html += `<span class="sql-result-count ${countCls}">${run.passed}/${run.total}</span>`;
         html += '</div></td>';
@@ -2052,6 +2063,12 @@
           }
         });
 
+        // Think column
+        if (run.think) {
+          html += `<td class="sql-think-cell">[${escapeHtml(run.think)}]</td>`;
+        } else {
+          html += '<td class="sql-think-cell"></td>';
+        }
         // Comment column
         html += `<td class="sql-comment-cell">${escapeHtml(run.comment || '—')}</td>`;
         html += '</tr>';
