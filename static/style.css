@@ -676,6 +676,7 @@
     --sql-error-text: #fbbf24;
     --sql-category-border: rgba(148,163,184,0.34);
     --sql-comment-column-width: 180px;
+    --sql-think-column-width: 56px;
   }
   .sql-results-table { width: 100%; }
   .sql-results-table td { padding: 6px 4px; font-size: 0.8rem; }
@@ -730,9 +731,10 @@
     border-spacing: 0;
     table-layout: fixed;
   }
-  .sql-result-table col.sql-model-col { width: var(--sql-model-column-width); }
+  .sql-result-table col.sql-model-col { min-width: var(--sql-model-column-width); width: auto; }
   .sql-result-table col.sql-question-col { width: var(--sql-question-column-width); }
   .sql-result-table col.sql-comment-col { width: var(--sql-comment-column-width); }
+  .sql-result-table col.sql-think-col { width: var(--sql-think-column-width); }
 
   /* Comment column: appears in the run-comparison heatmap, after question columns.
      Shows the run's metadata (quant, thinking, temperature, seed, etc.). */
@@ -755,6 +757,27 @@
     line-height: 1.3;
     white-space: normal;
     word-break: break-word;
+  }
+
+  /* Think column: appears after question columns, before Comment in compare view.
+     Shows reasoning mode per run (e.g. [on] when thinking_mode is enabled). */
+  .sql-result-table .sql-think-header {
+    width: var(--sql-think-column-width);
+    min-width: var(--sql-think-column-width);
+    max-width: var(--sql-think-column-width);
+    text-align: center;
+    padding: 4px;
+  }
+  .sql-result-table tbody td.sql-think-cell {
+    width: var(--sql-think-column-width);
+    min-width: var(--sql-think-column-width);
+    max-width: var(--sql-think-column-width);
+    text-align: center;
+    padding: 3px 4px;
+    font-size: 0.7rem;
+    color: var(--warn, #f59e0b);
+    border-left: 1px solid rgba(255,255,255,0.08);
+    font-weight: 600;
   }
 
   /* ── Run comparison: model group header row ────────────────────
@@ -803,9 +826,9 @@
     z-index: 5;
   }
   .sql-result-table thead th.sql-model-header {
-    width: var(--sql-model-column-width);
     min-width: var(--sql-model-column-width);
-    max-width: var(--sql-model-column-width);
+    width: auto;
+    max-width: none;
     text-align: left;
     padding-left: 0;
     left: 0;
@@ -845,9 +868,9 @@
     border-bottom: 1px solid rgba(255,255,255,0.03);
   }
   .sql-result-table tbody td:first-child {
-    width: var(--sql-model-column-width);
     min-width: var(--sql-model-column-width);
-    max-width: var(--sql-model-column-width);
+    width: auto;
+    max-width: none;
     position: sticky;
     left: 0;
     z-index: 6;
