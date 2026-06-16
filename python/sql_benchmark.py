@@ -682,6 +682,10 @@ class SqlBenchmarkRunner:
                         columns_match=columns_match,
                         first_row_match=fr_match,
                     )
+                    messages.append({
+                        "role": "assistant",
+                        "content": text_content_clean or text_content or "",
+                    })
                     return self._build_tool_result(
                         question=question, model=model, provider=provider,
                         endpoint=endpoint, expected_sql=expected_sql,
