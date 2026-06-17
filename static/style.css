@@ -1609,3 +1609,425 @@
     color: var(--teal);
     border-bottom-color: var(--teal);
   }
+
+  /* ─── Design v3: Phosphor ────────────────────────────────────────
+   * Toggle via html[data-design="v3"]. Oscilloscope-inspired
+   * measurement dashboard. Phosphor-green signal accent, instrument-
+   * grade precision typography, graticule grid on data tables.         */
+
+  html[data-design="v3"] {
+    --bg:             #080C14;
+    --sidebar-bg:     #101828;
+    --card-bg:        #152034;
+    --accent:         #00E599;
+    --accent-hover:   #00CC8A;
+    --text-main:      #E4EAF2;
+    --text-muted:     #8793AA;
+    --text-dim:       #6A7791;
+    --border:         #27334E;
+    --border-strong:  #364766;
+    --radius:         2px;
+    --radius-sm:      1px;
+    --radius-lg:      4px;
+    --accent-glow:    rgba(0,229,153,0.12);
+    --success:        #00E599;
+    --error:          #FF4D6A;
+    --warn:           #FFA940;
+    --danger:         #FF4D6A;
+    /* Keep v2 compat tokens for any shared mixin paths */
+    --teal:           #00E599;
+    --teal-light:     #33F0B3;
+    --teal-glow:      rgba(0,229,153,0.12);
+    --copper:         #FFA940;
+    --copper-hover:   #E69530;
+
+    --surface-raised: #1A273D;
+  }
+
+  /* ── Typography ── */
+  html[data-design="v3"] h1,
+  html[data-design="v3"] .section-title,
+  html[data-design="v3"] .metric-card .value {
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  html[data-design="v3"] h1 {
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    font-size: 1.1rem;
+  }
+
+  html[data-design="v3"] .metric-card .value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Data tables and mono contexts only — not form inputs or labels */
+  html[data-design="v3"] table,
+  html[data-design="v3"] .sql-detail-code,
+  html[data-design="v3"] .decode-badge,
+  html[data-design="v3"] .sql-detail-tag {
+    font-family: 'JetBrains Mono', monospace;
+  }
+  html[data-design="v3"] input[type="number"] {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Sidebar section titles ── */
+  html[data-design="v3"] .sidebar-section-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+  html[data-design="v3"] .sidebar-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-strong);
+  }
+
+  /* ── Buttons ── */
+  html[data-design="v3"] .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 700;
+  }
+  html[data-design="v3"] .btn-primary:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 0 18px var(--accent-glow), 0 0 4px rgba(0,229,153,0.22);
+  }
+
+  html[data-design="v3"] .btn-danger {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  html[data-design="v3"] .btn-danger:hover,
+  html[data-design="v3"] .sidebar-actions-row .btn-danger:hover,
+  html[data-design="v3"] .sidebar-actions-row .btn-danger:focus-visible {
+    background: rgba(255,77,106,0.1);
+    color: var(--error);
+    border-color: rgba(255,77,106,0.3);
+  }
+  html[data-design="v3"] .sidebar-actions-row .btn-danger.running {
+    background: rgba(255,77,106,0.1);
+    color: var(--error);
+    border-color: rgba(255,77,106,0.35);
+    box-shadow: 0 0 12px rgba(255,77,106,0.12);
+    animation: v3-stop-pulse 2s ease-in-out infinite;
+  }
+  html[data-design="v3"] .sidebar-actions-row .btn-danger.running:hover {
+    background: rgba(255,77,106,0.18);
+    border-color: rgba(255,77,106,0.55);
+    box-shadow: 0 0 20px rgba(255,77,106,0.22);
+  }
+
+  @keyframes v3-stop-pulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(255,77,106,0.12); }
+    50%      { box-shadow: 0 0 20px rgba(255,77,106,0.22); }
+  }
+
+  html[data-design="v3"] .btn-secondary {
+    background: var(--surface-raised);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+  }
+  html[data-design="v3"] .btn-secondary:hover { background: #202D45; }
+
+  /* Disabled buttons */
+  html[data-design="v3"] .btn-primary:disabled {
+    background: var(--border-strong);
+    color: var(--text-dim);
+    box-shadow: none;
+  }
+  html[data-design="v3"] .btn-primary:disabled:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* ── Cards / Surfaces ── */
+  html[data-design="v3"] .results-card {
+    border-radius: var(--radius);
+    border-color: var(--border);
+  }
+
+  html[data-design="v3"] .endpoint-card {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  html[data-design="v3"] .endpoint-card.selected,
+  html[data-design="v3"] .endpoint-card:hover {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  html[data-design="v3"] .model-item:hover {
+    background: var(--accent-glow);
+  }
+
+  html[data-design="v3"] .model-selector-container {
+    border-radius: var(--radius);
+  }
+
+  html[data-design="v3"] .settings-subsection {
+    border-radius: var(--radius);
+    border-color: var(--border);
+  }
+
+  /* ── Metric cards (inset within results-card) ── */
+  html[data-design="v3"] .metric-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  /* ── Form controls ── */
+  html[data-design="v3"] input,
+  html[data-design="v3"] select,
+  html[data-design="v3"] textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-main);
+  }
+  html[data-design="v3"] input:focus,
+  html[data-design="v3"] select:focus,
+  html[data-design="v3"] textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+  }
+  html[data-design="v3"] input[type="checkbox"] {
+    accent-color: var(--accent);
+  }
+
+  /* ── Progress bar — Phosphor sweep ── */
+  html[data-design="v3"] .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: var(--radius-sm);
+    position: relative;
+  }
+  /* Afterglow tail */
+  html[data-design="v3"] .progress-fill::before {
+    content: '';
+    position: absolute;
+    right: 8px;
+    top: -1px;
+    bottom: -1px;
+    width: 40px;
+    background: linear-gradient(90deg, transparent, var(--accent));
+    filter: blur(5px);
+    opacity: 0.4;
+    border-radius: 1px;
+    pointer-events: none;
+  }
+  /* Leading bright edge */
+  html[data-design="v3"] .progress-fill::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: -2px;
+    bottom: -2px;
+    width: 24px;
+    background: linear-gradient(90deg, transparent, rgba(0,229,153,0.22));
+    filter: blur(3px);
+    border-radius: 1px;
+    pointer-events: none;
+  }
+
+  /* ── Status messages ── */
+  html[data-design="v3"] .status-message.info {
+    background: var(--accent-glow);
+    color: var(--accent);
+    border-color: rgba(0,229,153,0.15);
+  }
+
+  /* ── Speed preset buttons ── */
+  html[data-design="v3"] .speed-preset-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  /* ── Speed view toggle ── */
+  html[data-design="v3"] .speed-view-toggle button.active {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  /* ── SQL result cells ── */
+  html[data-design="v3"] .sql-result-cell.pass { background: var(--success); }
+  html[data-design="v3"] .sql-result-cell.fail { background: var(--error); }
+  html[data-design="v3"] .sql-result-cell.error { background: var(--warn); color: var(--bg); }
+  html[data-design="v3"] .sql-result-cell:hover {
+    box-shadow: 0 0 8px rgba(0,229,153,0.22);
+  }
+
+  /* ── History thinking chip ── */
+  html[data-design="v3"] .history-thinking-chip.thinking-on {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  html[data-design="v3"] .history-thinking-chip.thinking-both {
+    color: var(--copper);
+    border-color: var(--copper);
+  }
+
+  /* ── SQL detail tabs active ── */
+  html[data-design="v3"] .sql-detail-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* ── Compare bar ── */
+  html[data-design="v3"] .sql-compare-bar {
+    background: var(--accent-glow);
+  }
+  html[data-design="v3"] .sql-compare-run-label {
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* ── Sparkline bars ── */
+  html[data-design="v3"] .sparkline-bar { min-width: 80px; }
+  html[data-design="v3"] .sparkline-bar__bar {
+    min-width: 5px;
+    transition: height 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  html[data-design="v3"] .sparkline-bar__bar.good { background: var(--success); }
+  html[data-design="v3"] .sparkline-bar__bar.mid  { background: var(--warn); }
+  html[data-design="v3"] .sparkline-bar__bar.poor { background: var(--error); }
+
+  /* ── Design toggle button ── */
+  html[data-design="v3"] .design-toggle {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+  html[data-design="v3"] .design-toggle:hover,
+  html[data-design="v3"] .design-toggle:focus-visible {
+    border-color: var(--accent-hover);
+    color: var(--accent-hover);
+    background: rgba(0,229,153,0.18);
+  }
+
+  /* ── Status badges ── */
+  html[data-design="v3"] .status-badge.success {
+    background: rgba(0,229,153,0.12);
+    color: var(--success);
+  }
+  html[data-design="v3"] .status-badge.error {
+    background: rgba(255,77,106,0.12);
+    color: var(--error);
+  }
+  html[data-design="v3"] .status-badge.running {
+    background: var(--accent-glow);
+    color: var(--accent);
+  }
+  html[data-design="v3"] .status-badge.stopped {
+    background: rgba(148,163,184,0.12);
+    color: var(--text-muted);
+  }
+
+  /* ── Decode badges ── */
+  html[data-design="v3"] .decode-badge.good { background: rgba(0,229,153,0.15); color: var(--success); }
+  html[data-design="v3"] .decode-badge.mid  { background: rgba(255,169,64,0.15); color: var(--warn); }
+  html[data-design="v3"] .decode-badge.poor { background: rgba(255,77,106,0.15); color: var(--error); }
+
+  /* ── Run count labels ── */
+  html[data-design="v3"] .run-count .success { color: var(--success); }
+  html[data-design="v3"] .run-count .fail    { color: var(--error); }
+
+  /* ── Expand toggle ── */
+  html[data-design="v3"] .expand-toggle:hover {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  /* ── Run comment banner ── */
+  html[data-design="v3"] .run-comment-banner {
+    background: var(--accent-glow);
+    border-color: rgba(0,229,153,0.28);
+  }
+  html[data-design="v3"] .run-comment-banner .run-comment-label {
+    color: var(--accent);
+  }
+
+  /* ── Endpoint delete ── */
+  html[data-design="v3"] .endpoint-delete-btn {
+    background: rgba(255,77,106,0.08);
+    border-color: rgba(255,77,106,0.35);
+  }
+  html[data-design="v3"] .endpoint-delete-btn:hover {
+    background: rgba(255,77,106,0.18);
+    border-color: rgba(255,77,106,0.55);
+  }
+
+  /* ── SQL result counts ── */
+  html[data-design="v3"] .sql-result-count.all-pass { background: rgba(0,229,153,0.15); color: var(--success); }
+  html[data-design="v3"] .sql-result-count.partial  { background: rgba(255,169,64,0.15); color: var(--warn); }
+  html[data-design="v3"] .sql-result-count.none     { background: rgba(255,77,106,0.15); color: var(--error); }
+
+  /* ── Model list container ── */
+  html[data-design="v3"] .model-selector-container {
+    background: var(--bg);
+    border-color: var(--border);
+  }
+
+  /* ── Sidebar actions sticky backdrop ── */
+  html[data-design="v3"] .sidebar-actions {
+    background: linear-gradient(180deg, var(--sidebar-bg) 0%, rgba(16,24,40,0.98) 100%);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     V3 Signature: Graticule grid on data tables
+     ═══════════════════════════════════════════════════════════════ */
+  html[data-design="v3"] #speedResultsContainer {
+    position: relative;
+  }
+  html[data-design="v3"] #speedResultsContainer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        rgba(54,71,102,0.04) 0px,
+        rgba(54,71,102,0.04) 1px,
+        transparent 1px,
+        transparent 20px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        rgba(54,71,102,0.04) 0px,
+        rgba(54,71,102,0.04) 1px,
+        transparent 1px,
+        transparent 20px
+      );
+  }
+
+  /* ── Trigger flash on benchmark complete ── */
+  @keyframes v3-trigger-flash {
+    0%   { border-color: var(--border); }
+    20%  { border-color: var(--accent); box-shadow: 0 0 24px var(--accent-glow), 0 0 6px var(--accent); }
+    100% { border-color: var(--border); box-shadow: none; }
+  }
+
+  /* ── SQL heatmap graticule ── */
+  html[data-design="v3"] .sql-result-table {
+    position: relative;
+  }
