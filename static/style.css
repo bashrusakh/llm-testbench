@@ -2019,6 +2019,29 @@
         transparent 20px
       );
   }
+  /* Major divisions every 5 minor lines */
+  html[data-design="v3"] #speedResultsContainer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        transparent 99px,
+        rgba(54,71,102,0.08) 99px,
+        rgba(54,71,102,0.08) 100px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent 0px,
+        transparent 99px,
+        rgba(54,71,102,0.08) 99px,
+        rgba(54,71,102,0.08) 100px
+      );
+  }
 
   /* ── Trigger flash on benchmark complete ── */
   @keyframes v3-trigger-flash {
@@ -2030,4 +2053,174 @@
   /* ── SQL heatmap graticule ── */
   html[data-design="v3"] .sql-result-table {
     position: relative;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     Refinements: missing v3 overrides synced from v3_test.html
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /* ── Body typography ── */
+  html[data-design="v3"] body {
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Custom scrollbar ── */
+  html[data-design="v3"] ::-webkit-scrollbar { width: 5px; height: 5px; }
+  html[data-design="v3"] ::-webkit-scrollbar-track { background: var(--bg); }
+  html[data-design="v3"] ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+  html[data-design="v3"] ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+  /* ── Subtitle ── */
+  html[data-design="v3"] .subtitle {
+    font-size: 0.68rem;
+    margin-bottom: 20px;
+    letter-spacing: 0.02em;
+    opacity: 1;
+  }
+
+  /* ── Sidebar sections ── */
+  html[data-design="v3"] .sidebar-section {
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+  html[data-design="v3"] .sidebar-section + .sidebar-section {
+    padding-top: 18px;
+  }
+  html[data-design="v3"] .sidebar-section:last-child {
+    border-bottom: none;
+  }
+
+  /* ── Button base ── */
+  html[data-design="v3"] button {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    border-radius: var(--radius);
+    padding: 7px 14px;
+    transition: background 0.12s, box-shadow 0.12s;
+  }
+  html[data-design="v3"] button:disabled {
+    opacity: 0.35;
+  }
+  html[data-design="v3"] .btn-secondary {
+    font-size: 0.7rem;
+    padding: 5px 10px;
+  }
+  html[data-design="v3"] .btn-small {
+    font-size: 0.65rem;
+    border-radius: var(--radius);
+  }
+  html[data-design="v3"] .btn-small:hover {
+    color: var(--text-main);
+    border-color: var(--accent);
+  }
+
+  /* ── Form controls ── */
+  html[data-design="v3"] label {
+    font-size: 0.65rem;
+    letter-spacing: 0.03em;
+  }
+  html[data-design="v3"] .chk-row label {
+    font-size: 0.75rem;
+  }
+  html[data-design="v3"] input,
+  html[data-design="v3"] select,
+  html[data-design="v3"] textarea {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.73rem;
+    transition: border-color 0.12s;
+  }
+  html[data-design="v3"] textarea {
+    resize: vertical;
+  }
+
+  /* ── Status message base ── */
+  html[data-design="v3"] .status-message {
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    font-size: 0.65rem;
+  }
+
+  /* ── Speed preset ── */
+  html[data-design="v3"] .speed-preset-btn {
+    font-size: 0.7rem;
+    border-radius: var(--radius);
+  }
+  html[data-design="v3"] .speed-preset-btn:hover {
+    border-color: var(--border-strong);
+    background: rgba(255,255,255,0.02);
+  }
+
+  /* ── Results summary ── */
+  html[data-design="v3"] .results-summary {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  /* ── Metric cards ── */
+  html[data-design="v3"] .metric-card {
+    padding: 14px 16px;
+  }
+  html[data-design="v3"] .metric-card .label {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+
+  /* ── Data tables ── */
+  html[data-design="v3"] table {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+  }
+  html[data-design="v3"] th {
+    color: var(--text-dim);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border-strong);
+    font-family: 'Inter', sans-serif;
+  }
+  html[data-design="v3"] td {
+    padding: 9px 8px;
+    border-bottom: 1px solid rgba(86,96,119,0.06);
+  }
+  html[data-design="v3"] tbody tr:hover td {
+    background: rgba(0,229,153,0.03);
+  }
+
+  /* ── Progress bar wrapper ── */
+  html[data-design="v3"] .progress-bar {
+    height: 6px;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+
+  /* ── Status badge base ── */
+  html[data-design="v3"] .status-badge {
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  html[data-design="v3"] .status-badge.warn {
+    background: rgba(255,169,64,0.12);
+    color: var(--warn);
+  }
+
+  /* ── SQL cell hover ── */
+  html[data-design="v3"] .sql-result-cell:hover {
+    transform: scale(1.3);
+    z-index: 10;
   }
