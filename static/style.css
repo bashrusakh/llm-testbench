@@ -783,29 +783,21 @@
   /* ── Run comparison: model group header row ────────────────────
      Spans the full table width, non-sticky so it scrolls with the
      content. Separates model groups visually with a top border. */
-  .sql-result-table .sql-compare-model-head td {
+  .sql-result-table .sql-compare-model-head td:first-child {
     width: auto !important;
     min-width: auto !important;
     max-width: none !important;
     position: static !important;
     left: auto !important;
     box-shadow: none !important;
+  }
+  .sql-result-table .sql-compare-model-head td {
     padding: 8px 12px;
     background: #131a26;
     border-top: 2px solid var(--border);
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--text-main);
-  }
-  .sql-result-table .sql-compare-model-head td.sql-think-cell {
-    width: var(--sql-think-column-width) !important;
-    min-width: var(--sql-think-column-width) !important;
-    max-width: var(--sql-think-column-width) !important;
-  }
-  .sql-result-table .sql-compare-model-head td.sql-comment-cell {
-    width: var(--sql-comment-column-width) !important;
-    min-width: var(--sql-comment-column-width) !important;
-    max-width: var(--sql-comment-column-width) !important;
   }
   .sql-compare-model-label {
     font-weight: 600;
