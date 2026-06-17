@@ -774,7 +774,8 @@ class SqlBenchmarkRunner:
                     )
 
                 if func_name == "run_sql_query":
-                    sql = arguments.get("sql", "")
+                    sql_raw = arguments.get("sql")
+                    sql = sql_raw if isinstance(sql_raw, str) else (str(sql_raw) if sql_raw is not None else "")
                     last_sql = self.normalize_sql(sql) if sql else None
                     attempts += 1
 
@@ -1171,6 +1172,8 @@ class SqlBenchmarkRunner:
 
     @staticmethod
     def normalize_sql(sql: str) -> str:
+        if not isinstance(sql, str):
+            sql = "" if sql is None else str(sql)
         cleaned = sqlparse.format(
             sql,
             keyword_case="upper",
