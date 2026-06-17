@@ -1630,6 +1630,15 @@
     border-bottom-color: var(--teal);
   }
 
+  /* ── SQL Compare model header hover fix ── */
+  html[data-design="v2"] .sql-result-table .sql-compare-model-head td {
+    background: var(--card-bg);
+    padding: 8px 12px;
+  }
+  html[data-design="v2"] .sql-result-table .sql-compare-model-head:hover td {
+    background: rgba(255,255,255,0.05);
+  }
+
   /* ─── Design v3: Phosphor ────────────────────────────────────────
    * Toggle via html[data-design="v3"]. Oscilloscope-inspired
    * measurement dashboard. Phosphor-green signal accent, instrument-
