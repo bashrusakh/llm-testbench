@@ -2027,12 +2027,13 @@
       html += '<tr class="sql-result-model-row sql-compare-model-head">';
       const bestPct = m.bestRunScore / Math.max(m.bestRunTotal, 1);
       const mCountCls = bestPct >= 1 ? 'all-pass' : bestPct > 0 ? 'partial' : 'none';
-      const modelHeadSpan = questionCols + 1;
-      html += `<td class="sql-result-model-name" colspan="${modelHeadSpan}"><div class="name-text">`;
+      html += `<td class="sql-result-model-name"><div class="name-text">`;
       html += `<span class="sql-compare-model-label">${escapeHtml(m.model)}</span>`;
       if (isBestModel) html += '<span class="sql-quant-badge" style="color:#fbbf24;border-color:rgba(251,191,36,0.35);margin-left:6px;">Best model</span>';
       html += `<span class="sql-result-count ${mCountCls}">best ${m.bestRunScore}/${m.bestRunTotal} &middot; ${m.runCount} run${m.runCount !== 1 ? 's' : ''}</span>`;
-      html += '</div></td><td class="sql-think-cell"></td><td class="sql-comment-cell"></td></tr>';
+      html += '</div></td>';
+      allQids.forEach(() => { html += '<td class="sql-compare-model-spacer"></td>'; });
+      html += '<td class="sql-think-cell"></td><td class="sql-comment-cell"></td></tr>';
 
       // Run rows for this model
       m.runs.forEach((run, ri) => {
