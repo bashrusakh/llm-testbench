@@ -3167,7 +3167,7 @@
   (function initDesign() {
     let saved;
     try { saved = localStorage.getItem('llmTestbench.design'); } catch (_) {}
-    if (saved === 'v2' || saved === 'v3') applyDesign(saved);
+    if (saved === 'v2' || saved === 'v3' || !saved) applyDesign(saved === 'v2' ? 'v2' : 'v3');
     const btn = document.getElementById('designToggle');
     if (btn) btn.addEventListener('click', () => {
       const current = document.documentElement.dataset.design || 'v1';
