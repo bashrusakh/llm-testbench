@@ -1892,8 +1892,8 @@
   html[data-design="v3"] .sql-result-cell.pass { background: var(--success); }
   html[data-design="v3"] .sql-result-cell.fail { background: var(--error); }
   html[data-design="v3"] .sql-result-cell.error { background: var(--warn); color: var(--bg); }
-  html[data-design="v3"] .sql-result-cell:hover {
-    box-shadow: 0 0 8px rgba(0,229,153,0.22);
+  html[data-design="v3"] .sql-result-cell {
+    border-radius: 2px;
   }
 
   /* ── History thinking chip ── */
@@ -2250,4 +2250,31 @@
   html[data-design="v3"] .sql-result-cell:hover {
     transform: scale(1.3);
     z-index: 10;
+    box-shadow: 0 0 8px rgba(0,229,153,0.22);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     SQL result grid — keep v3 data-table rules from overriding
+     the fixed-column heatmap layout.
+     ═══════════════════════════════════════════════════════════════ */
+  html[data-design="v3"] .sql-result-table thead th {
+    padding: 4px;
+  }
+  html[data-design="v3"] .sql-result-table thead th.sql-model-header {
+    padding-left: 0;
+  }
+  html[data-design="v3"] .sql-result-table tbody td {
+    padding: 3px 4px;
+  }
+  html[data-design="v3"] .sql-result-table tbody td:first-child {
+    padding-left: 0;
+    padding-right: 12px;
+  }
+  html[data-design="v3"] .sql-result-table tbody td.sql-think-cell,
+  html[data-design="v3"] .sql-result-table tbody td.sql-comment-cell {
+    padding: 6px 4px 6px 8px;
+  }
+  html[data-design="v3"] .sql-result-table .sql-group-start {
+    border-left: 1px solid var(--sql-category-border);
+    padding-left: 3px;
   }

@@ -1973,8 +1973,9 @@
     const models = [];
     for (const [modelName, modelData] of Object.entries(byModel)) {
       const runObjs = Object.values(modelData.runs).map(run => {
-        const passed = allQids.filter(qid => run.results[String(qid)] && run.results[String(qid)].success === true).length;
-        return { ...run, passed, total: allQids.length };
+        const runQids = Object.keys(run.results);
+        const passed = runQids.filter(qid => run.results[qid] && run.results[qid].success === true).length;
+        return { ...run, passed, total: runQids.length };
       });
       runObjs.sort((a, b) => {
         const d = b.passed - a.passed;
@@ -1985,6 +1986,7 @@
         model: modelName,
         runs: runObjs,
         bestRunScore: runObjs.length ? runObjs[0].passed : 0,
+        bestRunTotal: runObjs.length ? runObjs[0].total : 0,
         runCount: runObjs.length,
       });
     }
@@ -2023,13 +2025,13 @@
       // Model header row
       const isBestModel = m.model !== 'unknown' && mi === 0 && models.length > 1 && m.bestRunScore === globalBestScore;
       html += '<tr class="sql-result-model-row sql-compare-model-head">';
-      const bestPct = m.bestRunScore / Math.max(allQids.length, 1);
+      const bestPct = m.bestRunScore / Math.max(m.bestRunTotal, 1);
       const mCountCls = bestPct >= 1 ? 'all-pass' : bestPct > 0 ? 'partial' : 'none';
-      const modelHeadSpan = questionCols + 1; // model col + question cols
+      const modelHeadSpan = questionCols + 1;
       html += `<td class="sql-result-model-name" colspan="${modelHeadSpan}"><div class="name-text">`;
       html += `<span class="sql-compare-model-label">${escapeHtml(m.model)}</span>`;
       if (isBestModel) html += '<span class="sql-quant-badge" style="color:#fbbf24;border-color:rgba(251,191,36,0.35);margin-left:6px;">Best model</span>';
-      html += `<span class="sql-result-count ${mCountCls}">best ${m.bestRunScore}/${allQids.length} &middot; ${m.runCount} run${m.runCount !== 1 ? 's' : ''}</span>`;
+      html += `<span class="sql-result-count ${mCountCls}">best ${m.bestRunScore}/${m.bestRunTotal} &middot; ${m.runCount} run${m.runCount !== 1 ? 's' : ''}</span>`;
       html += '</div></td><td class="sql-think-cell"></td><td class="sql-comment-cell"></td></tr>';
 
       // Run rows for this model
@@ -2052,7 +2054,9 @@
           const qNum = r ? r.question_id : qid;
           const diff = r ? difficultyLabel(r.difficulty || '') : '—';
 
-          if (st === 'pass') {
+          if (st === 'none') {
+            html += `<td class="${cls}"></td>`;
+          } else if (st === 'pass') {
             const tip = `<span class="sql-tooltip-status pass">PASS</span> — Q${qNum} [${diff}]`;
             html += `<td class="${cls}"><div class="sql-result-cell pass" data-qid="${qNum}"><span class="sql-cell-tooltip">${tip}</span></div></td>`;
           } else if (st === 'error') {
