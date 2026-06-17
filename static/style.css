@@ -57,7 +57,7 @@
     gap: 20px;
   }
 
-  h1 { font-size: 1.3rem; margin-bottom: 4px; font-weight: 700; letter-spacing: -0.5px; }
+  h1 { font-size: 1.3rem; margin-bottom: 4px; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
   .subtitle { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0; opacity: 0.7; }
   /* Version tag in the sidebar header. Stays unobtrusive next to the H1 but
      readable enough to copy when reporting a bug. */
@@ -1567,37 +1567,54 @@
   html[data-design="v2"] .sparkline-bar__bar.mid { background: var(--copper); }
   html[data-design="v2"] .sparkline-bar__bar.poor { background: var(--error); }
 
-  /* ── Design toggle button ── */
-  .design-toggle {
+  /* ── Design channel selector (oscilloscope-style) ── */
+  .design-channels {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 4px);
+    overflow: hidden;
+    vertical-align: middle;
+  }
+  .design-ch__btn {
+    width: 22px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.55rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+    line-height: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    margin-left: 6px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm, 4px);
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 0.6rem;
-    line-height: 1;
-    cursor: pointer;
-    vertical-align: middle;
-    transition: all 0.15s;
   }
-  .design-toggle:hover,
-  .design-toggle:focus-visible {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--accent-glow);
-    outline: none;
+  .design-ch__btn + .design-ch__btn {
+    border-left: 1px solid var(--border);
   }
-  html[data-design="v2"] .design-toggle {
-    border-color: var(--teal);
-    color: var(--teal);
-    background: var(--teal-glow);
+  .design-ch__btn:hover {
+    background: rgba(255,255,255,0.03);
+    color: var(--text-main);
   }
+  .design-ch__btn.active {
+    color: var(--bg);
+    font-weight: 800;
+  }
+  .design-ch__btn[data-ch="1"].active { background: #3B82F6; }
+  .design-ch__btn[data-ch="1"]:hover { color: #60A5FA; }
+  .design-ch__btn[data-ch="2"].active { background: #14B8A6; }
+  .design-ch__btn[data-ch="2"]:hover { color: #5EEAD4; }
+  .design-ch__btn[data-ch="3"].active { background: var(--accent); }
+  .design-ch__btn[data-ch="3"]:hover { color: var(--accent); }
+  .design-ch__btn[data-ch="1"].active:hover { background: #3B82F6; color: var(--bg); }
+  .design-ch__btn[data-ch="2"].active:hover { background: #14B8A6; color: var(--bg); }
+  .design-ch__btn[data-ch="3"].active:hover { background: var(--accent); color: var(--bg); }
 
   /* ── SQL Compare run label (new in v2) ── */
   html[data-design="v2"] .sql-compare-run-label {
@@ -1910,17 +1927,24 @@
   html[data-design="v3"] .sparkline-bar__bar.mid  { background: var(--warn); }
   html[data-design="v3"] .sparkline-bar__bar.poor { background: var(--error); }
 
-  /* ── Design toggle button ── */
-  html[data-design="v3"] .design-toggle {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--accent-glow);
+  /* ── Channel selector v2 override ── */
+  html[data-design="v2"] .design-channels {
+    border-color: var(--teal);
   }
-  html[data-design="v3"] .design-toggle:hover,
-  html[data-design="v3"] .design-toggle:focus-visible {
-    border-color: var(--accent-hover);
-    color: var(--accent-hover);
-    background: rgba(0,229,153,0.18);
+  html[data-design="v2"] .design-ch__btn[data-ch="2"].active {
+    background: var(--accent);
+    color: var(--bg);
+  }
+  /* ── Channel selector v3 override ── */
+  html[data-design="v3"] .design-channels {
+    border-color: var(--border-strong);
+  }
+  html[data-design="v3"] .design-ch__btn[data-ch="3"].active {
+    background: var(--accent);
+    color: var(--bg);
+  }
+  html[data-design="v3"] .design-ch__btn[data-ch="3"]:hover {
+    color: var(--accent);
   }
 
   /* ── Status badges ── */
