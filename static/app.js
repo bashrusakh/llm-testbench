@@ -3150,33 +3150,29 @@
     } catch (_) { /* leave the placeholder */ }
   }
 
-  // ── Design toggle (channel selector) ──
+  // ── Design toggle ──
   function applyDesign(name) {
     const html = document.documentElement;
-    const ch = name === 'v1' ? '1' : name === 'v2' ? '2' : '3';
+    const btn = document.getElementById('designToggle');
     if (name === 'v1' || !name) {
       delete html.dataset.design;
+      if (btn) btn.setAttribute('aria-pressed', 'false');
+      try { localStorage.setItem('llmTestbench.design', 'v1'); } catch (_) {}
     } else {
       html.dataset.design = name;
+      if (btn) btn.setAttribute('aria-pressed', 'true');
+      try { localStorage.setItem('llmTestbench.design', name); } catch (_) {}
     }
-    document.querySelectorAll('.design-ch__btn').forEach(btn => {
-      const isActive = btn.dataset.ch === ch;
-      btn.classList.toggle('active', isActive);
-      btn.setAttribute('aria-pressed', String(isActive));
-    });
-    try { localStorage.setItem('llmTestbench.design', name || 'v1'); } catch (_) {}
   }
   (function initDesign() {
     let saved;
     try { saved = localStorage.getItem('llmTestbench.design'); } catch (_) {}
-    const initial = saved === 'v1' || saved === 'v2' || saved === 'v3' ? saved : 'v3';
-    applyDesign(initial);
-    document.querySelectorAll('.design-ch__btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const ch = btn.dataset.ch;
-        const name = ch === '1' ? 'v1' : ch === '2' ? 'v2' : 'v3';
-        applyDesign(name);
-      });
+    if (saved === 'v2' || saved === 'v3') applyDesign(saved);
+    const btn = document.getElementById('designToggle');
+    if (btn) btn.addEventListener('click', () => {
+      const current = document.documentElement.dataset.design || 'v1';
+      const order = { 'v1': 'v2', 'v2': 'v3', 'v3': 'v1' };
+      applyDesign(order[current]);
     });
   })();
 
