@@ -1090,6 +1090,50 @@ class SqlBenchmarkRunner:
                         if sql_raw:
                             return func_name, sql_raw
 
+        # Try <|call:function|> format (Gemma thinking variant):
+        #   <|call:run_sql_query|>{"sql":"..."}
+        #   <|call:run_sql_query|>SELECT ...
+        #   <|call:results_ok|>
+        call_start = "<|call:"
+        csi = text.find(call_start)
+        if csi >= 0:
+            rest = text[csi + len(call_start):]
+            pipe_end = rest.find("|>")
+            if pipe_end >= 0:
+                func_name = rest[:pipe_end].strip()
+                after_tag = rest[pipe_end + 2:].strip()
+                if func_name == "results_ok":
+                    return func_name, ""
+                if func_name == "run_sql_query":
+                    # Try JSON payload after tag: {"sql": "..."}
+                    if after_tag.startswith("{"):
+                        try:
+                            payload = json.loads(after_tag)
+                            sql = payload.get("sql", "")
+                            if sql:
+                                return func_name, sql
+                        except json.JSONDecodeError:
+                            pass
+                    # Try raw SQL immediately after tag
+                    if after_tag.upper().startswith(("SELECT", "WITH")):
+                        return func_name, after_tag
+
+        # Try bare function-call format (Gemma thinking inline):
+        #   run_sql_query("SELECT ...")
+        #   Call run_sql_query("SELECT ...")
+        #   Call results_ok()
+        bare_rsq = re.search(
+            r'(?:Call\s+)?run_sql_query\s*\(?\s*"((?:[^"\\]|\\.)*)"\s*\)?',
+            text, re.IGNORECASE,
+        )
+        if bare_rsq:
+            sql = bare_rsq.group(1).replace('\\"', '"').strip()
+            if sql:
+                return "run_sql_query", sql
+
+        if re.search(r'(?:Call\s+)?results_ok\s*\(\s*\)', text, re.IGNORECASE):
+            return "results_ok", ""
+
         # Try Gemma-style <tool_call> format (no pipe prefix):
         #   <tool_call>
         #     <function=run_sql_query>
