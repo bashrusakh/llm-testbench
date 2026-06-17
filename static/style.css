@@ -856,6 +856,7 @@
   }
   .sql-result-table .sql-group-start {
     border-left: 1px solid var(--sql-category-border);
+    padding-left: 3px;
   }
 
   .sql-result-table tbody td {
