@@ -81,10 +81,10 @@
     position: sticky;
     top: 0;
     z-index: 10;
-    background: linear-gradient(180deg, var(--sidebar-bg) 0%, rgba(17,24,39,0.98) 100%);
+    background: linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg) 100%);
     border-bottom: 1px solid rgba(55,65,81,0.5);
     padding-bottom: 16px;
-    margin-bottom: 0;
+    margin-bottom: 8px;
   }
   .sidebar-actions-row {
     display: grid;
@@ -2014,7 +2014,7 @@
 
   /* ── Sidebar actions sticky backdrop ── */
   html[data-design="v3"] .sidebar-actions {
-    background: linear-gradient(180deg, var(--sidebar-bg) 0%, rgba(16,24,40,0.98) 100%);
+    background: linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg) 100%);
   }
 
   /* ═══════════════════════════════════════════════════════════════
