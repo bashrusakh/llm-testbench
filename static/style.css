@@ -2278,3 +2278,10 @@
     border-left: 1px solid var(--sql-category-border);
     padding-left: 3px;
   }
+  html[data-design="v3"] .sql-result-table .sql-compare-model-head td {
+    background: #131a26;
+    padding: 8px 12px;
+  }
+  html[data-design="v3"] .sql-result-table .sql-compare-model-head:hover td {
+    background: #1a2332;
+  }
