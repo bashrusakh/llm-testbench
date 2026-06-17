@@ -783,7 +783,7 @@
   /* ── Run comparison: model group header row ────────────────────
      Spans the full table width, non-sticky so it scrolls with the
      content. Separates model groups visually with a top border. */
-  .sql-result-table .sql-compare-model-head td.sql-result-model-name {
+  .sql-result-table .sql-compare-model-head td {
     width: auto !important;
     min-width: auto !important;
     max-width: none !important;
@@ -797,10 +797,15 @@
     font-weight: 600;
     color: var(--text-main);
   }
-  .sql-result-table .sql-compare-model-head td.sql-think-cell,
+  .sql-result-table .sql-compare-model-head td.sql-think-cell {
+    width: var(--sql-think-column-width) !important;
+    min-width: var(--sql-think-column-width) !important;
+    max-width: var(--sql-think-column-width) !important;
+  }
   .sql-result-table .sql-compare-model-head td.sql-comment-cell {
-    background: #131a26;
-    border-top: 2px solid var(--border);
+    width: var(--sql-comment-column-width) !important;
+    min-width: var(--sql-comment-column-width) !important;
+    max-width: var(--sql-comment-column-width) !important;
   }
   .sql-compare-model-label {
     font-weight: 600;
@@ -1636,13 +1641,9 @@
   }
 
   /* ── SQL Compare model header hover fix ── */
-  html[data-design="v2"] .sql-result-table .sql-compare-model-head td.sql-result-model-name {
+  html[data-design="v2"] .sql-result-table .sql-compare-model-head td {
     background: var(--card-bg);
     padding: 8px 12px;
-  }
-  html[data-design="v2"] .sql-result-table .sql-compare-model-head td.sql-think-cell,
-  html[data-design="v2"] .sql-result-table .sql-compare-model-head td.sql-comment-cell {
-    background: var(--card-bg);
   }
   html[data-design="v2"] .sql-result-table .sql-compare-model-head:hover td {
     background: rgba(255,255,255,0.05);
@@ -2296,13 +2297,9 @@
     border-left: 1px solid var(--sql-category-border);
     padding-left: 3px;
   }
-  html[data-design="v3"] .sql-result-table .sql-compare-model-head td.sql-result-model-name {
+  html[data-design="v3"] .sql-result-table .sql-compare-model-head td {
     background: #131a26;
     padding: 8px 12px;
-  }
-  html[data-design="v3"] .sql-result-table .sql-compare-model-head td.sql-think-cell,
-  html[data-design="v3"] .sql-result-table .sql-compare-model-head td.sql-comment-cell {
-    background: #131a26;
   }
   html[data-design="v3"] .sql-result-table .sql-compare-model-head:hover td {
     background: #1a2332;
