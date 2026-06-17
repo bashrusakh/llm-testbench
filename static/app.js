@@ -64,7 +64,10 @@
     const live = status === 'queued' || status === 'running' || status === 'stopping';
     state.isBenchmarkRunning = live;
     if (startBtn) startBtn.disabled = live;
-    if (stopBtn) stopBtn.disabled = !live;
+    if (stopBtn) {
+      stopBtn.disabled = !live;
+      stopBtn.classList.toggle('running', live);
+    }
     if (discoverBtn) discoverBtn.disabled = live || !getBaseUrlValue();
     syncModelSelectionLock();
   }
@@ -3151,24 +3154,25 @@
   function applyDesign(name) {
     const html = document.documentElement;
     const btn = document.getElementById('designToggle');
-    if (name === 'v2') {
-      html.dataset.design = 'v2';
-      if (btn) btn.setAttribute('aria-pressed', 'true');
-      try { localStorage.setItem('llmTestbench.design', 'v2'); } catch (_) {}
-    } else {
+    if (name === 'v1' || !name) {
       delete html.dataset.design;
       if (btn) btn.setAttribute('aria-pressed', 'false');
       try { localStorage.setItem('llmTestbench.design', 'v1'); } catch (_) {}
+    } else {
+      html.dataset.design = name;
+      if (btn) btn.setAttribute('aria-pressed', 'true');
+      try { localStorage.setItem('llmTestbench.design', name); } catch (_) {}
     }
   }
   (function initDesign() {
     let saved;
     try { saved = localStorage.getItem('llmTestbench.design'); } catch (_) {}
-    if (saved === 'v2') applyDesign('v2');
+    if (saved === 'v2' || saved === 'v3') applyDesign(saved);
     const btn = document.getElementById('designToggle');
     if (btn) btn.addEventListener('click', () => {
-      const next = document.documentElement.dataset.design === 'v2' ? 'v1' : 'v2';
-      applyDesign(next);
+      const current = document.documentElement.dataset.design || 'v1';
+      const order = { 'v1': 'v2', 'v2': 'v3', 'v3': 'v1' };
+      applyDesign(order[current]);
     });
   })();
 

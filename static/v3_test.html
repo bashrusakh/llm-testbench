@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>V3 «Phosphor» — Design Test</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700;9..40,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       V3 «Phosphor» — Oscilloscope-inspired measurement dashboard
+       ═══════════════════════════════════════════════════════════════ */
+
+    :root {
+      /* ── Core surfaces ── */
+      --bg:             #080C14;
+      --sidebar-bg:     #101828;
+      --card-bg:        #152034;
+      --surface-raised: #1A273D;
+
+      /* ── Signal accent ── */
+      --accent:         #00E599;
+      --accent-hover:   #00CC8A;
+      --trace-glow:     rgba(0,229,153,0.12);
+      --trace-bright:   rgba(0,229,153,0.22);
+
+      /* ── Text ── */
+      --text-main:      #E4EAF2;
+      --text-muted:     #8793AA;
+      --text-dim:       #6A7791;
+
+      /* ── Structure ── */
+      --border:         #27334E;
+      --border-strong:  #364766;
+      --radius:         2px;
+      --radius-sm:      1px;
+      --radius-lg:      4px;
+
+      /* ── Semantic ── */
+      --success:        #00E599;
+      --error:          #FF4D6A;
+      --warn:           #FFA940;
+      --danger:         #FF4D6A;
+
+      /* ── Oscilloscope grid ── */
+      --grid-line:      rgba(86,96,119,0.04);
+      --grid-major:     rgba(86,96,119,0.08);
+      --grid-size:      20px;
+      --grid-divisions: 5;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ═══════════════════════════════════════════════ SIDEBAR ═══════ */
+
+    aside {
+      width: 400px;
+      min-width: 340px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 20px;
+      overflow-y: auto;
+      gap: 0;
+    }
+
+    h1 {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: 0 0 2px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .subtitle {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      letter-spacing: 0.02em;
+    }
+
+    .sidebar-section {
+      margin-bottom: 0;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-section + .sidebar-section { padding-top: 18px; }
+    .sidebar-section:last-child { border-bottom: none; }
+
+    .sidebar-section-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.58rem;
+      font-weight: 700;
+      color: var(--text-dim);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .sidebar-actions-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    /* ── Buttons ── */
+    button {
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.75rem;
+      border: none;
+      border-radius: var(--radius);
+      padding: 7px 14px;
+      min-height: 32px;
+      transition: background 0.12s, box-shadow 0.12s;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+      font-weight: 700;
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 0 18px var(--trace-glow), 0 0 4px var(--trace-bright);
+    }
+    .btn-danger {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-danger:hover {
+      background: rgba(255,77,106,0.1);
+      color: var(--error);
+      border-color: rgba(255,77,106,0.3);
+    }
+    /* Stop button when a run is active — glows with error signal */
+    .btn-danger.running {
+      background: rgba(255,77,106,0.1);
+      color: var(--error);
+      border-color: rgba(255,77,106,0.35);
+      box-shadow: 0 0 12px rgba(255,77,106,0.12);
+      animation: stop-pulse 2s ease-in-out infinite;
+    }
+    .btn-danger.running:hover {
+      background: rgba(255,77,106,0.18);
+      color: var(--error);
+      border-color: rgba(255,77,106,0.55);
+      box-shadow: 0 0 20px rgba(255,77,106,0.2);
+    }
+    @keyframes stop-pulse {
+      0%, 100% { box-shadow: 0 0 12px rgba(255,77,106,0.12); }
+      50%      { box-shadow: 0 0 20px rgba(255,77,106,0.22); }
+    }
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .btn-primary:disabled {
+      background: var(--border-strong);
+      color: var(--text-dim);
+      box-shadow: none;
+    }
+    .btn-primary:disabled:hover {
+      transform: none;
+      box-shadow: none;
+    }
+    .btn-secondary {
+      background: var(--surface-raised);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      font-size: 0.7rem;
+      padding: 5px 10px;
+    }
+    .btn-secondary:hover { background: #202D45; }
+    .btn-small {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 4px 8px;
+      font-size: 0.65rem;
+      border-radius: var(--radius);
+    }
+    .btn-small:hover {
+      color: var(--text-main);
+      border-color: var(--accent);
+    }
+
+    /* ── Form controls ── */
+    label {
+      display: block;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.03em;
+      margin-bottom: 3px;
+    }
+    .chk-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+    .chk-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+      margin-bottom: 0;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 10px;
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.73rem;
+      min-height: 30px;
+      transition: border-color 0.12s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--trace-glow);
+    }
+    textarea { resize: vertical; }
+
+    /* ── Status messages ── */
+    .status-message {
+      padding: 6px 10px;
+      border-radius: var(--radius);
+      font-size: 0.65rem;
+      border: 1px solid transparent;
+    }
+    .status-message.info {
+      background: var(--trace-glow);
+      color: var(--accent);
+      border-color: rgba(0,229,153,0.15);
+    }
+
+    /* ── Preset grid ── */
+    .speed-preset-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .speed-preset-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 4px;
+      cursor: pointer;
+      border-radius: var(--radius);
+      font-size: 0.7rem;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .speed-preset-btn:hover {
+      border-color: var(--border-strong);
+      background: rgba(255,255,255,0.02);
+    }
+    .speed-preset-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--trace-glow);
+    }
+    .speed-preset-name { font-weight: 600; font-size: 0.65rem; }
+    .speed-preset-desc { font-size: 0.55rem; opacity: 0.5; }
+
+    /* ── Endpoint cards ── */
+    .endpoint-card {
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      font-size: 0.72rem;
+      transition: border-color 0.1s;
+    }
+    .endpoint-card:hover, .endpoint-card.selected {
+      border-color: var(--accent);
+      background: var(--trace-glow);
+    }
+
+    /* ═══════════════════════════════════════════════ MAIN ══════════ */
+
+    main {
+      flex: 1;
+      padding: 28px 32px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .results-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      border: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 0 0 14px;
+      color: var(--text-main);
+    }
+
+    /* ── Metric cards ── */
+    .results-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .metric-card {
+      background: var(--bg);
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    .metric-card .label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.58rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+    .metric-card .value {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ═══════════════════════════════════════════════ TABLE + GRATICULE ═══ */
+
+    .graticule-table-wrap {
+      position: relative;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    /* The graticule grid — scope measurement background */
+    .graticule-table-wrap::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        repeating-linear-gradient(
+          0deg,
+          var(--grid-line) 0px,
+          var(--grid-line) 1px,
+          transparent 1px,
+          transparent var(--grid-size)
+        ),
+        repeating-linear-gradient(
+          90deg,
+          var(--grid-line) 0px,
+          var(--grid-line) 1px,
+          transparent 1px,
+          transparent var(--grid-size)
+        );
+    }
+
+    /* Major divisions every 5 minor lines */
+    .graticule-table-wrap::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        repeating-linear-gradient(
+          0deg,
+          transparent 0px,
+          transparent calc(var(--grid-size) * var(--grid-divisions) - 1px),
+          var(--grid-major) calc(var(--grid-size) * var(--grid-divisions) - 1px),
+          var(--grid-major) calc(var(--grid-size) * var(--grid-divisions))
+        ),
+        repeating-linear-gradient(
+          90deg,
+          transparent 0px,
+          transparent calc(var(--grid-size) * var(--grid-divisions) - 1px),
+          var(--grid-major) calc(var(--grid-size) * var(--grid-divisions) - 1px),
+          var(--grid-major) calc(var(--grid-size) * var(--grid-divisions))
+        );
+    }
+
+    /* ── Speed results table ── */
+    .graticule-table {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .graticule-table th {
+      text-align: left;
+      color: var(--text-dim);
+      font-size: 0.58rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--border-strong);
+      font-family: 'Inter', sans-serif;
+    }
+    .graticule-table td {
+      padding: 9px 8px;
+      border-bottom: 1px solid rgba(86,96,119,0.06);
+      color: var(--text-main);
+    }
+    .graticule-table tbody tr:hover td {
+      background: rgba(0,229,153,0.03);
+    }
+    .graticule-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* ── Status badge ── */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .status-badge.success { background: rgba(0,229,153,0.12); color: var(--success); }
+    .status-badge.error   { background: rgba(255,77,106,0.12); color: var(--error); }
+    .status-badge.warn    { background: rgba(255,169,64,0.12); color: var(--warn); }
+
+    /* ═══════════════════════════════════════════════ PHOSPHOR SWEEP ═══ */
+
+    .phosphor-progress-wrap {
+      margin-bottom: 20px;
+    }
+    .phosphor-progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+    .phosphor-progress-track {
+      width: 100%;
+      height: 6px;
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      position: relative;
+      border: 1px solid var(--border);
+    }
+
+    /* The sweep */
+    .phosphor-progress-fill {
+      height: 100%;
+      width: 64%;
+      border-radius: var(--radius-sm);
+      position: relative;
+      background: var(--accent);
+    }
+
+    /* Leading bright edge */
+    .phosphor-progress-fill::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: -2px;
+      bottom: -2px;
+      width: 24px;
+      background: linear-gradient(90deg, transparent, var(--trace-bright));
+      filter: blur(3px);
+      border-radius: 2px;
+    }
+
+    /* Afterglow tail */
+    .phosphor-progress-fill::before {
+      content: '';
+      position: absolute;
+      right: 8px;
+      top: -1px;
+      bottom: -1px;
+      width: 40px;
+      background: linear-gradient(90deg, transparent, var(--accent));
+      filter: blur(5px);
+      opacity: 0.4;
+      border-radius: 2px;
+    }
+
+    /* ── Animated variant ── */
+    .phosphor-progress-fill.animated {
+      animation: phosphor-sweep 3s ease-in-out infinite;
+    }
+    @keyframes phosphor-sweep {
+      0%   { width: 0%; }
+      50%  { width: 72%; }
+      100% { width: 0%; }
+    }
+
+    /* ═══════════════════════════════════════════════ SQL HEATMAP GRID ═══ */
+
+    .sql-heatmap-wrap {
+      position: relative;
+      overflow-x: auto;
+      border-radius: var(--radius);
+    }
+
+    /* Graticule on the SQL heatmap too */
+    .sql-heatmap-wrap::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        repeating-linear-gradient(
+          0deg,
+          var(--grid-line) 0px,
+          var(--grid-line) 1px,
+          transparent 1px,
+          transparent var(--grid-size)
+        ),
+        repeating-linear-gradient(
+          90deg,
+          var(--grid-line) 0px,
+          var(--grid-line) 1px,
+          transparent 1px,
+          transparent var(--grid-size)
+        );
+    }
+
+    .sql-heatmap-table {
+      position: relative;
+      z-index: 1;
+      border-collapse: collapse;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+    }
+    .sql-heatmap-table th {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.55rem;
+      font-weight: 700;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 6px 4px;
+      text-align: center;
+      border-bottom: 1px solid var(--border-strong);
+      background: var(--card-bg);
+      position: sticky;
+      top: 0;
+    }
+    .sql-heatmap-table th:first-child {
+      text-align: left;
+      min-width: 200px;
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: var(--card-bg);
+    }
+    .sql-heatmap-table td {
+      padding: 5px 6px;
+      text-align: center;
+      border-bottom: 1px solid rgba(86,96,119,0.05);
+      color: var(--text-muted);
+    }
+    .sql-heatmap-table td:first-child {
+      text-align: left;
+      color: var(--text-main);
+      font-weight: 500;
+      position: sticky;
+      left: 0;
+      background: var(--card-bg);
+    }
+    .sql-heatmap-table tbody tr:hover td {
+      background: rgba(0,229,153,0.03);
+    }
+    .sql-heatmap-table tbody tr:hover td:first-child {
+      background: #1C283B;
+    }
+    .sql-cell {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 2px;
+      font-size: 0.55rem;
+      font-weight: 700;
+      color: var(--bg);
+    }
+    .sql-cell.pass  { background: var(--success); }
+    .sql-cell.fail  { background: var(--error); color: var(--bg); }
+    .sql-cell.error { background: var(--warn); color: var(--bg); }
+    .sql-cell:hover {
+      transform: scale(1.3);
+      z-index: 10;
+      box-shadow: 0 0 8px var(--trace-bright);
+    }
+
+    /* ═══════════════════════════════════════════════ TRIGGER FLASH ═══ */
+
+    .trigger-flash-demo {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    @keyframes trigger-flash {
+      0%   { border-color: var(--border); }
+      20%  { border-color: var(--accent); box-shadow: 0 0 24px var(--trace-glow), 0 0 6px var(--accent); }
+      100% { border-color: var(--border); box-shadow: none; }
+    }
+    .results-card.triggered {
+      animation: trigger-flash 0.6s ease-out;
+    }
+
+    /* ═══════════════════════════════════════════════ THEME TOGGLE ═══ */
+    /* Three-channel scope selector — like CH1/CH2/CH3 on an oscilloscope */
+
+    .design-channels {
+      display: inline-flex;
+      align-items: center;
+      gap: 1px;
+      margin-left: 8px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      overflow: hidden;
+      vertical-align: middle;
+    }
+    .design-ch__btn {
+      width: 22px;
+      height: 20px;
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.55rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.1s, color 0.1s;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .design-ch__btn + .design-ch__btn {
+      border-left: 1px solid var(--border-strong);
+    }
+    .design-ch__btn:hover {
+      background: rgba(255,255,255,0.03);
+      color: var(--text-main);
+    }
+    .design-ch__btn.active {
+      color: var(--bg);
+      font-weight: 800;
+    }
+    .design-ch__btn[data-ch="1"].active { background: #3B82F6; }
+    .design-ch__btn[data-ch="1"]:hover { color: #60A5FA; }
+    .design-ch__btn[data-ch="2"].active { background: #14B8A6; }
+    .design-ch__btn[data-ch="2"]:hover { color: #5EEAD4; }
+    .design-ch__btn[data-ch="3"].active { background: var(--accent); }
+    .design-ch__btn[data-ch="3"]:hover { color: var(--accent); }
+
+    .design-ch__btn[data-ch="1"].active:hover { background: #3B82F6; color: var(--bg); }
+    .design-ch__btn[data-ch="2"].active:hover { background: #14B8A6; color: var(--bg); }
+    .design-ch__btn[data-ch="3"].active:hover { background: var(--accent); color: var(--bg); }
+
+    /* ── Section divider rule ── */
+    .section-rule {
+      height: 1px;
+      background: var(--border-strong);
+      margin: 18px 0;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════ SIDEBAR ═══════ -->
+  <aside>
+    <h1>
+      LLM Testbench
+      <span class="design-channels" title="Design channel selector — oscilloscope-style theme toggle">
+        <button class="design-ch__btn" data-ch="1" onclick="selectChannel(1)" aria-label="Design v1 — default blue">1</button>
+        <button class="design-ch__btn" data-ch="2" onclick="selectChannel(2)" aria-label="Design v2 — Instrument teal">2</button>
+        <button class="design-ch__btn active" data-ch="3" onclick="selectChannel(3)" aria-label="Design v3 — Phosphor green" aria-pressed="true">3</button>
+      </span>
+    </h1>
+    <div class="subtitle">Local multi-benchmark workbench for LLM evaluation</div>
+
+    <!-- Run -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Run</div>
+      <div class="sidebar-actions-row">
+        <button id="startBtn" class="btn-primary" onclick="toggleRun()">▶ Start benchmark</button>
+        <button id="stopBtn" class="btn-danger" onclick="toggleRun()" disabled>■ Stop</button>
+      </div>
+      <div id="jobStatus" class="status-message info" style="margin-top:8px;">Ready to benchmark</div>
+    </div>
+
+    <!-- Endpoint -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Endpoint configuration</div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button id="scanBtn" class="btn-primary" style="flex:1; font-size:0.7rem;">Scan Local</button>
+        <button id="addManualBtn" class="btn-secondary">+ Manual</button>
+      </div>
+      <div class="status-message info" style="margin-bottom:8px;">Click scan to discover local inference servers</div>
+      <div class="endpoint-card">
+        <strong>Local Ollama</strong> · http://localhost:11434
+      </div>
+      <div class="endpoint-card selected">
+        <strong>Groq Cloud</strong> · https://api.groq.com
+      </div>
+      <div class="endpoint-card">
+        <strong>vLLM Server</strong> · http://192.168.1.50:8000
+      </div>
+    </div>
+
+    <!-- Benchmark settings -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Benchmark settings</div>
+      <div style="margin-bottom:12px;">
+        <label style="margin-bottom:6px;">Tests</label>
+        <div class="chk-row">
+          <label><input type="checkbox" checked> Speed</label>
+          <label><input type="checkbox"> SQL Accuracy</label>
+        </div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label>Speed Preset</label>
+        <div class="speed-preset-grid">
+          <button class="speed-preset-btn">
+            <span class="speed-preset-name">Smoke</span>
+            <span class="speed-preset-desc">256 / 1 run</span>
+          </button>
+          <button class="speed-preset-btn active">
+            <span class="speed-preset-name">Balanced</span>
+            <span class="speed-preset-desc">1024 / 3 runs</span>
+          </button>
+          <button class="speed-preset-btn">
+            <span class="speed-preset-name">Leaderboard</span>
+            <span class="speed-preset-desc">4096 / 5 runs</span>
+          </button>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
+        <div><label>Max tokens</label><input type="number" value="4096"></div>
+        <div><label>Repeat</label><input type="number" value="3"></div>
+        <div><label>Warmup</label><input type="number" value="1"></div>
+      </div>
+      <div style="margin-top:8px;">
+        <label>Mode</label>
+        <select><option>Sequential</option><option>Parallel</option></select>
+      </div>
+      <div style="margin-top:8px;">
+        <label>Request timeout (s)</label>
+        <input type="number" value="120">
+        <div class="status-message info" style="margin-top:4px;">
+          Max wall-clock for one HTTP call. Hitting this records the run as failed.
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════ MAIN ═══════ -->
+  <main>
+
+    <!-- Model Selection -->
+    <div class="results-card">
+      <div class="section-title">Model Selection &amp; Tasks</div>
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <button id="discoverBtn" class="btn-primary" style="flex:1; font-size:0.75rem;">Discover Models</button>
+      </div>
+      <div class="status-message info">Select endpoint and discover available models</div>
+      <div style="margin-top:10px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:10px; max-height:120px; overflow-y:auto;">
+        <div style="font-size:0.7rem; display:flex; align-items:center; gap:10px; padding:4px 6px; border-radius:var(--radius-sm);">
+          <input type="checkbox" checked> <span>llama3-70b-8192</span>
+        </div>
+        <div style="font-size:0.7rem; display:flex; align-items:center; gap:10px; padding:4px 6px; border-radius:var(--radius-sm);">
+          <input type="checkbox" checked> <span>mixtral-8x7b-32768</span>
+        </div>
+        <div style="font-size:0.7rem; display:flex; align-items:center; gap:10px; padding:4px 6px; border-radius:var(--radius-sm);">
+          <input type="checkbox"> <span>gemma2-9b-it</span>
+        </div>
+        <div style="font-size:0.7rem; display:flex; align-items:center; gap:10px; padding:4px 6px; border-radius:var(--radius-sm);">
+          <input type="checkbox"> <span>deepseek-r1-distill-llama-70b</span>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <label>Benchmark Prompt</label>
+        <textarea rows="3">Explain the practical trade-offs between throughput, latency, and model quality for local LLM inference.</textarea>
+      </div>
+    </div>
+
+    <!-- Live Results -->
+    <div class="results-card" id="liveResultsCard">
+      <div class="section-title">Live Results</div>
+      <div id="mainJobStatus" class="status-message info">Ready to benchmark</div>
+
+      <!-- Phosphor sweep progress -->
+      <div class="phosphor-progress-wrap" id="progressWrap" style="margin-top:12px; display:none;">
+        <div class="phosphor-progress-meta">
+          <span>Progress</span>
+          <span id="progressLabel">0 / 22</span>
+        </div>
+        <div class="phosphor-progress-track">
+          <div class="phosphor-progress-fill animated" id="progressFill"></div>
+        </div>
+      </div>
+
+      <!-- Metric cards -->
+      <div class="results-summary">
+        <div class="metric-card">
+          <div class="label">Successful Runs</div>
+          <div class="value">24</div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Best Latency</div>
+          <div class="value">1.2<span style="font-size:0.7rem; color:var(--text-muted);">s</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Best Prompt Eval</div>
+          <div class="value">2 840<span style="font-size:0.7rem; color:var(--text-muted);">t/s</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Best Decode</div>
+          <div class="value">89<span style="font-size:0.7rem; color:var(--text-muted);">t/s</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Active Model</div>
+          <div class="value" style="font-size:0.85rem;">mixtral-8x7b</div>
+        </div>
+      </div>
+
+      <div style="font-size:0.62rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:12px;">
+        TTFT · time to first token &nbsp;|&nbsp; PP · prompt eval t/s &nbsp;|&nbsp; Decode · generation t/s
+      </div>
+
+      <!-- Speed table with graticule -->
+      <div class="graticule-table-wrap">
+        <table class="graticule-table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Provider</th>
+              <th>Run</th>
+              <th>Status</th>
+              <th class="num">Total (s)</th>
+              <th class="num">TTFT (s)</th>
+              <th class="num">PP (t/s)</th>
+              <th class="num">Decode (t/s)</th>
+              <th class="num">Tok</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>llama3-70b</td>
+              <td>Groq</td>
+              <td class="num">1</td>
+              <td><span class="status-badge success">OK</span></td>
+              <td class="num">2.847</td>
+              <td class="num">0.142</td>
+              <td class="num">2 840</td>
+              <td class="num">380.5</td>
+              <td class="num">1 024</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>llama3-70b</td>
+              <td>Groq</td>
+              <td class="num">2</td>
+              <td><span class="status-badge success">OK</span></td>
+              <td class="num">2.921</td>
+              <td class="num">0.151</td>
+              <td class="num">2 710</td>
+              <td class="num">372.3</td>
+              <td class="num">1 024</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>mixtral-8x7b</td>
+              <td>Groq</td>
+              <td class="num">1</td>
+              <td><span class="status-badge success">OK</span></td>
+              <td class="num">5.213</td>
+              <td class="num">0.091</td>
+              <td class="num">5 640</td>
+              <td class="num">198.7</td>
+              <td class="num">1 024</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>mixtral-8x7b</td>
+              <td>vLLM</td>
+              <td class="num">1</td>
+              <td><span class="status-badge warn">TO</span></td>
+              <td class="num">120.0</td>
+              <td class="num">0.310</td>
+              <td class="num">—</td>
+              <td class="num">12.4</td>
+              <td class="num">512</td>
+              <td>timeout</td>
+            </tr>
+            <tr>
+              <td>deepseek-r1</td>
+              <td>vLLM</td>
+              <td class="num">1</td>
+              <td><span class="status-badge error">ERR</span></td>
+              <td class="num">—</td>
+              <td class="num">—</td>
+              <td class="num">—</td>
+              <td class="num">—</td>
+              <td class="num">0</td>
+              <td>503</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SQL Heatmap with graticule -->
+    <div class="results-card">
+      <div class="section-title">SQL Accuracy Heatmap</div>
+
+      <div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:12px; font-size:0.65rem; color:var(--text-dim);">
+        <span><span style="display:inline-block;width:10px;height:10px;background:var(--success);border-radius:2px;vertical-align:middle;margin-right:4px;"></span> Pass</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:var(--error);border-radius:2px;vertical-align:middle;margin-right:4px;"></span> Fail</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:var(--warn);border-radius:2px;vertical-align:middle;margin-right:4px;"></span> Error</span>
+        <span style="margin-left:8px;">Mode: tool-calling</span>
+        <span>Questions: 20</span>
+      </div>
+
+      <div class="sql-heatmap-wrap">
+        <table class="sql-heatmap-table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Q5</th>
+              <th>Q6</th><th>Q7</th><th>Q8</th><th>Q9</th><th>Q10</th>
+              <th>Q11</th><th>Q12</th><th>Q13</th><th>Q14</th><th>Q15</th>
+              <th>Q16</th><th>Q17</th><th>Q18</th><th>Q19</th><th>Q20</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>llama3-70b · Groq</td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell fail">F</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell error">E</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell fail">F</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell fail">F</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td style="font-weight:700; color:var(--accent);">16/20</td>
+            </tr>
+            <tr>
+              <td>mixtral-8x7b · Groq</td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell fail">F</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell fail">F</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell error">E</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell fail">F</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell error">E</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell fail">F</span></td>
+              <td style="font-weight:700; color:var(--warn);">14/20</td>
+            </tr>
+            <tr>
+              <td>deepseek-r1 · vLLM</td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell fail">F</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td><span class="sql-cell fail">F</span></td>
+              <td><span class="sql-cell pass">P</span></td>
+              <td style="font-weight:700; color:var(--accent);">18/20</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="results-card">
+      <div class="section-title">Benchmark History</div>
+      <div class="graticule-table-wrap" style="margin-top:12px;">
+        <table class="graticule-table">
+          <thead>
+            <tr>
+              <th>Provider</th>
+              <th>Endpoint</th>
+              <th>Started</th>
+              <th>Benchmark</th>
+              <th>Status</th>
+              <th class="num">Results</th>
+              <th class="num">Errors</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Groq</td>
+              <td>api.groq.com</td>
+              <td>2026-06-17 14:22</td>
+              <td>Speed + SQL</td>
+              <td><span class="status-badge success">DONE</span></td>
+              <td class="num">44/44</td>
+              <td class="num" style="color:var(--text-dim);">0</td>
+            </tr>
+            <tr>
+              <td>vLLM</td>
+              <td>192.168.1.50:8000</td>
+              <td>2026-06-16 09:15</td>
+              <td>Speed</td>
+              <td><span class="status-badge warn">PART</span></td>
+              <td class="num">18/24</td>
+              <td class="num" style="color:var(--error);">6</td>
+            </tr>
+            <tr>
+              <td>Ollama</td>
+              <td>localhost:11434</td>
+              <td>2026-06-15 22:41</td>
+              <td>SQL</td>
+              <td><span class="status-badge success">DONE</span></td>
+              <td class="num">20/20</td>
+              <td class="num" style="color:var(--text-dim);">0</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Trigger flash demo -->
+    <div class="results-card" style="text-align:center; padding:14px;">
+      <div class="section-title" style="margin-bottom:8px;">Trigger Flash Demo</div>
+      <div class="trigger-flash-demo" style="justify-content:center;">
+        <button class="btn-primary" id="flashBtn" onclick="triggerFlash()" style="font-size:0.7rem;">
+            Fire Trigger
+        </button>
+        <span style="font-size:0.6rem; color:var(--text-dim);">
+          ← benchmark-complete pulse
+        </span>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    function triggerFlash() {
+      const card = document.getElementById('liveResultsCard');
+      card.classList.remove('triggered');
+      void card.offsetWidth;
+      card.classList.add('triggered');
+    }
+
+    // ── Run state management ──
+    const themes = {
+      1: {
+        '--bg':             '#0b0f1a',
+        '--sidebar-bg':     '#111827',
+        '--card-bg':        '#1f2937',
+        '--surface-raised': '#263348',
+        '--accent':         '#3b82f6',
+        '--accent-hover':   '#2563eb',
+        '--trace-glow':     'rgba(59,130,246,0.12)',
+        '--trace-bright':   'rgba(59,130,246,0.22)',
+        '--text-main':      '#f3f4f6',
+        '--text-muted':     '#9ca3af',
+        '--text-dim':       '#6b7280',
+        '--border':         '#374151',
+        '--border-strong':  '#4b5563',
+        '--success':        '#10b981',
+        '--error':          '#ef4444',
+        '--warn':           '#f59e0b',
+        '--danger':         '#ef4444',
+      },
+      2: {
+        '--bg':             '#0D1118',
+        '--sidebar-bg':     '#161B24',
+        '--card-bg':        '#161B24',
+        '--surface-raised': '#1A202C',
+        '--accent':         '#14B8A6',
+        '--accent-hover':   '#0D9488',
+        '--trace-glow':     'rgba(20,184,166,0.12)',
+        '--trace-bright':   'rgba(20,184,166,0.22)',
+        '--text-main':      '#f3f4f6',
+        '--text-muted':     '#8793B0',
+        '--text-dim':       '#64748B',
+        '--border':         '#262D38',
+        '--border-strong':  '#334155',
+        '--success':        '#14B8A6',
+        '--error':          '#ef4444',
+        '--warn':           '#C97A4B',
+        '--danger':         '#ef4444',
+      },
+      3: {
+        '--bg':             '#080C14',
+        '--sidebar-bg':     '#101828',
+        '--card-bg':        '#152034',
+        '--surface-raised': '#1A273D',
+        '--accent':         '#00E599',
+        '--accent-hover':   '#00CC8A',
+        '--trace-glow':     'rgba(0,229,153,0.12)',
+        '--trace-bright':   'rgba(0,229,153,0.22)',
+        '--text-main':      '#E4EAF2',
+        '--text-muted':     '#8793AA',
+        '--text-dim':       '#6A7791',
+        '--border':         '#27334E',
+        '--border-strong':  '#364766',
+        '--success':        '#00E599',
+        '--error':          '#FF4D6A',
+        '--warn':           '#FFA940',
+        '--danger':         '#FF4D6A',
+      }
+    };
+
+    let isRunning = false;
+
+    function toggleRun() {
+      isRunning = !isRunning;
+      applyRunState();
+    }
+
+    function applyRunState() {
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const scanBtn = document.querySelector('#scanBtn');
+      const manualBtn = document.querySelector('#addManualBtn');
+      const discoverBtn = document.querySelector('#discoverBtn');
+      const jobStatus = document.getElementById('jobStatus');
+      const mainJobStatus = document.getElementById('mainJobStatus');
+      const progressWrap = document.getElementById('progressWrap');
+      const progressFill = document.getElementById('progressFill');
+
+      // Start / Stop buttons
+      if (startBtn) startBtn.disabled = isRunning;
+      if (stopBtn) {
+        stopBtn.disabled = !isRunning;
+        stopBtn.classList.toggle('running', isRunning);
+      }
+
+      // Disable config buttons during run
+      if (scanBtn) scanBtn.disabled = isRunning;
+      if (manualBtn) manualBtn.disabled = isRunning;
+      if (discoverBtn) discoverBtn.disabled = isRunning;
+
+      // Status messages
+      if (jobStatus) {
+        jobStatus.textContent = isRunning
+          ? 'Benchmark running — evaluating models...'
+          : 'Ready to benchmark';
+        jobStatus.className = isRunning
+          ? 'status-message info'
+          : 'status-message info';
+      }
+      if (mainJobStatus) {
+        mainJobStatus.textContent = isRunning
+          ? 'Running benchmarks on 2 endpoints × 3 models...'
+          : 'Ready to benchmark';
+      }
+
+      // Progress bar
+      if (progressWrap) progressWrap.style.display = isRunning ? '' : 'none';
+      if (progressFill) {
+        if (isRunning) {
+          progressFill.classList.add('animated');
+        } else {
+          progressFill.classList.remove('animated');
+          progressFill.style.width = '0%';
+        }
+      }
+    }
+
+    function selectChannel(ch) {
+      if (ch === currentChannel) return;
+      currentChannel = ch;
+      const root = document.documentElement;
+      const palette = themes[ch];
+      for (const [prop, val] of Object.entries(palette)) {
+        root.style.setProperty(prop, val);
+      }
+      document.querySelectorAll('.design-ch__btn').forEach(btn => {
+        const isActive = parseInt(btn.dataset.ch) === ch;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', isActive);
+      });
+    }
+  </script>
+</body>
+</html>
