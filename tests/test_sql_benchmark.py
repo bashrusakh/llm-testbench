@@ -146,6 +146,22 @@ def test_normalize_sql_strips_trailing_semicolons():
     assert SqlBenchmarkRunner.normalize_sql("SELECT 1;;;") == "SELECT 1"
 
 
+def test_normalize_sql_handles_none():
+    assert SqlBenchmarkRunner.normalize_sql(None) == ""
+
+
+def test_normalize_sql_coerces_int():
+    assert SqlBenchmarkRunner.normalize_sql(123) == "123"
+
+
+def test_normalize_sql_coerces_bool():
+    assert SqlBenchmarkRunner.normalize_sql(True) == "TRUE"
+
+
+def test_normalize_sql_coerces_float():
+    assert SqlBenchmarkRunner.normalize_sql(3.14) == "3.14"
+
+
 # ── integration: full cleanup pipeline ───────────────────────────────────────
 
 def test_full_cleanup_pipeline():
