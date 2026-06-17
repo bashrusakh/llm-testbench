@@ -2,6 +2,41 @@
 
 All notable release changes for LLM Testbench are tracked here.
 
+## v0.4.0 (2026-06-18)
+
+v3 Phosphor default design, oscilloscope-style channel selector, Think column
+in SQL matrices, and Gemma thinking-mode tool-call fixes.
+
+### Added
+
+- **v3 Phosphor design** — new default design with phosphor accent palette,
+  replacing the previous default. Switchable via a 3-way theme toggle in the
+  sidebar. (#54)
+- **Think column in SQL matrices** — SQL run comparison heatmap and model
+  grouping now include a Think column showing thinking-mode status per
+  question, enabling quick scan of which questions used reasoning. (#56)
+- **Oscilloscope-style channel selector** — the design toggle is replaced with
+  an oscilloscope-style channel selector for switching between v1/v2/v3
+  designs. (#56)
+
+### Fixed
+
+- **Model header row background** — solid dark background across the entire
+  model header row in all themes, replacing broken colspan-based layouts.
+- **Model header hover squares** — hover state indicators work correctly in
+  both v2 and v3 themes.
+- **SQL heatmap category border** — category border no longer overlaps result
+  cells in v3 design.
+- **Sidebar sticky header overlap** — sticky header overlap on scroll fixed in
+  v2/v3 themes.
+- **Compare runs** — unanswered questions are no longer treated as errors in
+  the comparison view.
+- **Gemma thinking-mode tool calls** — parse `<|call:>` and bare
+  `run_sql_query` formats from Gemma models in thinking mode, preventing
+  TypeError on non-string SQL args. (#55)
+- **Think column comparison grouping** — fixed comparison grouping for
+  thinking_mode across SQL matrices. (#56)
+
 ## v0.3.0 (2026-06-17)
 
 Design toggle, SQL run comparison heatmap, Gemma-style tool-call parsing, and
