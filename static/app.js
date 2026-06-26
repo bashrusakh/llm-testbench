@@ -3210,6 +3210,17 @@
   scanEndpoints();
   loadAppVersion();
 
+  // v4-overlay: keyboard (Enter/Space) support for label[role="button"] toggles
+  // No-op on layouts that don't have these elements.
+  document.querySelectorAll('label[role="button"]').forEach(function(el) {
+    el.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        el.click();
+      }
+    });
+  });
+
   // A2 tab switching (no-op when #a2-panel-* elements are absent)
   document.querySelectorAll('.a2-tab-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {

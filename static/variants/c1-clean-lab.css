@@ -10,7 +10,7 @@ html[data-style="c1"] {
   --card-bg: #FFFFFF;
   --text-main: #1A1A2E;
   --text-muted: #6B7280;
-  --text-dim: #9CA3AF;
+  --text-dim: #767676; /* raised from #9CA3AF for WCAG AA 4.5:1 on white */
   --border: #E5E7EB;
   --border-light: #F3F4F6;
   --radius: 8px;

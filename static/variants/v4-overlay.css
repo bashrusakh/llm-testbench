@@ -1651,8 +1651,7 @@ label[role="button"] {
   }
 
   .grid-viewport {
-    inset: 0 0 auto 0;
-    padding-bottom: 60px;
+    inset: 0 0 60px 0;
   }
 }
 
