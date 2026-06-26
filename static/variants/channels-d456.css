@@ -297,6 +297,14 @@ html[data-design="v5"] .design-ch__btn[data-ch="5"] {
   border-color: #0EA5E9;
 }
 
+/* Compare bar (app.js builds it with inline background:var(--accent-glow);
+   the 0.06 tint is invisible on the white card — give it a readable tint
+   and a real divider. !important beats the inline style. */
+html[data-design="v5"] .sql-compare-bar {
+  background: rgba(14,165,233,0.08) !important;
+  border-bottom-color: var(--border) !important;
+}
+
 html[data-design="v5"] .design-ch__btn {
   background: var(--bg);
   color: var(--text-muted);
