@@ -6,9 +6,15 @@
   <title>LLM Testbench -- Overlay Grid</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/variants/v4-overlay.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Share+Tech+Mono&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+  <link id="css-layout" rel="stylesheet" href="/static/variants/v4-overlay.css">
+  <link id="css-alt"    rel="stylesheet" href="/static/variants/v4-terminal.css" disabled>
   <link rel="stylesheet" href="/static/variants/sql-grid.css">
+  <style>
+    .theme-alt-btn { display:inline-flex; align-items:center; padding:3px 9px; font-size:11px; font-weight:600; color:var(--text-muted); background:transparent; border:1px solid var(--border); border-radius:5px; cursor:pointer; transition:color .15s,border-color .15s; white-space:nowrap; }
+    .theme-alt-btn:hover { color:var(--text-main); border-color:var(--text-muted); }
+    .theme-alt-btn.is-alt { color:var(--accent); border-color:var(--accent); }
+  </style>
 </head>
 <body>
 
@@ -109,6 +115,7 @@
         <a class="layout-switcher__link" href="/static/index-v3-tabs.html">Tabs</a>
         <a class="layout-switcher__link layout-switcher__link--active" href="/static/index-v4-overlay.html" aria-current="page">Overlay</a>
       </nav>
+      <button id="theme-toggle" type="button" class="theme-alt-btn" data-default="Overlay" data-alt="Terminal">Terminal</button>
       <span id="jobStatus" class="bar-status" role="status" aria-live="polite">Ready</span>
       <span id="modelCount" class="bar-models">0 models</span>
     </div>

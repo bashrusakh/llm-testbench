@@ -3210,6 +3210,33 @@
   scanEndpoints();
   loadAppVersion();
 
+  // Variant theme toggle: switches between #css-layout and #css-alt stylesheets.
+  // Each V-layout HTML has these two <link> elements + a #theme-toggle button.
+  var themeToggle = $('theme-toggle');
+  if (themeToggle) {
+    var cssLayout = document.getElementById('css-layout');
+    var cssAlt    = document.getElementById('css-alt');
+    var nameDefault = themeToggle.getAttribute('data-default') || 'Default';
+    var nameAlt     = themeToggle.getAttribute('data-alt')     || 'Alt';
+    var storageKey  = 'variant-theme:' + location.pathname;
+
+    function applyTheme(useAlt) {
+      if (cssLayout) cssLayout.disabled = useAlt;
+      if (cssAlt)    cssAlt.disabled    = !useAlt;
+      themeToggle.textContent = useAlt ? '↩ ' + nameDefault : nameAlt;
+      themeToggle.classList.toggle('is-alt', useAlt);
+      try { localStorage.setItem(storageKey, useAlt ? 'alt' : 'default'); } catch(e) {}
+    }
+
+    var saved;
+    try { saved = localStorage.getItem(storageKey); } catch(e) {}
+    if (saved === 'alt') applyTheme(true);
+
+    themeToggle.addEventListener('click', function() {
+      applyTheme(cssAlt ? cssAlt.disabled : false);
+    });
+  }
+
   // v4-overlay: keyboard (Enter/Space) support for label[role="button"] toggles
   // No-op on layouts that don't have these elements.
   document.querySelectorAll('label[role="button"]').forEach(function(el) {

@@ -6,9 +6,15 @@
   <title>LLM Testbench</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/variants/v3-tabs.css">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link id="css-layout" rel="stylesheet" href="/static/variants/v3-tabs.css">
+  <link id="css-alt"    rel="stylesheet" href="/static/variants/v3-startup.css" disabled>
   <link rel="stylesheet" href="/static/variants/sql-grid.css">
+  <style>
+    .theme-alt-btn { display:inline-flex; align-items:center; padding:3px 9px; font-size:11px; font-weight:600; color:var(--text-muted); background:transparent; border:1px solid var(--border); border-radius:5px; cursor:pointer; transition:color .15s,border-color .15s; white-space:nowrap; }
+    .theme-alt-btn:hover { color:var(--text-main); border-color:var(--text-muted); }
+    .theme-alt-btn.is-alt { color:var(--accent); border-color:var(--accent); }
+  </style>
 </head>
 <body>
 
@@ -27,6 +33,7 @@
         <a class="layout-switcher__link layout-switcher__link--active" href="/static/index-v3-tabs.html" aria-current="page">Tabs</a>
         <a class="layout-switcher__link" href="/static/index-v4-overlay.html">Overlay</a>
       </nav>
+      <button id="theme-toggle" type="button" class="theme-alt-btn" data-default="Tabs" data-alt="Startup">Startup</button>
       <span class="topbar-divider" aria-hidden="true"></span>
       <h1 class="topbar-title">SQL Bench <span id="appVersion" class="topbar-version" title="Loading...">--</span></h1>
       <span class="topbar-divider" aria-hidden="true"></span>
