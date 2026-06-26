@@ -8,11 +8,27 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,600;9..40,700;9..40,800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/variants/channels-d456.css">
+  <style>
+    .layout-switcher { display:inline-flex; gap:2px; padding:3px; margin-top:10px; border:1px solid var(--border); border-radius:8px; background:var(--card-bg); }
+    .layout-switcher__link { font-size:11px; font-weight:600; padding:4px 9px; border-radius:5px; color:var(--text-muted); text-decoration:none; line-height:1; transition:background .15s, color .15s; }
+    .layout-switcher__link:hover { color:var(--text-main); background:rgba(148,163,184,.12); }
+    .layout-switcher__link--active { color:#fff; background:var(--accent); pointer-events:none; cursor:default; }
+    html[data-design="v5"] .layout-switcher { background:#fff; }
+    html[data-design="v5"] .layout-switcher__link--active { background:#0369A1; color:#fff; }
+  </style>
 </head>
 <body>
   <aside>
-    <h1>LLM Testbench <span id="appVersion" class="app-version" title="Loading…">—</span><span class="design-channels" title="Design channel selector"><button class="design-ch__btn" data-ch="1" type="button" aria-label="Design v1 — default blue">1</button><button class="design-ch__btn" data-ch="2" type="button" aria-label="Design v2 — Instrument teal">2</button><button class="design-ch__btn" data-ch="3" type="button" aria-label="Design v3 — Phosphor green">3</button></span></h1>
+    <h1>LLM Testbench <span id="appVersion" class="app-version" title="Loading…">—</span><span class="design-channels" title="Design channel selector"><button class="design-ch__btn" data-ch="1" type="button" aria-label="Design v1 — default blue">1</button><button class="design-ch__btn" data-ch="2" type="button" aria-label="Design v2 — Instrument teal">2</button><button class="design-ch__btn" data-ch="3" type="button" aria-label="Design v3 — Phosphor green">3</button><button class="design-ch__btn" data-ch="4" type="button" aria-label="Design v4 — Neon Noir">4</button><button class="design-ch__btn" data-ch="5" type="button" aria-label="Design v5 — Arctic Light">5</button><button class="design-ch__btn" data-ch="6" type="button" aria-label="Design v6 — Amber Terminal">6</button></span></h1>
     <div class="subtitle">Local multi-benchmark workbench for LLM evaluation</div>
+    <nav class="layout-switcher" aria-label="Layout">
+      <a class="layout-switcher__link layout-switcher__link--active" href="/" aria-current="page">Classic</a>
+      <a class="layout-switcher__link" href="/static/index-v1-gridhero.html">Grid</a>
+      <a class="layout-switcher__link" href="/static/index-v2-dock.html">Dock</a>
+      <a class="layout-switcher__link" href="/static/index-v3-tabs.html">Tabs</a>
+      <a class="layout-switcher__link" href="/static/index-v4-overlay.html">Overlay</a>
+    </nav>
 
     <div class="sidebar-section sidebar-actions">
       <div class="sidebar-section-title">Run</div>

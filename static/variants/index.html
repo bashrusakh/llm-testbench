@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Testbench — Design Variants</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0b0f1a;
+      color: #f3f4f6;
+      padding: 40px 32px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+    .subtitle { color: #9ca3af; font-size: 14px; margin-bottom: 32px; }
+    .section { margin-bottom: 32px; }
+    .section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6b7280;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #1f2937;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 20px;
+      text-decoration: none;
+      color: #f3f4f6;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .card:hover {
+      border-color: #3b82f6;
+      background: #1e293b;
+    }
+    .card-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+    .card-desc { color: #9ca3af; font-size: 13px; line-height: 1.5; }
+    .card-tag {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-top: 8px;
+      font-weight: 500;
+    }
+    .tag-html { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .tag-css { background: rgba(16,185,129,0.15); color: #34d399; }
+    .note {
+      margin-top: 32px;
+      padding: 16px;
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #9ca3af;
+      line-height: 1.6;
+    }
+    code {
+      background: #0d1117;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 12px;
+      color: #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>LLM Testbench — Design Variants</h1>
+  <div class="subtitle">All variants use the same app.js backend. Switch between them to compare layouts, channels, and styles.</div>
+
+  <div class="section">
+    <div class="section-label">A. Full Redesigns (separate HTML)</div>
+    <div class="grid">
+      <a href="/index-a1.html" class="card" target="_blank">
+        <div class="card-title">A1. Command Center</div>
+        <div class="card-desc">Top bar with Start/Stop, 70/30 split panel. Config on the right, results on the left. No sidebar.</div>
+        <span class="card-tag tag-html">HTML + CSS</span>
+      </a>
+      <a href="/index-a2.html" class="card" target="_blank">
+        <div class="card-title">A2. Tabbed Workspace</div>
+        <div class="card-desc">Narrow 200px sidebar with key actions. Main area uses tabs: Configure, Results, History.</div>
+        <span class="card-tag tag-html">HTML + CSS</span>
+      </a>
+      <a href="/index-a3.html" class="card" target="_blank">
+        <div class="card-title">A3. Streamlined</div>
+        <div class="card-desc">Optimized current layout. Hero Start button, 320px sidebar, collapsible sections. Lowest risk.</div>
+        <span class="card-tag tag-html">HTML + CSS</span>
+      </a>
+      <a href="/" class="card" target="_blank">
+        <div class="card-title">Current (baseline)</div>
+        <div class="card-desc">Original production layout. 420px sidebar, models in main area. Use as reference.</div>
+        <span class="card-tag tag-html">Original</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">D. Design Channels (CSS color themes — apply to any layout)</div>
+    <div class="grid">
+      <div class="card">
+        <div class="card-title" style="color:#3b82f6">v1. Default Blue</div>
+        <div class="card-desc">Production default. Inter font, dark bg, blue accent. Channel button [1].</div>
+        <span class="card-tag tag-css">Built-in</span>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#14B8A6">v2. Instrument Teal</div>
+        <div class="card-desc">Sora headings, teal + copper accents. Channel button [2].</div>
+        <span class="card-tag tag-css">Built-in</span>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#00E599">v3. Phosphor Green</div>
+        <div class="card-desc">DM Sans headings, green accent, graticule overlay. Channel button [3].</div>
+        <span class="card-tag tag-css">Built-in</span>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#A855F7">D4. Neon Noir</div>
+        <div class="card-desc">Deep purple base, cyan pass, rose fail. JetBrains Mono headings. Channel button [4].</div>
+        <span class="card-tag tag-css">channels-d456.css</span>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#0EA5E9">D5. Arctic Light</div>
+        <div class="card-desc">Full light theme. White/gray surfaces, sky-blue accent. Channel button [5].</div>
+        <span class="card-tag tag-css">channels-d456.css</span>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#F59E0B">D6. Amber Terminal</div>
+        <div class="card-desc">Retro CRT. IBM Plex Mono, amber accent, scanline overlay. Channel button [6].</div>
+        <span class="card-tag tag-css">channels-d456.css</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">C. Visual Styles (CSS density/spacing — apply to any layout)</div>
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">C1. Clean Lab</div>
+        <div class="card-desc">Light minimalist. 14px font, generous spacing, 8px radius. Low density.</div>
+        <span class="card-tag tag-css">c1-clean-lab.css</span>
+      </div>
+      <div class="card">
+        <div class="card-title">C2. Signal Monitor</div>
+        <div class="card-desc">Dense dark analytics. 12px font, tight grid, 2px radius. High info density.</div>
+        <span class="card-tag tag-css">c2-signal-monitor.css</span>
+      </div>
+      <div class="card">
+        <div class="card-title">C3. Warm Instrument</div>
+        <div class="card-desc">Premium dark. Sora headings, copper/teal tones, 13px font, 4px radius.</div>
+        <span class="card-tag tag-css">c3-warm-instrument.css</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>How to test variants:</strong><br><br>
+    <strong>Layout variants (A1-A3):</strong> Each has its own HTML file. To serve via the existing server,
+    temporarily update <code>INDEX_HTML</code> in <code>python/server.py</code> to point to the desired variant,
+    e.g. <code>INDEX_HTML = PROJECT_ROOT / "index-a1.html"</code>. Or add a route for each variant.<br><br>
+    <strong>Design channels (D4-D6):</strong> Already wired in the A1-A3 HTML files (buttons 4-6 in the channel switcher).
+    To add them to the original <code>index.html</code>, add
+    <code>&lt;link rel="stylesheet" href="/static/variants/channels-d456.css"&gt;</code> to the head
+    and add channel buttons 4-6 to the switcher.<br><br>
+    <strong>Visual styles (C1-C3):</strong> Add a stylesheet link and set <code>data-style="c1"</code> on the
+    <code>&lt;html&gt;</code> element. Styles layer on top of channels — you can combine, e.g., channel D4 + style C2.<br><br>
+    <strong>Combination matrix:</strong> Layout (A1/A2/A3) x Channel (v1-v6) x Style (C1-C3) = 54 possible combinations.
+  </div>
+
+</body>
+</html>

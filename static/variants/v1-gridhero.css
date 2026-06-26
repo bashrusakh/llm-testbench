@@ -1,0 +1,1157 @@
+/* ============================================================
+   V1 - Grid Hero
+   Horizontal toolbar + full-width SQL grid + collapsible history
+   ============================================================ */
+
+/* --- Reset & base --- */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-body:      #0F172A;
+  --bg-surface:   #1E293B;
+  --bg-raised:    #273548;
+  --bg-input:     #0F172A;
+  --accent:       #3B82F6;
+  --accent-hover: #2563EB;
+  --accent-glow:  rgba(59, 130, 246, .15);
+  --danger:       #EF4444;
+  --danger-hover: #DC2626;
+  --success:      #22C55E;
+  --warning:      #F59E0B;
+  --text:         #E2E8F0;
+  --text-muted:   #94A3B8;
+  --text-dim:     #7D8CA6; /* raised from #64748B for >=4.5:1 on bg-body */
+  --border:       #334155;
+  --border-focus: #3B82F6;
+  /* Filled-button surfaces: darker than brand --accent so a #fff label
+     clears WCAG 4.5:1 at base AND hover. --accent itself stays the brand
+     color (borders, accent text, glow, heatmap) untouched. */
+  --btn-fill:           #2563EB;
+  --btn-fill-hover:     #1D4ED8;
+  --btn-danger-fill:        #DC2626;
+  --btn-danger-fill-hover:  #B91C1C;
+  --radius-sm:    4px;
+  --radius:       6px;
+  --radius-lg:    8px;
+  --font-ui:      'Inter', system-ui, -apple-system, sans-serif;
+  --font-data:    'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+  --transition:   180ms ease;
+}
+
+/* ============================================================
+   THEME CHANNELS (set on <html data-design="vN"> by app.js)
+   Override only the color custom properties so every component
+   that uses var(--x) re-themes for free. ch1 = default blue (above).
+   ============================================================ */
+
+/* ── Channel 2 — Instrument teal (canonical, matches themes page) ──
+   Role map from channels-d456.css v2 identity:
+   --bg→--bg-body, --sidebar-bg/--card-bg→--bg-surface/--bg-raised,
+   --accent→--accent, --accent-hover→--accent-hover, --text-main→--text,
+   --text-muted→--text-muted, --text-dim→--text-dim, --border→--border,
+   --error→--danger, --success→--success, --warn→--warning.
+   btn-fill darkened so #fff labels clear WCAG 4.5:1 (teal accent too light). */
+html[data-design="v2"] {
+  --bg-body:      #0B1A18;
+  --bg-surface:   #122A26;
+  --bg-raised:    #18352F;
+  --bg-input:     #0B1A18;
+  --accent:       #14B8A6;
+  --accent-hover: #0D9488;
+  --accent-glow:  rgba(20, 184, 166, .15);
+  --danger:       #F87171;
+  --danger-hover: #EF4444;
+  --success:      #34D399;
+  --warning:      #FBBF24;
+  --text:         #E3F2EE;
+  --text-muted:   #94B8B0;
+  --text-dim:     #7C8AA0; /* >=5.1:1 on bg-body, UI-pass on surfaces */
+  --border:       #234A43;
+  --border-focus: #14B8A6;
+  --btn-fill:           #0F766E; /* #fff label 5.47:1 */
+  --btn-fill-hover:     #0B5F59; /* #fff label 7.51:1 */
+  --btn-danger-fill:        #DC2626;
+  --btn-danger-fill-hover:  #B91C1C;
+}
+
+/* ── Channel 3 — Phosphor green (canonical, matches themes page) ── */
+html[data-design="v3"] {
+  --bg-body:      #0A1410;
+  --bg-surface:   #10231A;
+  --bg-raised:    #16301F;
+  --bg-input:     #0A1410;
+  --accent:       #00E599;
+  --accent-hover: #00C886;
+  --accent-glow:  rgba(0, 229, 153, .14);
+  --danger:       #FB7185;
+  --danger-hover: #F43F5E;
+  --success:      #00E599;
+  --warning:      #FBBF24;
+  --text:         #D8F5E6;
+  --text-muted:   #6FB394;
+  --text-dim:     #8E9BB3; /* >=6.6:1 on bg-body */
+  --border:       #1C3A2A;
+  --border-focus: #00E599;
+  /* Bright phosphor accent: darker fills carry #fff labels */
+  --btn-fill:           #047857; /* #fff label 5.48:1 */
+  --btn-fill-hover:     #065F46; /* #fff label 7.68:1 */
+  --btn-danger-fill:        #BE123C; /* #fff label 6.29:1 */
+  --btn-danger-fill-hover:  #9F1239;
+}
+
+/* ── Channel 4 — Neon Noir (violet/magenta on near-black) ── */
+html[data-design="v4"] {
+  --bg-body:      #0D0A14;
+  --bg-surface:   #13102A;
+  --bg-raised:    #16102A;
+  --bg-input:     #0D0A14;
+  --accent:       #A855F7;
+  --accent-hover: #9333EA;
+  --accent-glow:  rgba(168, 85, 247, .12);
+  --danger:       #F43F5E;
+  --danger-hover: #E11D48;
+  --success:      #22D3EE;
+  --warning:      #FBBF24;
+  --text:         #F0E6FF;
+  --text-muted:   #8B7AAA;
+  --text-dim:     #8576A0; /* raised for UI legibility (4.76:1 on bg) */
+  --border:       #2D1B4E;
+  --border-focus: #A855F7;
+  --btn-fill:           #974CDE; /* darkened accent: #fff label 4.77:1 */
+  --btn-fill-hover:     #8636CC; /* #fff label 6.15:1 */
+  --btn-danger-fill:        #B4233D; /* #fff label 6.46:1 */
+  --btn-danger-fill-hover:  #991B33;
+}
+
+/* ── Channel 5 — Arctic Light (LIGHT theme: light surfaces, dark text) ── */
+html[data-design="v5"] {
+  --bg-body:      #F8FAFC;
+  --bg-surface:   #FFFFFF;
+  --bg-raised:    #FFFFFF;
+  --bg-input:     #FFFFFF;
+  --accent:       #0EA5E9;
+  --accent-hover: #0284C7;
+  --accent-glow:  rgba(14, 165, 233, .08);
+  --danger:       #DC2626;
+  --danger-hover: #B91C1C;
+  --success:      #16A34A;
+  --warning:      #D97706;
+  --text:         #0F172A;
+  --text-muted:   #556173; /* >=6.2:1 on white */
+  --text-dim:     #64748B; /* >=4.5:1 on bg */
+  --border:       #E2E8F0;
+  --border-focus: #0EA5E9;
+  --btn-fill:           #0A7AAC; /* darkened sky: #fff label 4.78:1 */
+  --btn-fill-hover:     #086690; /* #fff label 6.34:1 */
+  --btn-danger-fill:        #DC2626; /* #fff label 4.83:1 */
+  --btn-danger-fill-hover:  #B91C1C;
+}
+
+/* ── Channel 6 — Amber Terminal (amber on very dark brown/black) ── */
+html[data-design="v6"] {
+  --bg-body:      #0C0A04;
+  --bg-surface:   #110F06;
+  --bg-raised:    #14120A;
+  --bg-input:     #0C0A04;
+  --accent:       #F59E0B;
+  --accent-hover: #D97706;
+  --accent-glow:  rgba(245, 158, 11, .10);
+  --danger:       #EF4444;
+  --danger-hover: #DC2626;
+  --success:      #84CC16;
+  --warning:      #FBBF24;
+  --text:         #E8D5A0;
+  --text-muted:   #B59A2E; /* raised from #92810A for >=4.5:1 on surfaces */
+  --text-dim:     #8A7A0C; /* >=4.59:1 on bg */
+  --border:       #2A2210;
+  --border-focus: #F59E0B;
+  /* Amber accent on dark; filled buttons use dark labels normally, but this
+     variant's filled buttons carry #fff — darken amber fill so #fff passes. */
+  --btn-fill:           #B45309; /* #fff label 5.02:1 */
+  --btn-fill-hover:     #92400E; /* #fff label 7.09:1 */
+  --btn-danger-fill:        #B91C1C; /* #fff label 6.47:1 */
+  --btn-danger-fill-hover:  #991B1B;
+}
+
+html { height: 100%; }
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-body);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* ============================================================
+   TOOLBAR
+   ============================================================ */
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  padding: 0 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.toolbar__brand {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -.02em;
+  color: var(--text);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar__version {
+  font-family: var(--font-data);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-dim);
+  background: var(--bg-raised);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+}
+
+.toolbar__controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* --- Toolbar buttons (generic) --- */
+.toolbar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 12px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.toolbar__btn:hover {
+  background: var(--bg-surface);
+  border-color: var(--text-dim);
+}
+
+/* Dropdown arrow via CSS */
+.toolbar__btn--dropdown::after {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 4px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid var(--text-muted);
+  transition: transform var(--transition);
+}
+
+.toolbar__btn--start {
+  background: var(--btn-fill);
+  border-color: var(--btn-fill);
+  color: #fff;
+}
+
+.toolbar__btn--start:hover:not(:disabled) {
+  background: var(--btn-fill-hover);
+  border-color: var(--btn-fill-hover);
+}
+
+.toolbar__btn--start:disabled,
+.toolbar__btn--stop:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.toolbar__btn--stop {
+  background: var(--btn-danger-fill);
+  border-color: var(--btn-danger-fill);
+  color: #fff;
+}
+
+.toolbar__btn--stop:hover:not(:disabled) {
+  background: var(--btn-danger-fill-hover);
+  border-color: var(--btn-danger-fill-hover);
+}
+
+/* --- Design channel buttons --- */
+.toolbar__channels {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.design-ch__btn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.design-ch__btn:hover,
+.design-ch__btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* --- Layout switcher (nav between layout pages) --- */
+.layout-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  margin-left: auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* When the layout-switcher precedes .toolbar__channels, the switcher takes
+   the margin-left:auto push and the channels sit flush after it. */
+.layout-switcher + .toolbar__channels {
+  margin-left: 8px;
+}
+
+.layout-switcher__link {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--text-muted);
+  background: transparent;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--transition), background var(--transition);
+}
+
+.layout-switcher__link:hover {
+  color: var(--text);
+  background: var(--accent-glow);
+}
+
+/* Active link: highlighted + non-clickable */
+.layout-switcher__link--active,
+.layout-switcher__link[aria-current="page"] {
+  color: #fff;
+  background: var(--btn-fill);
+  pointer-events: none;
+  cursor: default;
+}
+
+/* ============================================================
+   DROPDOWN PANELS (CSS-only via hidden checkbox)
+   ============================================================ */
+.toolbar__dropdown {
+  position: relative;
+}
+
+.toolbar__dropdown-chk {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.toolbar__dropdown-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 380px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity var(--transition), transform var(--transition), visibility 0s 200ms;
+  z-index: 200;
+}
+
+.toolbar__dropdown-chk:checked ~ .toolbar__dropdown-panel {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition: opacity var(--transition), transform var(--transition), visibility 0s 0s;
+}
+
+/* Flip arrow when open */
+.toolbar__dropdown-chk:checked ~ .toolbar__btn--dropdown::after {
+  transform: rotate(180deg);
+}
+
+/* Highlight active dropdown button */
+.toolbar__dropdown-chk:checked ~ .toolbar__btn--dropdown {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.toolbar__dropdown-panel--models {
+  min-width: 440px;
+}
+
+.dropdown-panel__inner {
+  padding: 14px;
+}
+
+.dropdown-panel__title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.dropdown-panel__row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/* ============================================================
+   STATUS STRIP
+   ============================================================ */
+.status-strip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 16px;
+  background: var(--bg-body);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.status-strip__messages {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.status-strip__text {
+  font-family: var(--font-data);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-strip__op {
+  font-family: var(--font-data);
+  font-size: 11px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.status-strip__progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  min-width: 200px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-raised);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar__fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 300ms ease;
+}
+
+.progress-bar__label {
+  font-family: var(--font-data);
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   GRID HERO (full-width SQL results)
+   ============================================================ */
+.grid-hero {
+  flex: 1;
+  padding: 12px 16px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.grid-hero__results,
+.grid-hero__compare {
+  width: 100%;
+}
+
+/* Heatmap grid styling (generated dynamically by app.js) */
+.grid-hero__results table,
+.grid-hero__compare table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-data);
+  font-size: 12px;
+}
+
+.grid-hero__results th,
+.grid-hero__compare th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 2px solid var(--border);
+  z-index: 2;
+}
+
+.grid-hero__results td,
+.grid-hero__compare td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(51,65,85,.4);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.grid-hero__results tr:hover td,
+.grid-hero__compare tr:hover td {
+  background: var(--accent-glow);
+}
+
+/* --- SQL heatmap overrides (restore sql-grid.css table model) ---
+   The generic .grid-hero__results/compare table rules above have higher
+   specificity than sql-grid.css's bare .sql-result-table, so they forced
+   width:100% + border-collapse:collapse and squashed the fixed-width
+   question columns / 22px cells. Re-assert the heatmap table model with
+   matching-or-higher specificity. */
+.grid-hero__results .sql-result-table,
+.grid-hero__compare .sql-result-table {
+  width: max-content;
+  min-width: max-content;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+/* Keep the tiny question cells from being bloated by the generic 6px 10px
+   padding / nowrap; sql-grid.css uses 6px 4px so the cells stay square. */
+.grid-hero__results .sql-result-table td,
+.grid-hero__compare .sql-result-table td {
+  padding: 6px 4px;
+  white-space: normal;
+}
+
+/* ============================================================
+   COLLAPSIBLE HISTORY
+   ============================================================ */
+.history-section {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+}
+
+.history-section__chk {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.history-section__trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--transition);
+}
+
+.history-section__trigger:hover {
+  color: var(--text);
+}
+
+/* Chevron via CSS */
+.history-section__trigger::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 6px solid var(--text-dim);
+  transition: transform var(--transition);
+}
+
+.history-section__chk:checked ~ .history-section__trigger::before {
+  transform: rotate(90deg);
+}
+
+.history-section__content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 300ms ease;
+}
+
+.history-section__chk:checked ~ .history-section__content {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.history-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-table-wrap {
+  overflow-x: auto;
+}
+
+/* ============================================================
+   SHARED TABLE STYLES
+   ============================================================ */
+.gh-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-data);
+  font-size: 12px;
+}
+
+.gh-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 2px solid var(--border);
+}
+
+.gh-table tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(51,65,85,.35);
+  color: var(--text);
+}
+
+.gh-table tbody tr:hover td {
+  background: var(--accent-glow);
+}
+
+/* ============================================================
+   BUTTON SYSTEM
+   ============================================================ */
+.gh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 12px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  color: var(--text);
+  background: var(--bg-raised);
+}
+
+.gh-btn:hover {
+  border-color: var(--text-dim);
+}
+
+.gh-btn--primary {
+  background: var(--btn-fill);
+  border-color: var(--btn-fill);
+  color: #fff;
+}
+
+.gh-btn--primary:hover {
+  background: var(--btn-fill-hover);
+  border-color: var(--btn-fill-hover);
+}
+
+.gh-btn--secondary {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.gh-btn--secondary:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.gh-btn--danger {
+  background: transparent;
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.gh-btn--danger:hover {
+  background: var(--btn-danger-fill);
+  border-color: var(--btn-danger-fill);
+  color: #fff;
+}
+
+.gh-btn--small {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.gh-btn--full {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.gh-btn:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   .btn-small  — DYNAMIC history-row actions (app.js)
+   app.js emits the "Open" <button> and the JSONL / CSV / TSV /
+   Manifest / Summary download <a>'s ALL with class "btn-small".
+   This rule must read well as both a <button> and an <a> on dark,
+   and kill the default link underline / blue.
+   ============================================================ */
+.btn-small,
+a.btn-small,
+button.btn-small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  text-decoration: none;        /* kill <a> underline */
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition), border-color var(--transition);
+}
+
+.btn-small:hover,
+a.btn-small:hover,
+button.btn-small:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  text-decoration: none;
+}
+
+.btn-small:focus-visible,
+a.btn-small:focus-visible,
+button.btn-small:focus-visible {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.btn-small:disabled,
+.btn-small[disabled],
+.btn-small[aria-disabled="true"] {
+  opacity: .4;
+  cursor: not-allowed;
+  color: var(--text-muted);
+  border-color: var(--border);
+  background: var(--bg-raised);
+}
+
+/* The history Actions cell (the last <td>) holds the Open button + the
+   5 download links as direct children — app.js emits no wrapper. Make the
+   cell itself a wrapping flex container so the chips gap/wrap tidily. */
+.gh-table tbody td:last-child {
+  white-space: normal;
+}
+
+.history-table-wrap .gh-table tbody td:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 220px;
+}
+
+/* ============================================================
+   FORM FIELDS
+   ============================================================ */
+.form-field {
+  margin-bottom: 8px;
+}
+
+.form-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color var(--transition);
+}
+
+.form-field textarea {
+  height: auto;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.form-field-row {
+  display: flex;
+  gap: 8px;
+}
+
+.form-field-row .form-field {
+  flex: 1;
+}
+
+/* ============================================================
+   SETTINGS ROWS
+   ============================================================ */
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.settings-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  min-width: 60px;
+}
+
+.chk-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.chk-label input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Global checkbox theming so EVERY checkbox (incl. the dynamic
+   history-row + "select all" boxes app.js renders into .gh-table)
+   matches the active scheme. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+/* ============================================================
+   MODEL SELECTOR
+   ============================================================ */
+.model-selector__search {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  transition: border-color var(--transition);
+}
+
+.model-selector__search:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.model-selector__controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.model-selector__list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+}
+
+/* ============================================================
+   STATUS & HINTS
+   ============================================================ */
+.gh-status {
+  font-family: var(--font-data);
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
+.gh-muted {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.manual-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 2px 0;
+}
+
+.manual-form {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.empty-state {
+  color: var(--text-dim);
+  text-align: center;
+  padding: 20px;
+  font-size: 12px;
+}
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+.hidden {
+  display: none !important;
+}
+
+/* Status message classes used by app.js */
+.status-message {
+  font-family: var(--font-data);
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  margin: 4px 0;
+}
+
+.status-message.info {
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.status-message.success {
+  color: var(--success);
+}
+
+.status-message.error {
+  color: var(--danger);
+}
+
+.status-message.warning {
+  color: var(--warning);
+}
+
+.status-message--compact {
+  padding: 2px 0;
+  margin: 2px 0;
+}
+
+.status-message--attached {
+  margin-top: 0;
+}
+
+/* Speed-only settings (hidden in SQL-first layout) */
+.speed-only-setting {
+  display: none;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+  .toolbar {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .toolbar__controls {
+    flex-wrap: wrap;
+  }
+
+  .toolbar__dropdown-panel {
+    min-width: 300px;
+    left: -40px;
+  }
+
+  .toolbar__dropdown-panel--models {
+    min-width: 300px;
+  }
+
+  .status-strip {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .status-strip__progress {
+    min-width: 0;
+  }
+}
+
+/* ============================================================
+   WCAG CONTRAST PASS — scoped per scheme (v4/v5/v6 + v2/v3)
+   Contrast computed with a self-contained script against the
+   resolved fg/bg per scheme. Normal text >= 4.5:1, UI/large >= 3:1.
+   Brand --accent stays intact; only button FILLS darken (via the
+   scoped --btn-fill vars above) where #fff labels would fail.
+   ============================================================ */
+
+/* ── SQL heatmap cells (sql-grid.css hardcodes bright bg + #fff text):
+   pass #10b981 / fail #ef4444 give #fff 2.54:1 & 3.76:1. Use a near-black
+   glyph (7.47:1 / 5.20:1). error cell already ships dark glyph (#111827). */
+html[data-design="v5"] .sql-result-cell.pass  { color: #08130c; }
+html[data-design="v5"] .sql-result-cell.fail  { color: #1a0606; }
+html[data-design="v5"] .sql-result-cell.error { color: #111827; }
+
+/* ── v5 (Arctic Light): the layout-switcher active link + btn-small must
+   read on light surfaces. Active link fill is --btn-fill (#0A7AAC) with
+   #fff = 4.78:1 (inherited). Idle links use --text-muted (#556173 = 6.2:1).
+   btn-small inherits var tokens; ensure its idle/disabled text stays dark. */
+html[data-design="v5"] .layout-switcher {
+  background: #fff;
+  border-color: var(--border);
+}
+html[data-design="v5"] .btn-small,
+html[data-design="v5"] a.btn-small,
+html[data-design="v5"] button.btn-small {
+  background: #fff;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+html[data-design="v5"] .btn-small:hover,
+html[data-design="v5"] a.btn-small:hover,
+html[data-design="v5"] button.btn-small:hover {
+  color: var(--accent-hover);   /* #0284C7 = 4.0:1 UI on white */
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}

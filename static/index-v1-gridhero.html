@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Testbench - Grid Hero</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/variants/v1-gridhero.css">
+  <link rel="stylesheet" href="/static/variants/sql-grid.css">
+</head>
+<body>
+
+  <!-- ===== TOOLBAR (single horizontal row) ===== -->
+  <header class="toolbar">
+    <div class="toolbar__brand">
+      SQL Bench <span id="appVersion" class="toolbar__version" title="Loading...">--</span>
+    </div>
+
+    <div class="toolbar__controls">
+      <!-- Scan dropdown toggle -->
+      <div class="toolbar__dropdown">
+        <input type="checkbox" id="dropdownScanToggle" class="toolbar__dropdown-chk" aria-hidden="true">
+        <label for="dropdownScanToggle" class="toolbar__btn toolbar__btn--dropdown">Scan</label>
+        <div class="toolbar__dropdown-panel toolbar__dropdown-panel--scan">
+          <div class="dropdown-panel__inner">
+            <div class="dropdown-panel__title">Endpoint Configuration</div>
+            <div class="dropdown-panel__row">
+              <button id="scanBtn" class="gh-btn gh-btn--primary">Scan Local</button>
+              <button id="addManualBtn" class="gh-btn gh-btn--secondary">+ Manual</button>
+            </div>
+            <div id="endpointStatus" class="gh-status">Click scan to discover local inference servers</div>
+            <div id="endpointList"></div>
+
+            <!-- Manual provider form -->
+            <div id="manualProviderForm" class="manual-form hidden">
+              <div class="form-field">
+                <label for="manualProviderPreset">Preset</label>
+                <select id="manualProviderPreset">
+                  <option value="generic-openai">Custom OpenAI-compatible</option>
+                  <option value="openrouter">OpenRouter</option>
+                  <option value="groq">Groq</option>
+                  <option value="together">Together AI</option>
+                </select>
+              </div>
+              <div class="form-field-row">
+                <div class="form-field">
+                  <label for="manualProviderLabel">Label</label>
+                  <input id="manualProviderLabel" type="text" placeholder="My endpoint">
+                </div>
+                <div class="form-field">
+                  <label for="manualProviderBaseUrl">Base URL</label>
+                  <input id="manualProviderBaseUrl" type="text" placeholder="https://...">
+                </div>
+              </div>
+              <div class="form-field">
+                <label for="manualProviderApiKey">API Key</label>
+                <input id="manualProviderApiKey" type="password" placeholder="Optional">
+              </div>
+              <div id="manualProviderHint" class="manual-hint"></div>
+              <button id="manualProviderSubmit" class="gh-btn gh-btn--primary gh-btn--full">Add Provider</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Models dropdown toggle -->
+      <div class="toolbar__dropdown">
+        <input type="checkbox" id="dropdownModelsToggle" class="toolbar__dropdown-chk" aria-hidden="true">
+        <label for="dropdownModelsToggle" class="toolbar__btn toolbar__btn--dropdown">Models</label>
+        <div class="toolbar__dropdown-panel toolbar__dropdown-panel--models">
+          <div class="dropdown-panel__inner">
+            <div class="dropdown-panel__title" id="benchmarkPanelTitle">Select models to benchmark</div>
+            <div class="dropdown-panel__row">
+              <button id="discoverBtn" class="gh-btn gh-btn--primary">Discover Models</button>
+            </div>
+            <div id="discoverStatus" class="gh-status">Select endpoint and discover available models</div>
+            <div class="model-selector">
+              <input id="modelSearch" type="text" class="model-selector__search" placeholder="Filter models...">
+              <div class="model-selector__controls">
+                <button id="selectAllBtn" class="gh-btn gh-btn--small">Select All</button>
+                <button id="selectNoneBtn" class="gh-btn gh-btn--small">Select None</button>
+                <span id="modelCount" class="gh-muted">0 models</span>
+              </div>
+              <div id="modelList" class="model-selector__list">
+                <div class="empty-state">No models loaded yet</div>
+              </div>
+            </div>
+
+            <!-- Benchmark settings inside models dropdown -->
+            <div class="dropdown-panel__title" style="margin-top:12px;">Benchmark Settings</div>
+            <div class="settings-row">
+              <span class="settings-label">Tests</span>
+              <label class="chk-label"><input type="checkbox" id="typeSpeed" checked> Speed</label>
+              <label class="chk-label"><input type="checkbox" id="typeSql"> SQL Accuracy</label>
+            </div>
+
+            <div id="thinkingModeGroup" class="settings-row hidden">
+              <span class="settings-label">Thinking</span>
+              <label class="chk-label"><input type="checkbox" id="thinkOff" checked> Off</label>
+              <label class="chk-label"><input type="checkbox" id="thinkOn"> On</label>
+            </div>
+
+            <div id="questionIdsGroup" class="form-field hidden">
+              <label for="questionIds">Question IDs</label>
+              <input id="questionIds" type="text" placeholder="e.g. 1, 7, 12">
+            </div>
+
+            <div id="reasoningEffortGroup" class="form-field hidden">
+              <label for="reasoningEffort">Provider Reasoning</label>
+              <select id="reasoningEffort">
+                <option value="disabled" selected>Provider default (omit)</option>
+                <option value="none">none (explicit off)</option>
+                <option value="minimal">minimal</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+                <option value="xhigh">xhigh</option>
+              </select>
+            </div>
+
+            <div id="questionTimeoutGroup" class="form-field hidden">
+              <label for="questionTimeoutMs">Per-question timeout (s)</label>
+              <input id="questionTimeoutMs" type="number" value="0" min="0" step="1" placeholder="0 = disabled">
+            </div>
+
+            <div id="runCommentGroup" class="form-field hidden">
+              <label for="runComment">Run comment</label>
+              <textarea id="runComment" rows="2" maxlength="1000" placeholder="e.g. 9B-class on RTX 4090, q5_k_m..."></textarea>
+            </div>
+
+            <div id="sqlModeHint" class="gh-status hidden">
+              SQL benchmark uses backend-built prompts from the AdventureWorks schema.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Start / Stop -->
+      <button id="startBtn" class="toolbar__btn toolbar__btn--start" disabled>Start</button>
+      <button id="stopBtn" class="toolbar__btn toolbar__btn--stop" disabled>Stop</button>
+
+      <!-- Layout switcher (plain navigation; color scheme persists via localStorage) -->
+      <nav class="layout-switcher" aria-label="Layout">
+        <a class="layout-switcher__link" href="/">Classic</a>
+        <a class="layout-switcher__link layout-switcher__link--active" href="/static/index-v1-gridhero.html" aria-current="page">Grid</a>
+        <a class="layout-switcher__link" href="/static/index-v2-dock.html">Dock</a>
+        <a class="layout-switcher__link" href="/static/index-v3-tabs.html">Tabs</a>
+        <a class="layout-switcher__link" href="/static/index-v4-overlay.html">Overlay</a>
+      </nav>
+
+      <!-- Design channel buttons -->
+      <div class="toolbar__channels">
+        <button class="design-ch__btn" data-ch="1" type="button" aria-label="Design v1 — default blue">1</button>
+        <button class="design-ch__btn" data-ch="2" type="button" aria-label="Design v2 — Instrument teal">2</button>
+        <button class="design-ch__btn" data-ch="3" type="button" aria-label="Design v3 — Phosphor green">3</button>
+        <button class="design-ch__btn" data-ch="4" type="button" aria-label="Design v4 — Neon Noir">4</button>
+        <button class="design-ch__btn" data-ch="5" type="button" aria-label="Design v5 — Arctic Light">5</button>
+        <button class="design-ch__btn" data-ch="6" type="button" aria-label="Design v6 — Amber Terminal">6</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== STATUS + PROGRESS BAR ===== -->
+  <section class="status-strip">
+    <div class="status-strip__messages">
+      <span id="jobStatus" class="status-strip__text" role="status" aria-live="polite">Ready to benchmark</span>
+      <span id="mainJobStatus" class="status-strip__text" role="status" aria-live="polite">Ready</span>
+      <span id="currentOperation" class="status-strip__op hidden">Idle</span>
+    </div>
+    <div class="status-strip__progress">
+      <div class="progress-bar">
+        <div id="progressFill" class="progress-bar__fill"></div>
+      </div>
+      <span id="progressText" class="progress-bar__label">0 / 0</span>
+    </div>
+  </section>
+
+  <!-- ===== FULL-WIDTH SQL GRID (the hero element) ===== -->
+  <section class="grid-hero">
+    <div id="sqlResultsContainer" class="grid-hero__results"></div>
+    <div id="sqlCompareContainer" class="grid-hero__compare"></div>
+  </section>
+
+  <!-- ===== COLLAPSIBLE HISTORY ===== -->
+  <section class="history-section">
+    <input type="checkbox" id="historyToggle" class="history-section__chk" aria-hidden="true">
+    <label for="historyToggle" class="history-section__trigger">History</label>
+    <div class="history-section__content">
+      <div class="history-toolbar">
+        <button id="refreshHistoryBtn" class="gh-btn gh-btn--secondary">Refresh</button>
+        <label class="chk-label"><input id="selectAllHistory" type="checkbox"> Select all</label>
+        <button id="compareRunsBtn" class="gh-btn gh-btn--primary gh-btn--small" disabled>Compare Runs</button>
+        <button id="clearSelectedHistoryBtn" class="gh-btn gh-btn--danger gh-btn--small" disabled>Clear Selected</button>
+        <button id="clearAllHistoryBtn" class="gh-btn gh-btn--danger gh-btn--small">Clear All</button>
+        <span id="historyStatus" class="gh-muted">No saved history loaded yet</span>
+        <button id="closeHistoryViewBtn" class="gh-btn gh-btn--small hidden">Close</button>
+      </div>
+      <div class="history-table-wrap">
+        <table class="gh-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Provider</th>
+              <th>Endpoint</th>
+              <th>Started</th>
+              <th>Benchmark Type</th>
+              <th>Questions</th>
+              <th>Thinking</th>
+              <th>Comment</th>
+              <th>Status</th>
+              <th>Results</th>
+              <th>Errors</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr><td colspan="12" class="empty-state">No saved benchmark history yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== HIDDEN speed-only elements (display:none) ===== -->
+  <div style="display:none;">
+    <div id="speedResultsContainer">
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th><th>Provider</th><th>Run</th><th>Status</th>
+            <th>Total (s)</th><th>TTFT (s)</th><th>PP (t/s)</th><th>Decode (t/s)</th>
+            <th>Prompt Tok</th><th>Completion Tok</th><th>Error</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody" aria-busy="false" aria-live="polite">
+          <tr><td colspan="11" class="empty-state">No benchmark results yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="resultsHint">
+      TTFT = time to first token. Total = full generation time.
+    </div>
+    <div id="speedViewToggle">
+      <button type="button" data-view="aggregated" class="active">Aggregated</button>
+      <button type="button" data-view="raw">Individual runs</button>
+    </div>
+    <div>
+      <label>Max tokens <input id="maxTokens" type="number" value="4096" min="1" step="256"></label>
+      <label>Repeat <input id="repeatCount" type="number" value="3" min="1" max="100"></label>
+      <label>Warmup <input id="warmupRuns" type="number" value="1" min="0" max="10"></label>
+      <select id="mode"><option value="sequential">Sequential</option><option value="parallel">Parallel</option></select>
+      <textarea id="prompt" rows="2">Explain the practical trade-offs between throughput, latency, and model quality for local LLM inference.</textarea>
+      <input id="timeoutMs" type="number" value="120" min="1" step="1">
+    </div>
+    <div id="successfulRunsLabel">Successful Runs</div><div id="successfulRuns">0</div>
+    <div id="bestLatencyLabel">Best Latency</div><div id="bestLatency">-</div>
+    <div id="bestPpLabel">Best PP</div><div id="bestPp">-</div>
+    <div id="bestDecodeLabel">Best Decode</div><div id="bestDecode">-</div>
+    <div id="activeModelLabel">Active Model</div><div id="activeModel">-</div>
+
+    <!-- Speed presets (hidden, data-action buttons) -->
+    <button type="button" data-action="applySpeedPreset:smoke">Smoke</button>
+    <button type="button" data-action="applySpeedPreset:balanced">Balanced</button>
+    <button type="button" data-action="applySpeedPreset:leaderboard">Leaderboard</button>
+    <button type="button" data-view="aggregated" class="active">Aggregated</button>
+    <button type="button" data-view="raw">Individual runs</button>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

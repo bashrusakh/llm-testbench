@@ -1,0 +1,918 @@
+/* ═══════════════════════════════════════════════════════════════
+   Design Channels D4–D6
+   Load AFTER style.css. Uses the same html[data-design="vN"] pattern.
+   Add buttons data-ch="4/5/6" to the channel switcher in HTML.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── D4: Neon Noir ─────────────────────────────────────────────
+   Deep purple base, cyan pass, rose fail. JetBrains Mono headings.
+   ──────────────────────────────────────────────────────────────── */
+
+html[data-design="v4"] {
+  --bg: #0D0A14;
+  --sidebar-bg: #13102A;
+  --card-bg: #16102A;
+  --accent: #A855F7;
+  --accent-hover: #9333EA;
+  --text-main: #F0E6FF;
+  --text-muted: #8B7AAA;
+  --text-dim: #6A5E80;
+  --border: #2D1B4E;
+  --border-light: #231540;
+  --success: #22D3EE;
+  --error: #F43F5E;
+  --warn: #FBBF24;
+  --danger: #F43F5E;
+  --radius: 6px;
+  --radius-sm: 3px;
+  --radius-lg: 10px;
+  --accent-glow: rgba(168,85,247,0.12);
+}
+
+html[data-design="v4"] h1,
+html[data-design="v4"] .section-title,
+html[data-design="v4"] .metric-card .value {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+html[data-design="v4"] h1 {
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+html[data-design="v4"] table,
+html[data-design="v4"] input[type="number"],
+html[data-design="v4"] input[type="text"],
+html[data-design="v4"] input[type="password"],
+html[data-design="v4"] select,
+html[data-design="v4"] textarea,
+html[data-design="v4"] .model-item,
+html[data-design="v4"] .sql-result-table td,
+html[data-design="v4"] .decode-badge {
+  font-family: 'JetBrains Mono', 'Inter', monospace;
+  font-size: 12px;
+}
+
+html[data-design="v4"] .btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+html[data-design="v4"] .btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+html[data-design="v4"] .btn-danger {
+  background: transparent;
+  border-color: var(--error);
+  color: var(--error);
+}
+html[data-design="v4"] .btn-danger:hover {
+  background: rgba(244,63,94,0.15);
+}
+
+html[data-design="v4"] .sidebar-actions-row .btn-danger:hover,
+html[data-design="v4"] .sidebar-actions-row .btn-danger:focus-visible {
+  background: rgba(244,63,94,0.15);
+  color: var(--error);
+}
+html[data-design="v4"] .sidebar-actions-row .btn-danger.running {
+  background: var(--error);
+  color: #fff;
+  border-color: var(--error);
+}
+
+html[data-design="v4"] .results-card {
+  border-color: var(--border);
+  box-shadow: 0 0 20px rgba(168,85,247,0.04);
+}
+
+html[data-design="v4"] .sql-result-cell.pass { background: var(--success); }
+html[data-design="v4"] .sql-result-cell.fail { background: var(--error); }
+html[data-design="v4"] .sql-result-cell.error { background: #7C3AED; }
+
+html[data-design="v4"] .progress-fill { background: var(--accent); }
+
+html[data-design="v4"] .speed-preset-btn {
+  border-color: var(--border);
+  background: var(--card-bg);
+}
+html[data-design="v4"] .speed-preset-btn:hover {
+  border-color: var(--accent);
+  background: rgba(168,85,247,0.08);
+}
+
+html[data-design="v4"] .endpoint-card.selected {
+  border-color: var(--accent);
+  background: rgba(168,85,247,0.08);
+}
+
+html[data-design="v4"] .design-ch__btn[data-ch="4"] {
+  background: #A855F7;
+  color: #fff;
+  border-color: #A855F7;
+}
+
+
+/* ── D5: Arctic Light ──────────────────────────────────────────
+   Light theme. White/gray surfaces, sky-blue accent.
+   ──────────────────────────────────────────────────────────────── */
+
+html[data-design="v5"] {
+  --bg: #F8FAFC;
+  --sidebar-bg: #FFFFFF;
+  --card-bg: #FFFFFF;
+  --accent: #0EA5E9;
+  --accent-hover: #0284C7;
+  --text-main: #0F172A;
+  --text-muted: #64748B;
+  --text-dim: #94A3B8;
+  --border: #E2E8F0;
+  --border-light: #F1F5F9;
+  --success: #16A34A;
+  --error: #DC2626;
+  --warn: #D97706;
+  --danger: #DC2626;
+  --radius: 8px;
+  --radius-sm: 4px;
+  --radius-lg: 12px;
+  --accent-glow: rgba(14,165,233,0.06);
+}
+
+html[data-design="v5"] body {
+  color: var(--text-main);
+}
+
+html[data-design="v5"] aside {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  box-shadow: 1px 0 4px rgba(0,0,0,0.04);
+}
+
+html[data-design="v5"] h1,
+html[data-design="v5"] .section-title {
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+}
+
+html[data-design="v5"] .subtitle,
+html[data-design="v5"] .sidebar-section-title {
+  color: var(--text-muted);
+}
+
+html[data-design="v5"] table,
+html[data-design="v5"] input[type="number"],
+html[data-design="v5"] input[type="text"],
+html[data-design="v5"] input[type="password"],
+html[data-design="v5"] select,
+html[data-design="v5"] textarea {
+  background: var(--bg);
+  color: var(--text-main);
+  border-color: var(--border);
+}
+
+html[data-design="v5"] input:focus,
+html[data-design="v5"] select:focus,
+html[data-design="v5"] textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(14,165,233,0.15);
+}
+
+html[data-design="v5"] .model-item {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text-main);
+}
+
+html[data-design="v5"] .btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+html[data-design="v5"] .btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+html[data-design="v5"] .btn-secondary {
+  background: #fff;
+  border-color: var(--border);
+  color: var(--text-main);
+}
+html[data-design="v5"] .btn-secondary:hover {
+  background: var(--bg);
+}
+
+html[data-design="v5"] .btn-danger {
+  background: transparent;
+  border-color: var(--error);
+  color: var(--error);
+}
+
+html[data-design="v5"] .sidebar-actions-row .btn-danger.running {
+  background: var(--error);
+  color: #fff;
+}
+
+html[data-design="v5"] .results-card {
+  background: var(--card-bg);
+  border-color: var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+html[data-design="v5"] .metric-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+html[data-design="v5"] .metric-card .label { color: var(--text-muted); }
+html[data-design="v5"] .metric-card .value { color: var(--text-main); }
+
+html[data-design="v5"] .progress-bar { background: var(--border); }
+html[data-design="v5"] .progress-fill { background: var(--accent); }
+
+html[data-design="v5"] .sql-result-cell.pass { background: var(--success); color: #fff; }
+html[data-design="v5"] .sql-result-cell.fail { background: var(--error); color: #fff; }
+html[data-design="v5"] .sql-result-cell.error { background: var(--warn); color: #fff; }
+
+html[data-design="v5"] .sql-result-table th,
+html[data-design="v5"] .sql-result-table td {
+  border-color: var(--border);
+}
+html[data-design="v5"] .sql-result-table th {
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+html[data-design="v5"] table thead th {
+  background: var(--bg);
+  color: var(--text-muted);
+  border-bottom-color: var(--border);
+}
+html[data-design="v5"] table tbody tr:hover {
+  background: rgba(14,165,233,0.04);
+}
+
+html[data-design="v5"] .speed-preset-btn {
+  background: #fff;
+  border-color: var(--border);
+  color: var(--text-main);
+}
+html[data-design="v5"] .speed-preset-btn:hover {
+  border-color: var(--accent);
+  background: rgba(14,165,233,0.04);
+}
+
+html[data-design="v5"] .endpoint-card {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text-main);
+}
+html[data-design="v5"] .endpoint-card.selected {
+  border-color: var(--accent);
+  background: rgba(14,165,233,0.04);
+}
+
+html[data-design="v5"] .status-message.info {
+  background: rgba(14,165,233,0.06);
+  color: var(--text-muted);
+  border-color: rgba(14,165,233,0.15);
+}
+html[data-design="v5"] .status-message.success {
+  background: rgba(22,163,74,0.06);
+  color: #15803D;
+  border-color: rgba(22,163,74,0.15);
+}
+html[data-design="v5"] .status-message.error {
+  background: rgba(220,38,38,0.06);
+  color: #B91C1C;
+  border-color: rgba(220,38,38,0.15);
+}
+
+html[data-design="v5"] .design-ch__btn[data-ch="5"] {
+  background: #0EA5E9;
+  color: #fff;
+  border-color: #0EA5E9;
+}
+
+html[data-design="v5"] .design-ch__btn {
+  background: var(--bg);
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+html[data-design="v5"] .design-channels { border-color: var(--border); }
+html[data-design="v5"] .design-ch__btn + .design-ch__btn { border-left-color: var(--border); }
+html[data-design="v5"] .design-ch__btn:hover { background: rgba(14,165,233,0.06); color: var(--text-main); }
+
+html[data-design="v5"] ::-webkit-scrollbar-track { background: var(--bg); }
+html[data-design="v5"] ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+html[data-design="v5"] ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* ── D5 completion: override remaining hardcoded dark surfaces/text ──
+   The base style.css hardcodes many dark backgrounds, white/pastel text,
+   and rgba(255,255,255,...) overlays that don't follow var(). Re-theme
+   each for the Arctic Light palette so nothing reads dark-on-dark or
+   white-on-white. All scoped under html[data-design="v5"]. */
+
+/* Body surface */
+html[data-design="v5"] body { background-color: var(--bg); }
+
+/* Form controls: base style.css uses background:#0f172a; color:white */
+html[data-design="v5"] input,
+html[data-design="v5"] select,
+html[data-design="v5"] textarea {
+  background: #fff;
+  color: var(--text-main);
+  border-color: var(--border);
+}
+html[data-design="v5"] input::placeholder,
+html[data-design="v5"] textarea::placeholder { color: var(--text-dim); }
+html[data-design="v5"] input[type="checkbox"] { accent-color: var(--accent); }
+
+/* Model selector container + controls (hardcoded #0f172a / white overlays) */
+html[data-design="v5"] .model-selector-container {
+  background: #fff;
+  border-color: var(--border);
+}
+html[data-design="v5"] .model-search-wrapper { border-bottom-color: var(--border); }
+html[data-design="v5"] .model-controls {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+html[data-design="v5"] .model-item:hover { background: rgba(14,165,233,0.08); }
+
+/* Speed fields (var(--bg-input,#1a1d23) fallback + white overlay border) */
+html[data-design="v5"] .speed-field input,
+html[data-design="v5"] .speed-field select {
+  background: #fff;
+  border-color: var(--border);
+  color: var(--text-main);
+}
+
+/* Buttons: base hardcodes color:white / #7f1d1d / #374151 */
+html[data-design="v5"] .btn-primary { color: #fff; }
+html[data-design="v5"] .btn-secondary { background: #fff; border: 1px solid var(--border); color: var(--text-main); }
+html[data-design="v5"] .btn-secondary:hover { background: var(--bg); }
+html[data-design="v5"] .btn-danger { background: transparent; color: var(--error); border: 1px solid var(--border); }
+html[data-design="v5"] .btn-small {
+  background: #fff;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+html[data-design="v5"] .btn-small:hover { color: var(--accent); border-color: var(--accent); }
+html[data-design="v5"] .btn-small:disabled { color: var(--text-dim); border-color: var(--border); }
+
+/* Sidebar actions sticky backdrop + Stop button (hardcoded #7f1d1d/#fecaca) */
+html[data-design="v5"] .sidebar-actions {
+  background: var(--sidebar-bg);
+  border-bottom-color: var(--border);
+}
+html[data-design="v5"] .sidebar-actions-row .btn-danger {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+html[data-design="v5"] .sidebar-actions-row .btn-danger:hover,
+html[data-design="v5"] .sidebar-actions-row .btn-danger:focus-visible {
+  background: rgba(220,38,38,0.08);
+  color: var(--error);
+  border-color: rgba(220,38,38,0.4);
+}
+html[data-design="v5"] .sidebar-actions-row .btn-danger.running {
+  background: var(--error);
+  color: #fff;
+  border-color: var(--error);
+}
+
+/* Table cells (border rgba(255,255,255,0.05) invisible on light) */
+html[data-design="v5"] th { color: var(--text-muted); border-bottom-color: var(--border); }
+html[data-design="v5"] td { border-bottom-color: var(--border-light); color: var(--text-main); }
+
+/* Metric cards (background rgba(255,255,255,0.03) -> too faint) */
+html[data-design="v5"] .metric-card { background: var(--bg); border: 1px solid var(--border); }
+
+/* Status badges (pastel-on-dark text needs darker shades on light tints) */
+html[data-design="v5"] .status-badge.success { background: rgba(22,163,74,0.12); color: #15803D; }
+html[data-design="v5"] .status-badge.error { background: rgba(220,38,38,0.12); color: #B91C1C; }
+html[data-design="v5"] .status-badge.running { background: rgba(14,165,233,0.12); color: #0369A1; }
+html[data-design="v5"] .status-badge.stopped { background: rgba(100,116,139,0.14); color: #475569; }
+
+/* Progress bar track (rgba white overlay) */
+html[data-design="v5"] .progress-bar { background: var(--border); }
+html[data-design="v5"] .progress-fill { background: linear-gradient(90deg, var(--accent), #38BDF8); }
+
+/* Endpoint cards (rgba white overlays) */
+html[data-design="v5"] .endpoint-card { background: #fff; border-color: var(--border); }
+html[data-design="v5"] .endpoint-card:hover { border-color: rgba(14,165,233,0.5); background: rgba(14,165,233,0.05); }
+html[data-design="v5"] .endpoint-delete-btn {
+  color: var(--error);
+  border-color: rgba(220,38,38,0.35);
+  background: rgba(220,38,38,0.06);
+}
+html[data-design="v5"] .endpoint-delete-btn:hover {
+  color: #fff;
+  border-color: var(--error);
+  background: var(--error);
+}
+
+/* Speed view toggle (rgba white overlays) */
+html[data-design="v5"] .speed-view-toggle { background: var(--bg); border-color: var(--border); }
+html[data-design="v5"] .speed-view-toggle button { color: var(--text-muted); }
+html[data-design="v5"] .speed-view-toggle button:hover { color: var(--text-main); background: rgba(14,165,233,0.06); }
+html[data-design="v5"] .speed-view-toggle button.active { background: var(--accent); color: #fff; }
+
+/* Speed aggregated / run-detail tables (white-overlay borders + hovers) */
+html[data-design="v5"] .speed-aggregated-table th { color: var(--text-muted); border-bottom-color: var(--border); }
+html[data-design="v5"] .speed-aggregated-table td { border-bottom-color: var(--border-light); }
+html[data-design="v5"] .speed-aggregated-table tbody tr:hover { background: rgba(14,165,233,0.05); }
+html[data-design="v5"] .speed-aggregated-table tbody tr.expanded { background: rgba(14,165,233,0.07); }
+html[data-design="v5"] .run-detail-panel { background: var(--bg); border-top-color: var(--border); }
+html[data-design="v5"] .run-detail-table th { color: var(--text-muted); border-bottom-color: var(--border); }
+html[data-design="v5"] .run-detail-table td { border-bottom-color: var(--border-light); }
+
+/* Decode badges (pastel-on-dark) */
+html[data-design="v5"] .decode-badge.good { background: rgba(22,163,74,0.12); color: #15803D; }
+html[data-design="v5"] .decode-badge.mid { background: rgba(217,119,6,0.14); color: #B45309; }
+html[data-design="v5"] .decode-badge.poor { background: rgba(220,38,38,0.12); color: #B91C1C; }
+html[data-design="v5"] .decode-badge.none { background: rgba(100,116,139,0.12); color: var(--text-muted); }
+
+/* Sparkline bars */
+html[data-design="v5"] .sparkline-bar__bar.good { background: var(--success); }
+html[data-design="v5"] .sparkline-bar__bar.mid { background: var(--warn); }
+html[data-design="v5"] .sparkline-bar__bar.poor { background: var(--error); }
+html[data-design="v5"] .sparkline-bar__bar.none { background: var(--border); }
+
+/* Run count labels */
+html[data-design="v5"] .run-count .success { color: #15803D; }
+html[data-design="v5"] .run-count .fail { color: #B91C1C; }
+
+/* Expand toggle */
+html[data-design="v5"] .expand-toggle { border-color: var(--border); color: var(--text-muted); }
+html[data-design="v5"] .expand-toggle:hover { background: rgba(14,165,233,0.06); color: var(--text-main); border-color: var(--accent); }
+
+/* History thinking chips */
+html[data-design="v5"] .history-thinking-chip { color: var(--text-muted); border-color: var(--border); }
+html[data-design="v5"] .history-thinking-chip.thinking-on { color: var(--accent); border-color: var(--accent); }
+html[data-design="v5"] .history-thinking-chip.thinking-both { color: var(--warn); border-color: var(--warn); }
+html[data-design="v5"] .history-comment-cell { color: var(--text-main); }
+html[data-design="v5"] .history-comment-empty { color: var(--text-dim); }
+
+/* Run comment banner (indigo-on-dark -> readable on light) */
+html[data-design="v5"] .run-comment-banner {
+  background: rgba(14,165,233,0.07);
+  border-color: rgba(14,165,233,0.28);
+  color: var(--text-main);
+}
+html[data-design="v5"] .run-comment-banner .run-comment-label { color: #0369A1; }
+
+/* Settings subsection + manual provider form (white overlays) */
+html[data-design="v5"] .settings-subsection { background: var(--bg); border: 1px solid var(--border); }
+html[data-design="v5"] .manual-provider-form { background: var(--bg); border-color: var(--border); }
+html[data-design="v5"] .manual-hint { color: var(--text-muted); }
+html[data-design="v5"] .sidebar-section-title { border-bottom-color: var(--border); }
+
+/* Conversation card renderer (all hardcoded dark surfaces + tints) */
+html[data-design="v5"] .conv-msg { border-top-color: var(--border); }
+html[data-design="v5"] .conv-user-msg { background: var(--bg); }
+html[data-design="v5"] .conv-user-label { color: var(--text-muted); }
+html[data-design="v5"] .conv-thinking { border-left-color: #D97706; background: rgba(217,119,6,0.08); }
+html[data-design="v5"] .conv-thinking-label { color: #B45309; }
+html[data-design="v5"] .conv-tool-call { border-left-color: var(--accent); background: rgba(14,165,233,0.07); }
+html[data-design="v5"] .conv-tool-call-label { color: #0369A1; }
+html[data-design="v5"] .conv-tool-code { background: #F1F5F9; color: #0F172A; border: 1px solid var(--border); }
+html[data-design="v5"] .conv-tool-result { border-left-color: var(--success); background: rgba(22,163,74,0.07); }
+html[data-design="v5"] .conv-tool-result-label { color: #15803D; }
+html[data-design="v5"] .conv-text { color: var(--text-main); }
+html[data-design="v5"] .conv-call-header { color: var(--text-muted); background: var(--bg); border-top-color: var(--border); }
+
+/* ── SQL heatmap: sticky model column, headers, group rows ── */
+html[data-design="v5"] .sql-result-table thead th {
+  background: var(--card-bg);
+  color: var(--text-muted);
+  border-bottom-color: var(--border);
+}
+html[data-design="v5"] .sql-result-table thead th.sql-model-header {
+  background: var(--card-bg);
+  box-shadow: 12px 0 18px -18px rgba(15,23,42,0.25);
+}
+html[data-design="v5"] .sql-result-table thead tr.sql-category-row th {
+  background: #EEF2F7;
+  color: var(--text-muted);
+}
+html[data-design="v5"] .sql-result-table tbody td { border-bottom-color: var(--border-light); }
+html[data-design="v5"] .sql-result-table tbody td:first-child {
+  color: var(--text-main);
+  background: var(--card-bg);
+  box-shadow: 12px 0 18px -18px rgba(15,23,42,0.25);
+}
+html[data-design="v5"] .sql-result-model-row:hover td { background: rgba(14,165,233,0.04); }
+html[data-design="v5"] .sql-result-model-row:hover td:first-child { background: #E0F2FE; }
+
+/* Compare-view model group header rows (hardcoded #131a26 / #243244) */
+html[data-design="v5"] .sql-result-table .sql-compare-model-head td.sql-result-model-name,
+html[data-design="v5"] .sql-result-table .sql-compare-model-head td.sql-think-cell,
+html[data-design="v5"] .sql-result-table .sql-compare-model-head td.sql-comment-cell,
+html[data-design="v5"] .sql-result-table .sql-compare-model-head td.sql-compare-model-spacer {
+  background: #EEF2F7;
+  color: var(--text-main);
+}
+html[data-design="v5"] .sql-result-model-row.sql-compare-model-head:hover td.sql-result-model-name { background: #E0F2FE; }
+html[data-design="v5"] .sql-result-model-row.sql-compare-model-head:hover td.sql-think-cell,
+html[data-design="v5"] .sql-result-model-row.sql-compare-model-head:hover td.sql-comment-cell,
+html[data-design="v5"] .sql-result-model-row.sql-compare-model-head:hover td.sql-compare-model-spacer { background: #E0F2FE; }
+
+/* SQL meta strip + comment/think cells */
+html[data-design="v5"] .sql-run-meta-strip { color: var(--text-muted); border-bottom-color: var(--border); }
+html[data-design="v5"] .sql-result-table tbody td.sql-comment-cell { color: var(--text-muted); border-left-color: var(--border); }
+html[data-design="v5"] .sql-result-table tbody td.sql-think-cell { border-left-color: var(--border); }
+
+/* SQL quant badge + result counts */
+html[data-design="v5"] .sql-quant-badge {
+  color: var(--text-muted);
+  background: rgba(100,116,139,0.1);
+  border-color: rgba(100,116,139,0.25);
+}
+html[data-design="v5"] .sql-result-count.all-pass { background: rgba(22,163,74,0.14); color: #15803D; }
+html[data-design="v5"] .sql-result-count.partial  { background: rgba(217,119,6,0.14); color: #B45309; }
+html[data-design="v5"] .sql-result-count.none     { background: rgba(220,38,38,0.12); color: #B91C1C; }
+
+/* SQL result cells: keep solid color, ensure white text reads on green/red,
+   dark text on amber for max contrast on light backgrounds */
+html[data-design="v5"] .sql-result-cell.pass { background: var(--success); color: #fff; }
+html[data-design="v5"] .sql-result-cell.fail { background: var(--error); color: #fff; }
+html[data-design="v5"] .sql-result-cell.error { background: var(--warn); color: #fff; }
+html[data-design="v5"] .sql-result-cell:hover { box-shadow: 0 0 0 2px rgba(15,23,42,0.18); }
+
+/* SQL floating tooltip (hardcoded #0f172a dark surface) */
+html[data-design="v5"] .sql-floating-tooltip {
+  background: #fff;
+  color: var(--text-main);
+  border-color: var(--border);
+  box-shadow: 0 16px 40px rgba(15,23,42,0.18), 0 0 0 1px var(--border);
+}
+html[data-design="v5"] .sql-tooltip-status.pass { color: var(--success); }
+html[data-design="v5"] .sql-tooltip-status.fail { color: var(--error); }
+html[data-design="v5"] .sql-tooltip-status.error { color: var(--warn); }
+html[data-design="v5"] .sql-tip-exp { color: #15803D; }
+html[data-design="v5"] .sql-tip-act { color: #B91C1C; }
+
+/* ── SQL detail modal (overlay, header, body, code, tags, tables) ── */
+html[data-design="v5"] .sql-detail-modal-overlay {
+  background: rgba(15,23,42,0.45);
+}
+html[data-design="v5"] .sql-detail-modal {
+  background: var(--card-bg);
+  color: var(--text-main);
+  border-color: var(--border);
+  box-shadow: 0 32px 100px rgba(15,23,42,0.28), 0 0 0 1px var(--border);
+}
+html[data-design="v5"] .sql-detail-modal-header {
+  background: linear-gradient(180deg, #fff, var(--bg));
+  border-bottom-color: var(--border);
+}
+html[data-design="v5"] .sql-detail-modal-title { color: var(--text-main); }
+html[data-design="v5"] .sql-detail-modal-subtitle { color: var(--text-muted); }
+html[data-design="v5"] .sql-detail-modal-status.pass { color: #15803D; }
+html[data-design="v5"] .sql-detail-modal-status.fail { color: #B91C1C; }
+html[data-design="v5"] .sql-detail-modal-status.error { color: #B45309; }
+html[data-design="v5"] .sql-detail-check-pill {
+  border-color: var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+}
+html[data-design="v5"] .sql-detail-check-pill.pass { border-color: rgba(22,163,74,0.32); background: rgba(22,163,74,0.1); color: #15803D; }
+html[data-design="v5"] .sql-detail-check-pill.fail { border-color: rgba(220,38,38,0.34); background: rgba(220,38,38,0.1); color: #B91C1C; }
+html[data-design="v5"] .sql-detail-check-pill.unknown { border-color: var(--border); background: rgba(100,116,139,0.1); color: var(--text-muted); }
+html[data-design="v5"] .sql-detail-modal-close { color: var(--text-muted); }
+html[data-design="v5"] .sql-detail-modal-close:hover { background: var(--bg); border-color: var(--border); color: var(--text-main); }
+html[data-design="v5"] .sql-detail-modal-body { background: var(--bg); }
+html[data-design="v5"] .sql-detail-question { color: var(--text-main); }
+html[data-design="v5"] .sql-detail-section-title { color: var(--text-muted); }
+html[data-design="v5"] .sql-detail-tag {
+  background: var(--bg);
+  color: var(--text-main);
+  border-color: var(--border);
+}
+html[data-design="v5"] .sql-detail-tabs { border-bottom-color: var(--border); }
+html[data-design="v5"] .sql-detail-tab { color: var(--text-muted); }
+html[data-design="v5"] .sql-detail-tab:hover { color: var(--accent); }
+html[data-design="v5"] .sql-detail-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+html[data-design="v5"] .sql-detail-code-card { background: var(--card-bg); border-color: var(--border); }
+html[data-design="v5"] .sql-detail-code-meta { color: var(--text-muted); }
+html[data-design="v5"] .sql-detail-copy-btn {
+  border-color: var(--border);
+  background: var(--bg);
+  color: var(--text-main);
+}
+html[data-design="v5"] .sql-detail-copy-btn:hover { background: rgba(14,165,233,0.1); border-color: var(--accent); color: #0369A1; }
+html[data-design="v5"] .sql-detail-code {
+  background: #F1F5F9;
+  color: #0F172A;
+  border-color: var(--border);
+}
+html[data-design="v5"] .sql-detail-empty-code { color: var(--text-dim); }
+html[data-design="v5"] .sql-detail-card { background: var(--card-bg); border-color: var(--border); }
+html[data-design="v5"] .sql-detail-meta-row { color: var(--text-muted); border-bottom-color: var(--border-light); }
+html[data-design="v5"] .sql-detail-meta-row strong { color: var(--text-main); }
+html[data-design="v5"] .sql-check-item {
+  border-color: var(--border);
+  background: var(--bg);
+  color: var(--text-main);
+}
+html[data-design="v5"] .sql-check-icon.pass { background: rgba(22,163,74,0.16); color: #15803D; }
+html[data-design="v5"] .sql-check-icon.fail { background: rgba(220,38,38,0.16); color: #B91C1C; }
+html[data-design="v5"] .sql-check-icon.unknown { background: rgba(100,116,139,0.14); color: var(--text-muted); }
+html[data-design="v5"] .sql-detail-diff-table th { color: var(--text-muted); border-bottom-color: var(--border); }
+html[data-design="v5"] .sql-detail-diff-table td { border-bottom-color: var(--border-light); color: var(--text-main); }
+html[data-design="v5"] .sql-detail-diff-table .diff-val { color: var(--text-main); }
+html[data-design="v5"] .sql-detail-error {
+  border-color: rgba(220,38,38,0.35);
+  background: rgba(220,38,38,0.08);
+  color: #991B1B;
+}
+html[data-design="v5"] .sql-mismatch-summary { border-color: var(--border); background: var(--card-bg); }
+html[data-design="v5"] .sql-mismatch-head { color: var(--text-muted); }
+html[data-design="v5"] .sql-mismatch-chip.ok { background: rgba(22,163,74,0.12); color: #15803D; }
+html[data-design="v5"] .sql-mismatch-chip.bad { background: rgba(220,38,38,0.12); color: #B91C1C; }
+html[data-design="v5"] .sql-mismatch-table th { color: var(--text-muted); border-bottom-color: var(--border); }
+html[data-design="v5"] .sql-mismatch-table td { border-bottom-color: var(--border-light); }
+html[data-design="v5"] .sql-mismatch-col { color: var(--text-main); }
+html[data-design="v5"] .sql-mismatch-exp { color: #15803D; }
+html[data-design="v5"] .sql-mismatch-act { color: #B91C1C; }
+html[data-design="v5"] .sql-mismatch-line { color: var(--text-main); }
+html[data-design="v5"] .sql-mismatch-line .lbl { color: var(--text-muted); }
+html[data-design="v5"] .sql-detail-conversation { background: var(--card-bg); border-color: var(--border); }
+html[data-design="v5"] .sql-detail-conversation summary { color: #0369A1; }
+html[data-design="v5"] .sql-detail-conversation pre {
+  background: #F1F5F9;
+  color: #0F172A;
+  border-color: var(--border);
+}
+html[data-design="v5"] .sql-detail-conversation-empty {
+  border-color: var(--border);
+  color: var(--text-muted);
+  background: var(--bg);
+}
+
+/* Empty state + text-error */
+html[data-design="v5"] .empty-state { color: var(--text-muted); }
+
+
+/* ── D6: Amber Terminal ────────────────────────────────────────
+   Retro CRT aesthetic. Amber accent, IBM Plex Mono, scanline hint.
+   ──────────────────────────────────────────────────────────────── */
+
+html[data-design="v6"] {
+  --bg: #0C0A04;
+  --sidebar-bg: #110F06;
+  --card-bg: #14120A;
+  --accent: #F59E0B;
+  --accent-hover: #D97706;
+  --text-main: #E8D5A0;
+  --text-muted: #92810A;
+  --text-dim: #6B5F08;
+  --border: #2A2210;
+  --border-light: #1E1A0C;
+  --success: #84CC16;
+  --error: #EF4444;
+  --warn: #FBBF24;
+  --danger: #EF4444;
+  --radius: 2px;
+  --radius-sm: 1px;
+  --radius-lg: 4px;
+  --accent-glow: rgba(245,158,11,0.10);
+}
+
+html[data-design="v6"] body {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+}
+
+html[data-design="v6"] h1,
+html[data-design="v6"] .section-title,
+html[data-design="v6"] .metric-card .value,
+html[data-design="v6"] .metric-card .label {
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+}
+
+html[data-design="v6"] h1 {
+  color: var(--accent);
+  text-transform: uppercase;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+
+html[data-design="v6"] .section-title {
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+}
+
+html[data-design="v6"] table,
+html[data-design="v6"] input[type="number"],
+html[data-design="v6"] input[type="text"],
+html[data-design="v6"] input[type="password"],
+html[data-design="v6"] select,
+html[data-design="v6"] textarea,
+html[data-design="v6"] .model-item,
+html[data-design="v6"] .sql-result-table td,
+html[data-design="v6"] .decode-badge {
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+
+html[data-design="v6"] .btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0C0A04;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+}
+html[data-design="v6"] .btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+html[data-design="v6"] .btn-secondary {
+  border-color: var(--border);
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+html[data-design="v6"] .btn-danger {
+  border-color: var(--error);
+  color: var(--error);
+  font-family: 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+}
+
+html[data-design="v6"] .sidebar-actions-row .btn-danger.running {
+  background: var(--error);
+  color: #0C0A04;
+}
+
+html[data-design="v6"] .results-card {
+  border-color: var(--border);
+  border-width: 1px;
+  border-radius: var(--radius);
+}
+
+html[data-design="v6"] .sql-result-cell { border-radius: var(--radius-sm) !important; }
+html[data-design="v6"] .sql-result-cell.pass { background: var(--success); }
+html[data-design="v6"] .sql-result-cell.fail { background: var(--error); }
+html[data-design="v6"] .sql-result-cell.error { background: var(--accent); }
+
+html[data-design="v6"] .progress-fill { background: var(--accent); }
+html[data-design="v6"] .progress-bar {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+html[data-design="v6"] .speed-preset-btn {
+  border-color: var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  font-family: 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+html[data-design="v6"] .speed-preset-btn:hover {
+  border-color: var(--accent);
+  background: rgba(245,158,11,0.06);
+}
+
+html[data-design="v6"] .endpoint-card.selected {
+  border-color: var(--accent);
+  background: rgba(245,158,11,0.06);
+}
+
+html[data-design="v6"] .sidebar-section-title {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--accent);
+}
+
+html[data-design="v6"] .design-ch__btn[data-ch="6"] {
+  background: #F59E0B;
+  color: #0C0A04;
+  border-color: #F59E0B;
+}
+
+html[data-design="v6"] ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 1px; }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   WCAG 2.1 CONTRAST AUDIT FIXES  (v1–v6)
+   Scoped under html[data-design="vN"]. Computed against the resolved
+   effective fg/bg per scheme. Normal text >= 4.5:1, large/UI/border >= 3:1.
+   All edits live in this file only (channels-d456.css).
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── SQL heatmap result cells: dark glyph on light fills ──
+   White text on green/cyan/amber/teal fills failed across every scheme
+   (e.g. v3 pass #fff/#00E599 = 1.66:1, v1 pass = 2.54:1, v6 error = 2.15:1).
+   Use a near-black glyph on the light fills (8–12:1); keep white only where
+   it already passes (v4 error purple #7C3AED = 5.70:1, deep reds). */
+html[data-design="v1"] .sql-result-cell.pass,
+html[data-design="v2"] .sql-result-cell.pass,
+html[data-design="v2"] .sql-result-cell.fail,
+html[data-design="v3"] .sql-result-cell.pass,
+html[data-design="v3"] .sql-result-cell.fail,
+html[data-design="v4"] .sql-result-cell.pass,
+html[data-design="v4"] .sql-result-cell.fail,
+html[data-design="v6"] .sql-result-cell.pass,
+html[data-design="v6"] .sql-result-cell.error { color: #08130c; }
+/* v1 pass/fail glyphs */
+html[data-design="v1"] .sql-result-cell.pass { color: #08130c; }      /* 8.3:1 on #10b981 */
+html[data-design="v1"] .sql-result-cell.fail { color: #1a0606; }      /* 5.5:1 on #ef4444 */
+html[data-design="v6"] .sql-result-cell.fail { color: #1a0606; }      /* 5.5:1 on #EF4444 */
+
+/* ── v1 (base blue) ────────────────────────────────────────────── */
+/* btn-primary: white on #3b82f6 = 3.68:1 → darken the button fill only,
+   leaving --accent (links/borders) untouched. White on #3370D4 = 4.78:1. */
+html[data-design="v1"] .btn-primary { background: #3370D4; }
+html[data-design="v1"] .btn-primary:hover { background: #2A5FB8; }
+
+/* ── v2 (Instrument teal) ──────────────────────────────────────── */
+/* --text-muted #64748B (label/provider-meta/subtitle text) = 3.6–3.97:1 and
+   --text-dim #475569 (sidebar-section-title, channel buttons) = 2.28:1.
+   Lighten both tokens; affects every consumer of these vars in v2. */
+html[data-design="v2"] {
+  --text-muted: #7C8AA0;   /* >= 4.93:1 on card/sidebar, 5.4:1 on bg */
+  --text-dim:   #7A8AA3;   /* >= 4.93:1 on sidebar (section title), 3.0+ UI */
+}
+
+/* ── v3 (Phosphor) ─────────────────────────────────────────────── */
+/* --text-dim #6A7791 used as section-title / th / metric-card label text:
+   3.62–3.94:1. Lighten to #8E9BB3 (>= 5.27:1 on card, 6.33:1 on sidebar). */
+html[data-design="v3"] { --text-dim: #8E9BB3; }
+
+/* ── v4 (Neon Noir) ────────────────────────────────────────────── */
+/* btn-primary: white on #A855F7 = 3.96:1 → darken fill to #974CDE (4.75:1). */
+html[data-design="v4"] .btn-primary { background: #974CDE; border-color: #974CDE; }
+html[data-design="v4"] .btn-primary:hover { background: #8636CC; border-color: #8636CC; }
+/* --text-dim #6A5E80 (channel buttons / shared dim text) = ~3.0:1 on sidebar.
+   Lighten slightly for UI legibility. */
+html[data-design="v4"] { --text-dim: #8576A0; }
+
+/* ── v5 (Arctic Light) ─────────────────────────────────────────── */
+/* btn-primary: white on #0EA5E9 = 2.77:1 → darken fill to #0A7AAC (4.77:1).
+   Keep --accent (#0EA5E9) for borders/links. */
+html[data-design="v5"] .btn-primary { background: #0A7AAC; border-color: #0A7AAC; }
+html[data-design="v5"] .btn-primary:hover { background: #086690; border-color: #086690; }
+/* SQL cells: white on light green/amber failed (pass 3.30:1, error 3.19:1) →
+   dark glyph reads 4.5:1+ on light fills. */
+html[data-design="v5"] .sql-result-cell.pass { color: #052e16; }   /* 4.52:1 on #16A34A */
+html[data-design="v5"] .sql-result-cell.fail { color: #fff; }      /* 4.83:1 on #DC2626 */
+html[data-design="v5"] .sql-result-cell.error { color: #2b1804; }  /* >=4.5:1 on #D97706 */
+/* status.info muted text on near-white tint = 4.48:1 → use a darker slate. */
+html[data-design="v5"] .status-message.info { color: #556173; }    /* 5.9:1 */
+/* History thinking-on chip: accent #0EA5E9 text on white = 2.77:1 (UI 3.0) →
+   use the darker sky shade used elsewhere in v5. */
+html[data-design="v5"] .history-thinking-chip.thinking-on { color: #0369A1; border-color: #0369A1; }
+/* Amber warning text on white failed: SQL think-cell var(--warn)=#D97706 (3.19:1)
+   and the sql-run-meta-strip warn/ok chips. Use #B45309 (5.02:1) for amber,
+   #15803D (>=4.5:1) for the green "ok" chip. */
+html[data-design="v5"] .sql-result-table tbody td.sql-think-cell { color: #B45309; }
+html[data-design="v5"] .sql-run-meta-strip span.sql-meta-warn,
+html[data-design="v5"] .sql-run-meta-strip span.sql-meta-warn strong { color: #B45309; border-color: #B45309; }
+html[data-design="v5"] .sql-run-meta-strip span.sql-meta-bad,
+html[data-design="v5"] .sql-run-meta-strip span.sql-meta-bad strong { color: #B91C1C; border-color: #B91C1C; }
+html[data-design="v5"] .sql-run-meta-strip span.sql-meta-ok,
+html[data-design="v5"] .sql-run-meta-strip span.sql-meta-ok strong { color: #15803D; border-color: #15803D; }
+
+/* ── v6 (Amber Terminal) ───────────────────────────────────────── */
+/* --text-dim #6B5F08 (channel buttons / shared dim text) on sidebar = 2.98:1
+   (UI 3.0) → lighten to #8A7A0C (4.45:1). */
+html[data-design="v6"] { --text-dim: #8A7A0C; }
+/* btn-danger: base fill is #7f1d1d; v6 only re-colored border/text, leaving
+   error #EF4444 on the dark-red fill = 2.66:1. Make it transparent like the
+   other dark schemes so the red label reads on the page surface. */
+html[data-design="v6"] .btn-danger { background: transparent; }
+html[data-design="v6"] .sidebar-actions-row .btn-danger {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+html[data-design="v6"] .sidebar-actions-row .btn-danger:hover,
+html[data-design="v6"] .sidebar-actions-row .btn-danger:focus-visible {
+  background: rgba(239,68,68,0.12);
+  color: var(--error);
+  border-color: rgba(239,68,68,0.4);
+}

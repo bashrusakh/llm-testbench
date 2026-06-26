@@ -1,0 +1,199 @@
+/* ═══════════════════════════════════════════════════════════════
+   Visual Style C3: Warm Instrument
+   Premium dark. Warm copper/teal tones. 13px base. 4px radius.
+   Load AFTER style.css + channel CSS. Adds html[data-style="c3"].
+   ═══════════════════════════════════════════════════════════════ */
+
+html[data-style="c3"] {
+  --bg: #0E0C08;
+  --sidebar-bg: #141210;
+  --card-bg: #1A1610;
+  --text-main: #F5E6D0;
+  --text-muted: #A08860;
+  --text-dim: #7A6840;
+  --border: #2A2418;
+  --border-light: #201C14;
+  --accent: #C97A4B;
+  --accent-hover: #B56940;
+  --success: #14B8A6;
+  --error: #E0533D;
+  --warn: #D4A048;
+  --danger: #E0533D;
+  --radius: 4px;
+  --radius-sm: 2px;
+  --radius-lg: 8px;
+  --accent-glow: rgba(201,122,75,0.08);
+}
+
+html[data-style="c3"] body {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+html[data-style="c3"] aside {
+  padding: 20px 20px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+}
+
+html[data-style="c3"] main {
+  padding: 20px 24px;
+  gap: 16px;
+}
+
+html[data-style="c3"] h1 {
+  font-family: 'Sora', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+}
+
+html[data-style="c3"] .section-title {
+  font-family: 'Sora', sans-serif;
+  font-weight: 600;
+  color: var(--text-main);
+  font-size: 13px;
+}
+
+html[data-style="c3"] .sidebar-section-title {
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+html[data-style="c3"] .results-card {
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+}
+
+html[data-style="c3"] .sidebar-section {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom-color: var(--border);
+}
+
+html[data-style="c3"] .metric-card {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+html[data-style="c3"] .metric-card .label {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+html[data-style="c3"] .metric-card .value {
+  font-family: 'Sora', sans-serif;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+html[data-style="c3"] .results-summary {
+  gap: 10px;
+}
+
+html[data-style="c3"] .model-item {
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: 12px;
+}
+
+html[data-style="c3"] .btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0E0C08;
+  font-weight: 600;
+  border-radius: var(--radius);
+  padding: 7px 14px;
+}
+html[data-style="c3"] .btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+html[data-style="c3"] .btn-secondary {
+  border-color: var(--border);
+  color: var(--accent);
+  border-radius: var(--radius);
+}
+
+html[data-style="c3"] .btn-danger {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+html[data-style="c3"] .sidebar-actions-row .btn-danger.running {
+  background: var(--error);
+  color: #0E0C08;
+}
+
+html[data-style="c3"] input[type="number"],
+html[data-style="c3"] input[type="text"],
+html[data-style="c3"] input[type="password"],
+html[data-style="c3"] select,
+html[data-style="c3"] textarea {
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  font-size: 12px;
+}
+
+html[data-style="c3"] input:focus,
+html[data-style="c3"] select:focus,
+html[data-style="c3"] textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(201,122,75,0.12);
+}
+
+html[data-style="c3"] .progress-bar {
+  height: 5px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+html[data-style="c3"] .progress-fill {
+  border-radius: var(--radius-sm);
+}
+
+html[data-style="c3"] .speed-preset-btn {
+  border-color: var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+}
+html[data-style="c3"] .speed-preset-btn:hover {
+  border-color: var(--accent);
+  background: rgba(201,122,75,0.06);
+}
+
+html[data-style="c3"] .endpoint-card.selected {
+  border-color: var(--accent);
+  background: rgba(201,122,75,0.06);
+}
+
+html[data-style="c3"] table th {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+html[data-style="c3"] .sql-result-cell.pass { background: var(--success); }
+html[data-style="c3"] .sql-result-cell.fail { background: var(--error); }
+html[data-style="c3"] .sql-result-cell.error { background: var(--accent); }
+
+html[data-style="c3"] .sql-result-cell {
+  border-radius: 3px !important;
+}
+
+html[data-style="c3"] ::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Testbench v2 - Dock</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/variants/v2-dock.css">
+  <link rel="stylesheet" href="/static/variants/sql-grid.css">
+</head>
+<body>
+
+<!-- ========== LEFT DOCK (180px) ========== -->
+<nav class="dock">
+
+  <div class="dock__brand">
+    <span class="dock__logo">SQL<br>Bench</span>
+    <span id="appVersion" class="dock__version" title="Loading...">--</span>
+  </div>
+
+  <div class="dock__channels">
+    <button class="design-ch__btn" data-ch="1" type="button" aria-label="Color scheme 1">1</button>
+    <button class="design-ch__btn" data-ch="2" type="button" aria-label="Color scheme 2 (Instrument teal)">2</button>
+    <button class="design-ch__btn" data-ch="3" type="button" aria-label="Color scheme 3 (Phosphor green)">3</button>
+    <button class="design-ch__btn" data-ch="4" type="button" aria-label="Color scheme 4 (Neon Noir)">4</button>
+    <button class="design-ch__btn" data-ch="5" type="button" aria-label="Color scheme 5 (Arctic Light)">5</button>
+    <button class="design-ch__btn" data-ch="6" type="button" aria-label="Color scheme 6 (Amber Terminal)">6</button>
+  </div>
+
+  <!-- Layout switcher -->
+  <nav class="layout-switcher" aria-label="Layout">
+    <a class="layout-switcher__link" href="/">Classic</a>
+    <a class="layout-switcher__link" href="/static/index-v1-gridhero.html">Grid</a>
+    <a class="layout-switcher__link layout-switcher__link--active" href="/static/index-v2-dock.html" aria-current="page">Dock</a>
+    <a class="layout-switcher__link" href="/static/index-v3-tabs.html">Tabs</a>
+    <a class="layout-switcher__link" href="/static/index-v4-overlay.html">Overlay</a>
+  </nav>
+
+  <!-- Scan + Discover -->
+  <div class="dock__group">
+    <button id="scanBtn" class="dock__btn" type="button">
+      <svg class="dock__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7"/><path d="M10 3v7l5 3"/></svg>
+      <span>Scan Local</span>
+    </button>
+    <button id="discoverBtn" class="dock__btn" type="button">
+      <svg class="dock__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10h14M10 3v14"/><circle cx="10" cy="10" r="3"/></svg>
+      <span>Discover</span>
+    </button>
+    <button id="addManualBtn" class="dock__btn dock__btn--secondary" type="button" onclick="document.getElementById('settingsSlideout').classList.add('slideout--open'); setTimeout(function(){ var f=document.getElementById('manualProviderForm'); if(f) f.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 50);">
+      <svg class="dock__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 4v12M4 10h12"/></svg>
+      <span>+ Manual</span>
+    </button>
+  </div>
+
+  <div id="endpointStatus" class="dock__status">Click Scan to find servers</div>
+  <div id="endpointList" class="dock__endpoint-list"></div>
+  <div id="discoverStatus" class="dock__status">Select endpoint first</div>
+
+  <!-- Model checklist (scrollable) -->
+  <div class="dock__group dock__group--models">
+    <div class="dock__group-header">
+      <span class="dock__group-label">Models</span>
+      <span id="modelCount" class="dock__model-count">0</span>
+    </div>
+    <input id="modelSearch" class="dock__search" type="text" placeholder="Filter...">
+    <div class="dock__model-actions">
+      <button id="selectAllBtn" class="dock__link-btn" type="button">All</button>
+      <button id="selectNoneBtn" class="dock__link-btn" type="button">None</button>
+    </div>
+    <div id="modelList" class="dock__model-list">
+      <div class="dock__empty">No models loaded</div>
+    </div>
+  </div>
+
+  <!-- Benchmark type -->
+  <div class="dock__group dock__group--tests">
+    <span class="dock__group-label">Tests</span>
+    <label class="dock__chk"><input type="checkbox" id="typeSpeed" checked><span>Speed</span></label>
+    <label class="dock__chk"><input type="checkbox" id="typeSql"><span>SQL</span></label>
+  </div>
+
+  <!-- Start / Stop -->
+  <div class="dock__group dock__group--run">
+    <button id="startBtn" class="dock__btn dock__btn--start" type="button" disabled>
+      <svg class="dock__icon" viewBox="0 0 20 20" fill="currentColor"><polygon points="5,3 17,10 5,17"/></svg>
+      <span>Start</span>
+    </button>
+    <button id="stopBtn" class="dock__btn dock__btn--stop" type="button" disabled>
+      <svg class="dock__icon" viewBox="0 0 20 20" fill="currentColor"><rect x="4" y="4" width="12" height="12" rx="2"/></svg>
+      <span>Stop</span>
+    </button>
+  </div>
+
+  <div id="jobStatus" class="dock__status dock__status--job" role="status" aria-live="polite">Ready</div>
+
+  <!-- Settings toggle -->
+  <button class="dock__btn dock__btn--settings" type="button" data-toggle="settings-panel" onclick="document.getElementById('settingsSlideout').classList.toggle('slideout--open')">
+    <svg class="dock__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="3"/><path d="M10 1v4M10 15v4M1 10h4M15 10h4M3.5 3.5l2.8 2.8M13.7 13.7l2.8 2.8M3.5 16.5l2.8-2.8M13.7 6.3l2.8-2.8"/></svg>
+    <span>Settings</span>
+  </button>
+
+</nav>
+
+<!-- ========== SETTINGS SLIDE-OUT PANEL ========== -->
+<div id="settingsSlideout" class="slideout">
+  <div class="slideout__inner">
+    <div class="slideout__header">
+      <span class="slideout__title">Settings</span>
+      <button class="slideout__close" type="button" onclick="this.closest('.slideout').classList.remove('slideout--open')" aria-label="Close settings">&times;</button>
+    </div>
+
+    <!-- Manual provider form -->
+    <div id="manualProviderForm" class="slideout__section hidden">
+      <div class="slideout__section-label">Manual Provider</div>
+      <div class="form-field">
+        <label for="manualProviderPreset">Preset</label>
+        <select id="manualProviderPreset">
+          <option value="generic-openai">Custom OpenAI-compatible</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="groq">Groq</option>
+          <option value="together">Together AI</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="manualProviderLabel">Label</label>
+        <input id="manualProviderLabel" type="text" placeholder="My endpoint">
+      </div>
+      <div class="form-field">
+        <label for="manualProviderBaseUrl">Base URL</label>
+        <input id="manualProviderBaseUrl" type="text" placeholder="https://...">
+      </div>
+      <div class="form-field">
+        <label for="manualProviderApiKey">API Key</label>
+        <input id="manualProviderApiKey" type="password" placeholder="Optional">
+      </div>
+      <div id="manualProviderHint" class="form-hint"></div>
+      <button id="manualProviderSubmit" class="slideout__btn" type="button">Add Provider</button>
+    </div>
+
+    <!-- Benchmark settings -->
+    <div class="slideout__section">
+      <div class="slideout__section-label">Benchmark</div>
+
+      <div id="thinkingModeGroup" class="form-row hidden">
+        <span class="form-row-label">Thinking</span>
+        <label class="dock__chk"><input type="checkbox" id="thinkOff" checked><span>Off</span></label>
+        <label class="dock__chk"><input type="checkbox" id="thinkOn"><span>On</span></label>
+      </div>
+
+      <div id="questionIdsGroup" class="form-field hidden">
+        <label for="questionIds">Question IDs</label>
+        <input id="questionIds" type="text" placeholder="e.g. 1, 7, 12">
+      </div>
+
+      <div id="reasoningEffortGroup" class="form-field hidden">
+        <label for="reasoningEffort">Provider Reasoning</label>
+        <select id="reasoningEffort">
+          <option value="disabled" selected>Provider default (omit)</option>
+          <option value="none">none (explicit off)</option>
+          <option value="minimal">minimal</option>
+          <option value="low">low</option>
+          <option value="medium">medium</option>
+          <option value="high">high</option>
+          <option value="xhigh">xhigh</option>
+        </select>
+      </div>
+
+      <div id="questionTimeoutGroup" class="form-field hidden">
+        <label for="questionTimeoutMs">Per-question timeout (s)</label>
+        <input id="questionTimeoutMs" type="number" value="0" min="0" step="1" placeholder="0 = disabled">
+      </div>
+
+      <div id="runCommentGroup" class="form-field hidden">
+        <label for="runComment">Run comment</label>
+        <textarea id="runComment" rows="2" maxlength="1000" placeholder="e.g. 9B-class RTX 4090, q5_k_m..."></textarea>
+      </div>
+
+      <div id="sqlModeHint" class="form-hint hidden">SQL uses backend prompts from AdventureWorks schema.</div>
+
+      <div class="form-field">
+        <label for="timeoutMs">Request timeout (s)</label>
+        <input id="timeoutMs" type="number" value="120" min="1" step="1">
+      </div>
+    </div>
+
+    <!-- Speed presets (hidden by default) -->
+    <div class="slideout__section">
+      <div class="slideout__section-label">Speed Presets</div>
+      <div class="speed-preset-row">
+        <button class="speed-preset-chip" type="button" data-action="applySpeedPreset:smoke">Smoke</button>
+        <button class="speed-preset-chip" type="button" data-action="applySpeedPreset:balanced">Balanced</button>
+        <button class="speed-preset-chip" type="button" data-action="applySpeedPreset:leaderboard">Board</button>
+      </div>
+
+      <div class="form-field" style="display:none;">
+        <label for="maxTokens">Max tokens</label>
+        <input id="maxTokens" type="number" value="4096" min="1" step="256">
+      </div>
+      <div class="form-field" style="display:none;">
+        <label for="repeatCount">Repeat</label>
+        <input id="repeatCount" type="number" value="3" min="1" max="100">
+      </div>
+      <div class="form-field" style="display:none;">
+        <label for="warmupRuns">Warmup</label>
+        <input id="warmupRuns" type="number" value="1" min="0" max="10">
+      </div>
+      <div class="form-field" style="display:none;">
+        <label for="mode">Mode</label>
+        <select id="mode">
+          <option value="sequential">Sequential</option>
+          <option value="parallel">Parallel</option>
+        </select>
+      </div>
+      <div class="form-field" style="display:none;">
+        <label for="prompt">Prompt</label>
+        <textarea id="prompt" rows="3" placeholder="Benchmark prompt...">Explain the practical trade-offs between throughput, latency, and model quality for local LLM inference.</textarea>
+      </div>
+    </div>
+
+    <div class="slideout__section" id="benchmarkPanelTitle" style="font-size:0.75rem;color:var(--text-muted);">Select models to benchmark</div>
+
+  </div>
+</div>
+
+<!-- ========== MAIN GRID AREA ========== -->
+<div class="grid-area">
+
+  <!-- Top bar: status + progress -->
+  <header class="grid-area__topbar">
+    <div class="topbar__status">
+      <span id="mainJobStatus" class="topbar__badge" role="status" aria-live="polite">Ready</span>
+      <span id="currentOperation" class="topbar__op hidden">idle</span>
+    </div>
+    <div class="topbar__progress">
+      <div class="topbar__progress-track">
+        <div id="progressFill" class="topbar__progress-fill"></div>
+      </div>
+      <span id="progressText" class="topbar__progress-label">0 / 0</span>
+    </div>
+  </header>
+
+  <!-- Speed metric cards (hidden by default) -->
+  <div id="speedResultsContainer" class="speed-cards" style="display:none;">
+    <div class="metric-card">
+      <span id="successfulRunsLabel" class="metric-label">Runs</span>
+      <span id="successfulRuns" class="metric-value">0</span>
+    </div>
+    <div class="metric-card">
+      <span id="bestLatencyLabel" class="metric-label">Latency</span>
+      <span id="bestLatency" class="metric-value">-</span>
+    </div>
+    <div class="metric-card">
+      <span id="bestPpLabel" class="metric-label">PP</span>
+      <span id="bestPp" class="metric-value">-</span>
+    </div>
+    <div class="metric-card">
+      <span id="bestDecodeLabel" class="metric-label">Decode</span>
+      <span id="bestDecode" class="metric-value">-</span>
+    </div>
+    <div class="metric-card">
+      <span id="activeModelLabel" class="metric-label">Model</span>
+      <span id="activeModel" class="metric-value metric-value--sm">-</span>
+    </div>
+    <table style="display:none;">
+      <tbody id="resultsBody" aria-busy="false" aria-live="polite"></tbody>
+    </table>
+  </div>
+
+  <div id="resultsHint" class="grid-hint" style="display:none;">TTFT = time to first token. PP = prompt tokens/sec.</div>
+
+  <div id="speedViewToggle" class="view-toggle hidden" style="display:none;">
+    <button type="button" data-view="aggregated" class="active">Aggregated</button>
+    <button type="button" data-view="raw">Individual</button>
+  </div>
+
+  <!-- SQL results grid (full width) -->
+  <section class="grid-area__sql">
+    <div id="sqlResultsContainer" class="sql-grid"></div>
+    <div id="sqlCompareContainer" class="sql-compare"></div>
+  </section>
+
+  <!-- History table (full width, below) -->
+  <section class="grid-area__history">
+    <div class="history__header">
+      <span class="history__title">History</span>
+      <div class="history__actions">
+        <button id="refreshHistoryBtn" class="history__btn" type="button">Refresh</button>
+        <label class="dock__chk"><input id="selectAllHistory" type="checkbox"><span>All</span></label>
+        <button id="compareRunsBtn" class="history__btn history__btn--accent" type="button" disabled>Compare</button>
+        <button id="clearSelectedHistoryBtn" class="history__btn history__btn--danger" type="button" disabled>Clear Sel</button>
+        <button id="clearAllHistoryBtn" class="history__btn history__btn--danger" type="button">Clear All</button>
+      </div>
+      <div class="history__meta">
+        <span id="historyStatus" class="history__status">No history loaded</span>
+        <button id="closeHistoryViewBtn" class="history__btn hidden" type="button">Close</button>
+      </div>
+    </div>
+    <div class="history__table-wrap">
+      <table class="history__table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Provider</th>
+            <th>Endpoint</th>
+            <th>Started</th>
+            <th>Type</th>
+            <th>Questions</th>
+            <th>Thinking</th>
+            <th>Comment</th>
+            <th>Status</th>
+            <th>Results</th>
+            <th>Errors</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="12" class="empty-state">No saved benchmark history</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

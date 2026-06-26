@@ -1,0 +1,192 @@
+/* ═══════════════════════════════════════════════════════════════
+   Visual Style C2: Signal Monitor
+   Dense dark analytics. Tight grid. 12px base font. 2px radius.
+   Load AFTER style.css + channel CSS. Adds html[data-style="c2"].
+   ═══════════════════════════════════════════════════════════════ */
+
+html[data-style="c2"] {
+  --radius: 2px;
+  --radius-sm: 1px;
+  --radius-lg: 4px;
+}
+
+html[data-style="c2"] body {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+html[data-style="c2"] aside {
+  padding: 12px 14px;
+  width: 360px;
+  min-width: 340px;
+}
+
+html[data-style="c2"] main {
+  padding: 12px 16px;
+  gap: 10px;
+}
+
+html[data-style="c2"] h1 {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+html[data-style="c2"] .subtitle {
+  font-size: 10px;
+  margin-bottom: 8px;
+}
+
+html[data-style="c2"] .sidebar-section {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+}
+
+html[data-style="c2"] .sidebar-section-title {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+html[data-style="c2"] .results-card {
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 0;
+}
+
+html[data-style="c2"] .section-title {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+html[data-style="c2"] .metric-card {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+}
+
+html[data-style="c2"] .metric-card .label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+html[data-style="c2"] .metric-card .value {
+  font-size: 16px;
+}
+
+html[data-style="c2"] .results-summary {
+  gap: 6px;
+}
+
+html[data-style="c2"] .speed-settings-grid {
+  gap: 8px;
+}
+
+html[data-style="c2"] .speed-field label {
+  font-size: 10px;
+}
+
+html[data-style="c2"] .model-list {
+  gap: 2px;
+  max-height: 200px;
+}
+
+html[data-style="c2"] .model-item {
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: var(--radius);
+}
+
+html[data-style="c2"] .btn-primary,
+html[data-style="c2"] .btn-secondary,
+html[data-style="c2"] .btn-danger,
+html[data-style="c2"] .btn-small {
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: var(--radius);
+}
+
+html[data-style="c2"] input[type="number"],
+html[data-style="c2"] input[type="text"],
+html[data-style="c2"] input[type="password"],
+html[data-style="c2"] select,
+html[data-style="c2"] textarea {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: var(--radius);
+}
+
+html[data-style="c2"] .progress-bar {
+  height: 4px;
+  border-radius: var(--radius);
+}
+html[data-style="c2"] .progress-fill {
+  border-radius: var(--radius);
+}
+
+html[data-style="c2"] .form-group {
+  margin-bottom: 6px;
+}
+
+html[data-style="c2"] .form-group label {
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+
+html[data-style="c2"] .chk-row {
+  gap: 10px;
+}
+html[data-style="c2"] .chk-row label {
+  font-size: 11px;
+}
+
+html[data-style="c2"] table th,
+html[data-style="c2"] table td {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+html[data-style="c2"] table th {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+html[data-style="c2"] .speed-preset-btn {
+  padding: 6px 8px;
+  border-radius: var(--radius);
+}
+
+html[data-style="c2"] .speed-preset-name {
+  font-size: 11px;
+}
+html[data-style="c2"] .speed-preset-desc {
+  font-size: 9px;
+}
+
+html[data-style="c2"] .status-message {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+}
+
+html[data-style="c2"] .endpoint-config-row {
+  gap: 6px;
+}
+
+html[data-style="c2"] .sql-result-cell {
+  border-radius: var(--radius-sm) !important;
+}
+
+html[data-style="c2"] .history-toolbar {
+  gap: 6px;
+  padding-bottom: 6px;
+}
+
+html[data-style="c2"] .model-selector-container {
+  gap: 6px;
+}
+
+html[data-style="c2"] .model-controls {
+  gap: 6px;
+}

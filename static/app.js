@@ -3158,7 +3158,7 @@
   // ── Design toggle (channel selector) ──
   function applyDesign(name) {
     const html = document.documentElement;
-    const ch = name === 'v1' ? '1' : name === 'v2' ? '2' : '3';
+    const ch = name ? name.replace('v', '') : '1';
     if (name === 'v1' || !name) {
       delete html.dataset.design;
     } else {
@@ -3174,12 +3174,13 @@
   (function initDesign() {
     let saved;
     try { saved = localStorage.getItem('llmTestbench.design'); } catch (_) {}
-    const initial = saved === 'v1' || saved === 'v2' || saved === 'v3' ? saved : 'v1';
+    const validChannels = ['v1','v2','v3','v4','v5','v6'];
+    const initial = validChannels.includes(saved) ? saved : 'v1';
     applyDesign(initial);
     document.querySelectorAll('.design-ch__btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const ch = btn.dataset.ch;
-        const name = ch === '1' ? 'v1' : ch === '2' ? 'v2' : 'v3';
+        const name = 'v' + ch;
         applyDesign(name);
       });
     });

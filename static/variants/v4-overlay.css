@@ -1,0 +1,1761 @@
+/* ================================================================
+   V4 — Full Grid + Bottom Bar + Overlay Config
+   Dark theme: bg #09090B, surfaces #18181B, accent #22D3EE
+   Fonts: Share Tech Mono (data), Inter (UI)
+   ================================================================ */
+
+/* --- Reset & Variables --- */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-root: #09090B;
+  --bg-surface: #18181B;
+  --bg-elevated: #1E1E22;
+  --bg-input: #111114;
+  --border: #27272A;
+  --border-focus: #22D3EE;
+  --accent: #22D3EE;
+  --accent-dim: rgba(34, 211, 238, 0.15);
+  --accent-hover: #06B6D4;
+  --text-primary: #FAFAFA;
+  --text-secondary: #A1A1AA;
+  /* WCAG: #71717A only reached ~3.7:1 on surfaces; brightened to clear 4.5:1
+     for muted labels (bar-version, progress text, placeholders, hints). */
+  --text-muted: #888892;
+  --danger: #EF4444;
+  --danger-dim: rgba(239, 68, 68, 0.15);
+  /* Scoped danger-button fill: danger-dim over bg-surface left red text at
+     ~4.0:1; a darker base keeps #EF4444 >= 4.5:1 without touching --danger. */
+  --danger-btn-bg: #200F11;
+  --danger-btn-bg-hover: #301315;
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --font-data: 'Share Tech Mono', monospace;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --bar-h: 48px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --transition: 200ms ease;
+}
+
+/* ================================================================
+   DESIGN CHANNEL PALETTES (switch in place via html[data-design])
+   ch1 = default cyan (:root above). ch2 = violet. ch3 = amber/lime.
+   Same variable names; heatmap pass/fail/error squares are hard-coded
+   green/red/amber in sql-grid.css so they stay readable on all themes.
+   ================================================================ */
+
+/* ----------------------------------------------------------------
+   Role map: channels palettes use --bg/--card-bg/--sidebar-bg,
+   --accent/--accent-hover/--accent-glow, --text-main/--text-muted/
+   --text-dim, --border, --success/--error|--danger/--warn. They map
+   onto THIS variant's vars by role:
+     --bg            -> --bg-root
+     --card-bg/sidebar -> --bg-surface  (elevated = +1 step lighter)
+     input surface   -> --bg-input
+     --accent        -> --accent / --border-focus
+     --accent-hover  -> --accent-hover
+     --accent-glow   -> --accent-dim
+     --text-main     -> --text-primary
+     --text-muted    -> --text-secondary
+     --text-dim      -> --text-muted
+     --border        -> --border
+     --success       -> --success
+     --warn          -> --warning
+     --error/--danger-> --danger / --danger-dim / --danger-btn-bg
+   ---------------------------------------------------------------- */
+
+/* v2 — Instrument teal (canonical) */
+html[data-design="v2"] {
+  --bg-root: #0D1118;
+  --bg-surface: #161B24;
+  --bg-elevated: #1E2430;
+  --bg-input: #10141C;
+  --border: #262D38;
+  --border-focus: #14B8A6;
+  --accent: #14B8A6;
+  --accent-dim: rgba(20, 184, 166, 0.15);
+  --accent-hover: #0D9488;
+  --text-primary: #F3F4F6;
+  --text-secondary: #9FB0C4;   /* >=4.5:1 on surfaces (raised from #64748B) */
+  --text-muted: #7C8AA0;       /* >=4.5:1 muted labels */
+  --danger: #F87171;
+  --danger-dim: rgba(248, 113, 113, 0.15);
+  --success: #2DD4BF;
+  --warning: #F59E0B;
+  --danger-btn-bg: #2A1518;
+  --danger-btn-bg-hover: #371B1F;
+}
+
+/* v3 — Phosphor green (canonical) */
+html[data-design="v3"] {
+  --bg-root: #080C14;
+  --bg-surface: #152034;
+  --bg-elevated: #1A273D;
+  --bg-input: #0E1626;
+  --border: #27334E;
+  --border-focus: #00E599;
+  --accent: #00E599;
+  --accent-dim: rgba(0, 229, 153, 0.15);
+  --accent-hover: #00CC8A;
+  --text-primary: #E4EAF2;
+  --text-secondary: #97A3BA;   /* raised from #8793AA for >=4.5:1 */
+  --text-muted: #8E9BB3;       /* raised from #6A7791 */
+  --danger: #FF6B83;
+  --danger-dim: rgba(255, 77, 106, 0.15);
+  --success: #00E599;
+  --warning: #FFA940;
+  --danger-btn-bg: #2A1318;
+  --danger-btn-bg-hover: #371A1F;
+}
+
+/* v4 — Neon Noir (canonical: deep purple, cyan pass, rose fail) */
+html[data-design="v4"] {
+  --bg-root: #0D0A14;
+  --bg-surface: #16102A;
+  --bg-elevated: #1E1640;
+  --bg-input: #110C20;
+  --border: #2D1B4E;
+  --border-focus: #A855F7;
+  --accent: #A855F7;
+  --accent-dim: rgba(168, 85, 247, 0.15);
+  --accent-hover: #9333EA;
+  --text-primary: #F0E6FF;
+  --text-secondary: #B7A8D4;   /* raised from #8B7AAA for >=4.5:1 */
+  --text-muted: #9A8AB8;       /* raised from #6A5E80 */
+  --danger: #F43F5E;
+  --danger-dim: rgba(244, 63, 94, 0.15);
+  --success: #22D3EE;
+  --warning: #FBBF24;
+  --danger-btn-bg: #2A0F18;
+  --danger-btn-bg-hover: #371320;
+}
+
+/* v5 — Arctic Light (canonical LIGHT: white surfaces, dark text) */
+html[data-design="v5"] {
+  --bg-root: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #FFFFFF;
+  --bg-input: #FFFFFF;
+  --border: #E2E8F0;
+  --border-focus: #0EA5E9;
+  --accent: #0EA5E9;
+  --accent-dim: rgba(14, 165, 233, 0.10);
+  --accent-hover: #0284C7;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;   /* >=4.5:1 on white */
+  --text-muted: #64748B;       /* >=4.5:1 on white */
+  --danger: #DC2626;
+  --danger-dim: rgba(220, 38, 38, 0.10);
+  --success: #16A34A;
+  --warning: #D97706;
+  --danger-btn-bg: rgba(220, 38, 38, 0.08);
+  --danger-btn-bg-hover: rgba(220, 38, 38, 0.16);
+}
+
+/* v6 — Amber Terminal (canonical retro CRT) */
+html[data-design="v6"] {
+  --bg-root: #0C0A04;
+  --bg-surface: #14120A;
+  --bg-elevated: #1C190E;
+  --bg-input: #100E06;
+  --border: #2A2210;
+  --border-focus: #F59E0B;
+  --accent: #F59E0B;
+  --accent-dim: rgba(245, 158, 11, 0.12);
+  --accent-hover: #D97706;
+  --text-primary: #E8D5A0;
+  --text-secondary: #C9B36A;   /* raised from #92810A for >=4.5:1 */
+  --text-muted: #A8932C;       /* raised from #6B5F08 */
+  --danger: #F87171;
+  --danger-dim: rgba(239, 68, 68, 0.15);
+  --success: #84CC16;
+  --warning: #FBBF24;
+  --danger-btn-bg: #2A1210;
+  --danger-btn-bg-hover: #371815;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-root);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Remove default aside/main styles that other variants use */
+aside { display: contents; }
+main  { display: contents; }
+
+
+/* ================================================================
+   GRID VIEWPORT — Full screen minus bottom bar
+   ================================================================ */
+.grid-viewport {
+  position: fixed;
+  inset: 0 0 var(--bar-h) 0;
+  overflow: auto;
+  background: var(--bg-root);
+  padding: 12px;
+  z-index: 1;
+}
+
+.grid-viewport table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-data);
+  font-size: 13px;
+}
+
+.grid-viewport th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.grid-viewport td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(39, 39, 42, 0.5);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.grid-viewport tbody tr:hover {
+  background: var(--accent-dim);
+}
+
+.grid-viewport .empty-state {
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-style: italic;
+  text-align: center;
+  padding: 48px 16px;
+}
+
+/* SQL result containers in grid */
+#sqlResultsContainer,
+#sqlCompareContainer {
+  min-height: 0;
+}
+
+#sqlResultsContainer table,
+#sqlCompareContainer table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-data);
+  font-size: 13px;
+}
+
+#sqlResultsContainer th,
+#sqlCompareContainer th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  z-index: 2;
+}
+
+#sqlResultsContainer td,
+#sqlCompareContainer td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(39, 39, 42, 0.5);
+  color: var(--text-primary);
+}
+
+#sqlResultsContainer tbody tr:hover,
+#sqlCompareContainer tbody tr:hover {
+  background: var(--accent-dim);
+}
+
+/* ── Heatmap override ───────────────────────────────────────────
+   The generic `.grid-viewport table` and `#sqlResultsContainer table`
+   rules above force width:100% / border-collapse:collapse, which
+   squashes the fixed-width question columns and 22px result cells.
+   Re-assert the heatmap table model from sql-grid.css using an
+   id + class selector so it beats the `#...Container table` selector. */
+#sqlResultsContainer .sql-result-table,
+#sqlCompareContainer .sql-result-table {
+  width: max-content;
+  min-width: max-content;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+#sqlResultsContainer .sql-result-table td,
+#sqlCompareContainer .sql-result-table td {
+  padding: 6px 4px;
+  white-space: normal;
+}
+
+/* Live status floating overlay in top-left of grid */
+.live-status-float {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.live-job-status,
+.live-current-op {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: rgba(9, 9, 11, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  pointer-events: auto;
+}
+
+/* Metric pills (floating top-right) */
+.metrics-float {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.metric-pill {
+  background: rgba(9, 9, 11, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.metric-label {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.metric-value {
+  font-family: var(--font-data);
+  font-size: 13px;
+  color: var(--accent);
+}
+
+
+/* ================================================================
+   BOTTOM STATUS BAR — 48px fixed
+   ================================================================ */
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--bar-h);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  /* Group controls together rather than flinging them to the screen
+     edges. The center cluster absorbs slack on its LEFT only (auto
+     margin), so the left group hugs the brand and the progress bar +
+     action buttons sit together toward the right. */
+  justify-content: flex-start;
+  padding: 0 16px;
+  z-index: 10;
+  gap: 16px;
+}
+
+.bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.bar-title {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.bar-version {
+  font-family: var(--font-data);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.bar-status {
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-models {
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.bar-center {
+  flex: 0 1 320px;
+  max-width: 320px;
+  min-width: 160px;
+  /* Auto-margin on the left absorbs the empty space between the left
+     cluster and the centered controls, so the progress bar and the
+     action buttons stay grouped on the right instead of stranded. */
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.bar-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.bar-progress-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-root);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bar-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 300ms ease;
+}
+
+.bar-progress-text {
+  font-family: var(--font-data);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 50px;
+  text-align: right;
+}
+
+.bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Bar buttons */
+.bar-btn {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+}
+
+.bar-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: var(--accent-dim);
+}
+
+.bar-btn--start {
+  background: var(--accent);
+  color: #09090B;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.bar-btn--start:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.bar-btn--start:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bar-btn--stop {
+  background: var(--danger-btn-bg);
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.bar-btn--stop:hover {
+  background: var(--danger-btn-bg-hover);
+  border-color: var(--danger);
+}
+
+.bar-btn--stop:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bar-btn--config,
+.bar-btn--history {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.bar-btn--config:hover,
+.bar-btn--history:hover {
+  background: var(--accent-dim);
+  color: var(--text-primary);
+}
+
+
+/* ================================================================
+   DESIGN CHANNEL BUTTONS
+   ================================================================ */
+.design-channels {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.design-ch__btn {
+  font-family: var(--font-data);
+  font-size: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.design-ch__btn:hover,
+.design-ch__btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+
+/* ================================================================
+   LAYOUT SWITCHER (nav between prototype layouts)
+   Compact pill group that fits the 48px bottom bar; grouped in the
+   left cluster next to the brand/channel buttons (not flung to edges).
+   ================================================================ */
+.layout-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  flex-shrink: 0;
+}
+
+.layout-switcher__link {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all var(--transition);
+}
+
+.layout-switcher__link:hover,
+.layout-switcher__link:focus-visible {
+  color: var(--text-primary);
+  background: var(--accent-dim);
+  text-decoration: none;
+}
+
+.layout-switcher__link--active,
+.layout-switcher__link--active:hover,
+.layout-switcher__link--active:focus-visible {
+  color: var(--accent);
+  background: var(--accent-dim);
+  cursor: default;
+  pointer-events: none;
+  font-weight: 600;
+}
+
+
+/* ================================================================
+   OVERLAY TOGGLE (CSS-only modal/panel control)
+   ================================================================ */
+.overlay-toggle {
+  display: none;
+}
+
+
+/* ================================================================
+   CONFIG MODAL OVERLAY
+   ================================================================ */
+.config-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+
+#config-toggle:checked ~ .config-overlay {
+  display: flex;
+}
+
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  cursor: pointer;
+}
+
+.config-modal {
+  position: relative;
+  width: 600px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 96px);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  z-index: 101;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.modal-title {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.modal-close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  font-size: 20px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+  border: none;
+  background: none;
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+  background: var(--accent-dim);
+}
+
+.modal-body {
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Scrollbar for modal body */
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Config sections */
+.config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.config-section-title {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+
+/* ================================================================
+   HISTORY SLIDE-UP PANEL
+   ================================================================ */
+.history-panel-wrap {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+
+#history-toggle:checked ~ .history-panel-wrap {
+  display: block;
+}
+
+.history-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50vh;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 101;
+  box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.4);
+  animation: slideUp 250ms ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.history-title {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.history-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.history-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-status-text {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.history-table-wrap {
+  flex: 1;
+  overflow: auto;
+  padding: 0 8px;
+}
+
+.history-table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-data);
+  font-size: 12px;
+}
+
+.history-table-wrap th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.history-table-wrap td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(39, 39, 42, 0.4);
+  color: var(--text-primary);
+}
+
+.history-table-wrap tbody tr:hover {
+  background: var(--accent-dim);
+}
+
+
+/* ================================================================
+   FORM ELEMENTS
+   ================================================================ */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-group label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="password"],
+select,
+textarea {
+  font-family: var(--font-data);
+  font-size: 13px;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition);
+  width: 100%;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2371717A' d='M3 5l3 3 3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 48px;
+}
+
+
+/* ================================================================
+   CHECKBOX ROWS
+   ================================================================ */
+.chk-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.chk-row label,
+.chk-label {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+
+/* ================================================================
+   BUTTONS
+   ================================================================ */
+.btn-primary {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  background: var(--accent);
+  color: #09090B;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.btn-danger {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  background: var(--danger-btn-bg);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-danger:hover {
+  background: var(--danger-btn-bg-hover);
+  border-color: var(--danger);
+}
+
+/* .btn-small covers history-row Open <button> AND the JSONL/CSV/TSV/Manifest/
+   Summary download <a> links app.js emits. Force button-like rendering on
+   anchors: no underline, locked color across link states, inline-flex box. */
+.btn-small,
+a.btn-small,
+a.btn-small:link,
+a.btn-small:visited {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.btn-small:hover,
+a.btn-small:hover,
+a.btn-small:focus {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.btn-small:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-danger-sm {
+  background: var(--danger-btn-bg);
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger-sm:hover {
+  border-color: var(--danger);
+  background: var(--danger-btn-bg-hover);
+  color: var(--danger);
+}
+
+.btn-full {
+  width: 100%;
+}
+
+.btn-sm {
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+
+/* ================================================================
+   STATUS / HINT ELEMENTS
+   ================================================================ */
+.status-msg {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 6px 0;
+}
+
+.status-message {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 6px 0;
+}
+
+.status-message.info {
+  color: var(--text-secondary);
+}
+
+.status-message--compact {
+  font-size: 11px;
+  padding: 4px 0;
+}
+
+.hint-text {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.text-muted {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+
+/* ================================================================
+   MODEL LIST
+   ================================================================ */
+.model-search-wrapper {
+  position: relative;
+}
+
+.model-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.model-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+}
+
+.model-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.model-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.model-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.model-list .empty-state {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.model-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.model-list label:hover {
+  background: var(--accent-dim);
+}
+
+
+/* ================================================================
+   ENDPOINT & MANUAL FORM
+   ================================================================ */
+.endpoint-config-row {
+  display: flex;
+  gap: 8px;
+}
+
+.endpoint-config-row .btn-primary {
+  flex: 1;
+}
+
+.manual-form {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#endpointList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* Endpoint items created dynamically by app.js */
+#endpointList .endpoint-item,
+#endpointList label,
+#endpointList > div {
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+#endpointList .endpoint-item:hover,
+#endpointList label:hover,
+#endpointList > div:hover {
+  background: var(--accent-dim);
+}
+
+
+/* ================================================================
+   SETTINGS SUBSECTION
+   ================================================================ */
+.settings-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.subsection-label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.speed-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Speed-only settings (hidden elements, controlled by app.js) */
+.speed-only-setting {
+  /* App.js toggles display */
+}
+
+
+/* ================================================================
+   HIDDEN UTILITY
+   ================================================================ */
+.hidden {
+  display: none !important;
+}
+
+/* app.js may apply display:none inline; ensure CSS doesn't fight */
+[style*="display: none"],
+[style*="display:none"] {
+  /* no override */
+}
+
+
+/* ================================================================
+   RESULTS & APP.JS DYNAMIC ELEMENTS
+   ================================================================ */
+
+/* Progress bar (shared between bar and legacy full view) */
+.progress-bar {
+  height: 6px;
+  background: var(--bg-root);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 300ms ease;
+}
+
+/* Speed view toggle */
+#speedViewToggle button {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 4px 10px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+#speedViewToggle button:first-child {
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+
+#speedViewToggle button:last-child {
+  border-radius: 0 var(--radius) var(--radius) 0;
+  border-left: none;
+}
+
+#speedViewToggle button.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Results summary metric cards (speed mode) */
+.results-summary {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.metric-card {
+  flex: 1;
+  min-width: 100px;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.metric-card .label {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.metric-card .value {
+  font-family: var(--font-data);
+  font-size: 16px;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+/* Section titles (for app.js dynamic sections) */
+.section-title {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+/* Results card (for compatibility with app.js) */
+.results-card {
+  padding: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 12px;
+}
+
+/* Sidebar section/title compatibility */
+.sidebar-section { margin-bottom: 12px; }
+.sidebar-section-title {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.sidebar-actions-row {
+  display: flex;
+  gap: 8px;
+}
+
+/* Manual row compat */
+.manual-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.manual-provider-form {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.manual-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Model selector container compat */
+.model-selector-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* History toolbar compat */
+.history-toolbar .chk-row-label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Speed preset grid/buttons compat */
+.speed-preset-grid {
+  display: flex;
+  gap: 6px;
+}
+
+.speed-preset-btn {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--transition);
+}
+
+.speed-preset-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.speed-preset-name {
+  display: block;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.speed-preset-desc {
+  display: block;
+  font-family: var(--font-data);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Speed settings grid compat */
+.speed-settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.speed-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.speed-field label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.speed-field--wide {
+  grid-column: 1 / -1;
+}
+
+
+/* ================================================================
+   APP VERSION BADGE
+   ================================================================ */
+.app-version {
+  font-family: var(--font-data);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+
+/* ================================================================
+   SQL RESULT STYLING (app.js dynamically injects content)
+   ================================================================ */
+
+/* Accuracy badges */
+.badge-pass,
+.accuracy-pass {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.badge-fail,
+.accuracy-fail {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.badge-partial {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+/* SQL code blocks */
+pre, code {
+  font-family: var(--font-data);
+  font-size: 12px;
+  background: var(--bg-input);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+pre {
+  padding: 8px 12px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  margin: 4px 0;
+}
+
+/* Tooltip compat */
+[title] {
+  position: relative;
+}
+
+
+/* ================================================================
+   FOCUS & ACCESSIBILITY
+   ================================================================ */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+label[role="button"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Keyboard-accessible labels acting as buttons */
+label[role="button"] {
+  cursor: pointer;
+}
+
+
+/* ================================================================
+   SCROLLBARS (global)
+   ================================================================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-root);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Firefox scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) var(--bg-root);
+}
+
+
+/* ================================================================
+   RESPONSIVE (narrow screens)
+   ================================================================ */
+@media (max-width: 720px) {
+  .bottom-bar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: var(--bar-h);
+    padding: 6px 12px;
+    gap: 6px;
+  }
+
+  .bar-center {
+    order: 3;
+    max-width: 100%;
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+
+  .config-modal {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 60px);
+  }
+
+  .history-panel {
+    height: 70vh;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-viewport {
+    inset: 0 0 auto 0;
+    padding-bottom: 60px;
+  }
+}
+
+
+/* ================================================================
+   PER-SCHEME RETHEME + WCAG CONTRAST PASS  (v4 / v5 / v6, + v2/v3)
+   All scoped under html[data-design="vN"]; only this file is touched.
+   sql-grid.css hard-codes pass=#10b981 / fail=#ef4444 / error=#f59e0b
+   with white glyphs, so the dark-theme glyphs stay white (white on
+   those mid fills clears 3:1 for the bold ✓/✗) but the LIGHT v5 needs
+   dark glyphs. Contrast figures verified via WCAG relative-luminance.
+   ================================================================ */
+
+/* ── SQL heatmap glyph legibility (all schemes) ──
+   Bold ✓/✗ on the mid green/red fills: white reads >=3:1 on every dark
+   scheme. On v5 (light surfaces) the surrounding chrome is light, so use
+   dark glyphs that clear 4.5:1 on the green/amber and a deep glyph on red. */
+html[data-design="v5"] #sqlResultsContainer .sql-result-cell.pass,
+html[data-design="v5"] #sqlCompareContainer .sql-result-cell.pass {
+  color: #052e16;   /* 5.88:1 on #10b981 */
+}
+html[data-design="v5"] #sqlResultsContainer .sql-result-cell.fail,
+html[data-design="v5"] #sqlCompareContainer .sql-result-cell.fail {
+  color: #1a0606;   /* 5.20:1 on #ef4444 */
+}
+html[data-design="v5"] #sqlResultsContainer .sql-result-cell.error,
+html[data-design="v5"] #sqlCompareContainer .sql-result-cell.error {
+  color: #1a0d00;   /* 8.88:1 on #f59e0b */
+}
+
+/* ────────────────────────────────────────────────────────────────
+   v5 — Arctic Light: re-theme dark-by-default chrome for light bg.
+   The base CSS hard-codes dark pills / dark button labels that would
+   otherwise read dark-on-light or be invisible. Fix each by role.
+   ──────────────────────────────────────────────────────────────── */
+
+/* Accent used as TEXT on light surfaces fails (#0EA5E9 on white = 2.77:1).
+   Use a darker sky for text roles; keep --accent for borders/fills/links. */
+html[data-design="v5"] .bar-models,
+html[data-design="v5"] .metric-value,
+html[data-design="v5"] .config-section-title,
+html[data-design="v5"] .sidebar-section-title,
+html[data-design="v5"] .bar-btn--config,
+html[data-design="v5"] .bar-btn--history {
+  color: #0369A1;   /* 5.93:1 on white */
+}
+html[data-design="v5"] .bar-btn--config:hover,
+html[data-design="v5"] .bar-btn--history:hover {
+  color: #0369A1;
+  background: var(--accent-dim);
+}
+
+/* Floating live-status + metric pills are dark glass by default
+   (rgba(9,9,11,0.85)); flip to a light glass with dark text on v5. */
+html[data-design="v5"] .live-job-status,
+html[data-design="v5"] .live-current-op,
+html[data-design="v5"] .metric-pill {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: var(--border);
+}
+html[data-design="v5"] .live-job-status,
+html[data-design="v5"] .live-current-op {
+  color: var(--text-secondary);
+}
+
+/* Start button: label is dark (#09090B) on light-blue accent = 7.18:1 → OK.
+   .bar-btn--start hard-codes color:#09090B which already passes; leave it. */
+
+/* Stop / danger buttons: danger-btn-bg is a light red tint on v5, the
+   red label #DC2626 reads 4.83:1 on white and on the tint. Border uses
+   the dark-scheme rgba(239,68,68,.3); swap to v5 danger border tint. */
+html[data-design="v5"] .bar-btn--stop,
+html[data-design="v5"] .btn-danger,
+html[data-design="v5"] .btn-danger-sm {
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+/* The select dropdown arrow svg is hard-coded grey (#71717A) — fine on
+   light, leave it. Inputs already follow vars (bg-input=#fff on v5). */
+
+/* Layout switcher: pill group on the (now white) bar — ensure the active
+   link and the resting links read on the light surface. */
+html[data-design="v5"] .layout-switcher {
+  background: var(--bg-root);   /* #F8FAFC vs white bar = subtle inset */
+}
+html[data-design="v5"] .layout-switcher__link {
+  color: var(--text-secondary);   /* #475569, 7.24:1 on #F8FAFC */
+}
+html[data-design="v5"] .layout-switcher__link--active,
+html[data-design="v5"] .layout-switcher__link--active:hover {
+  color: #0369A1;                 /* 5.67:1 on #F8FAFC */
+  background: var(--accent-dim);
+}
+
+/* Design-channel buttons: muted glyph reads on the light bar. The active
+   swatch (set by app.js .active) already inverts to accent-dim/accent. */
+html[data-design="v5"] .design-ch__btn { color: var(--text-muted); }
+
+/* Bottom-bar progress track: base uses --bg-root (#F8FAFC) which is nearly
+   the same as the white bar; deepen so the empty track is visible. */
+html[data-design="v5"] .bar-progress-track,
+html[data-design="v5"] .progress-bar { background: #E2E8F0; }
+
+/* Modal/panel scrollbar thumb on light. */
+html[data-design="v5"] ::-webkit-scrollbar-thumb { background: #CBD5E1; }
+html[data-design="v5"] ::-webkit-scrollbar-track { background: var(--bg-root); }
