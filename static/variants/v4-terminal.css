@@ -11,8 +11,8 @@
   --accent: #00FF88;
   --accent-hover: #00CC6A;
   --text-main: #D4D4D4;
-  --text-muted: #737373;
-  --text-dim: #525252;
+  --text-muted: #8A8A8A;
+  --text-dim: #7E7E7E;
   --border: #262626;
   --border-strong: #333333;
   --success: #00FF88;
@@ -32,6 +32,101 @@
   --sql-category-border: rgba(115,115,115,0.34);
   --sql-comment-column-width: 180px;
   --sql-think-column-width: 56px;
+}
+
+/* ── Design Channel Overrides ───────────────────────────────────── */
+/* Maps v1-v6 palette tokens onto this variant's variable names.
+   v1 (default cyberpunk green) is covered by :root above.       */
+
+html[data-design="v2"] {
+  --bg: #0D1118;
+  --sidebar-bg: #161B24;
+  --card-bg: #1E2430;
+  --accent: #14B8A6;
+  --accent-hover: #0D9488;
+  --accent-glow: rgba(20,184,166,0.08);
+  --text-main: #F3F4F6;
+  --text-muted: #8A9AB0;
+  --text-dim: #7C8AA0;
+  --border: #262D38;
+  --border-strong: #303A4A;
+  --success: #2DD4BF;
+  --error: #F87171;
+  --danger: #F87171;
+  --warn: #F59E0B;
+}
+
+html[data-design="v3"] {
+  --bg: #080C14;
+  --sidebar-bg: #152034;
+  --card-bg: #1A273D;
+  --accent: #00E599;
+  --accent-hover: #00CC8A;
+  --accent-glow: rgba(0,229,153,0.08);
+  --text-main: #E4EAF2;
+  --text-muted: #8E9BB3;
+  --text-dim: #7A8AA4;
+  --border: #27334E;
+  --border-strong: #303D5E;
+  --success: #00E599;
+  --error: #FF6B83;
+  --danger: #FF6B83;
+  --warn: #FFA940;
+}
+
+html[data-design="v4"] {
+  --bg: #0D0A14;
+  --sidebar-bg: #16102A;
+  --card-bg: #1E1640;
+  --accent: #A855F7;
+  --accent-hover: #9333EA;
+  --accent-glow: rgba(168,85,247,0.08);
+  --text-main: #F0E6FF;
+  --text-muted: #9A8AB8;
+  --text-dim: #8A7AA8;
+  --border: #2D1B4E;
+  --border-strong: #3A2560;
+  --success: #22D3EE;
+  --error: #F43F5E;
+  --danger: #F43F5E;
+  --warn: #FBBF24;
+}
+
+html[data-design="v5"] {
+  /* Arctic Light — inverted: dark text on light surfaces */
+  --bg: #F8FAFC;
+  --sidebar-bg: #FFFFFF;
+  --card-bg: #FFFFFF;
+  --accent: #0EA5E9;
+  --accent-hover: #0284C7;
+  --accent-glow: rgba(14,165,233,0.10);
+  --text-main: #0F172A;
+  --text-muted: #475569;
+  --text-dim: #64748B;
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --success: #16A34A;
+  --error: #DC2626;
+  --danger: #DC2626;
+  --warn: #D97706;
+}
+
+html[data-design="v6"] {
+  --bg: #0C0A04;
+  --sidebar-bg: #14120A;
+  --card-bg: #1C190E;
+  --accent: #F59E0B;
+  --accent-hover: #D97706;
+  --accent-glow: rgba(245,158,11,0.08);
+  --text-main: #E8D5A0;
+  --text-muted: #A8932C;
+  --text-dim: #8A7820;
+  --border: #2A2210;
+  --border-strong: #362C14;
+  --success: #84CC16;
+  --error: #F87171;
+  --danger: #F87171;
+  --warn: #FBBF24;
 }
 
 

@@ -60,6 +60,7 @@
   function applyButtonState(status) {
     const startBtn = $('startBtn');
     const stopBtn = $('stopBtn');
+    const stopBtn2 = $('stopBtn2');
     const discoverBtn = $('discoverBtn');
     const live = status === 'queued' || status === 'running' || status === 'stopping';
     state.isBenchmarkRunning = live;
@@ -67,6 +68,10 @@
     if (stopBtn) {
       stopBtn.disabled = !live;
       stopBtn.classList.toggle('running', live);
+    }
+    if (stopBtn2) {
+      stopBtn2.disabled = !live;
+      stopBtn2.classList.toggle('running', live);
     }
     if (discoverBtn) discoverBtn.disabled = live || !getBaseUrlValue();
     syncModelSelectionLock();
@@ -2979,6 +2984,9 @@
 
   const stopBtn = $('stopBtn');
   if (stopBtn) stopBtn.addEventListener('click', stopBenchmark);
+
+  const stopBtn2 = $('stopBtn2');
+  if (stopBtn2) stopBtn2.addEventListener('click', stopBenchmark);
 
   const refreshHistoryBtn = $('refreshHistoryBtn');
   if (refreshHistoryBtn) refreshHistoryBtn.addEventListener('click', loadHistory);

@@ -71,9 +71,9 @@ body {
 .conv-tool-code { background: #0d1117; padding: 8px 10px; border-radius: var(--radius-sm); font-family: 'Fira Code', monospace; font-size: 12px; color: #e2e8f0; white-space: pre-wrap; overflow-x: auto; margin-top: 6px; }
 .conv-tool-result { border-left: 3px solid var(--success); background: rgba(34,197,94,0.05); }
 .conv-tool-result-label { color: #4ade80; }
-.conv-text { color: var(--text-main); white-space: pre-wrap; word-break: break-word; }
+.conv-text { color: var(--text-main); white-space: pre-wrap; overflow-wrap: break-word; }
 .conv-call-header { padding: 3px 14px; font-size: 10px; color: var(--text-dim); letter-spacing: 0.08em; background: var(--sidebar-bg); border-top: 1px solid var(--border); }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; border-width: 0; }
 
 /* ── Sidebar ── */
 aside {

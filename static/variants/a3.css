@@ -145,7 +145,8 @@ body.a3-layout .a3-summary {
   transition: background 0.15s;
 }
 
-body.a3-layout .a3-summary::-webkit-details-marker {
+body.a3-layout .a3-summary::-webkit-details-marker,
+body.a3-layout .a3-summary::marker {
   display: none;
 }
 

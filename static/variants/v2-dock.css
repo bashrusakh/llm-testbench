@@ -624,7 +624,6 @@ body {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .dock__empty {

@@ -1237,7 +1237,7 @@ tr:hover td { background: rgba(167,139,250,0.04); }
   color: var(--text);
   max-width: 400px;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: break-word;
   box-shadow: 0 4px 16px rgba(0,0,0,0.5);
 }
 

@@ -208,7 +208,7 @@ body.a2-layout .design-ch__btn {
 
 /* ── Sidebar: collapsible sections ──────────────────────────── */
 .a2-collapsible-section {
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--border);
   padding-bottom: 6px;
   margin-bottom: 4px;
 }
@@ -283,7 +283,7 @@ body.a2-layout .design-ch__btn {
 
 .a2-tab-btn:hover {
   color: var(--text-main);
-  background: rgba(255,255,255,0.03);
+  background: var(--card-bg, rgba(255,255,255,0.03));
   transform: none;
 }
 

@@ -911,7 +911,7 @@ tbody tr:hover td { background: rgba(14,165,233,0.03); }
   flex-shrink: 0;
   margin-top: 1px;
 }
-.run-comment-banner .run-comment-text { white-space: pre-wrap; word-break: break-word; }
+.run-comment-banner .run-comment-text { white-space: pre-wrap; overflow-wrap: break-word; }
 
 #runComment {
   width: 100%;
