@@ -48,7 +48,7 @@
       <svg class="dock__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10h14M10 3v14"/><circle cx="10" cy="10" r="3"/></svg>
       <span>Discover</span>
     </button>
-    <button id="addManualBtn" class="dock__btn dock__btn--secondary" type="button" onclick="document.getElementById('settingsSlideout').classList.add('slideout--open'); setTimeout(function(){ var f=document.getElementById('manualProviderForm'); if(f) f.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 50);">
+    <button id="addManualBtn" class="dock__btn dock__btn--secondary" type="button" data-dock-action="open-settings-and-scroll" data-scroll-target="manualProviderForm">
       <svg class="dock__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 4v12M4 10h12"/></svg>
       <span>+ Manual</span>
     </button>
@@ -96,7 +96,7 @@
   <div id="jobStatus" class="dock__status dock__status--job" role="status" aria-live="polite">Ready</div>
 
   <!-- Settings toggle -->
-  <button class="dock__btn dock__btn--settings" type="button" data-toggle="settings-panel" onclick="document.getElementById('settingsSlideout').classList.toggle('slideout--open')">
+  <button class="dock__btn dock__btn--settings" type="button" data-toggle="settings-panel" data-dock-action="toggle-settings">
     <svg class="dock__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="3"/><path d="M10 1v4M10 15v4M1 10h4M15 10h4M3.5 3.5l2.8 2.8M13.7 13.7l2.8 2.8M3.5 16.5l2.8-2.8M13.7 6.3l2.8-2.8"/></svg>
     <span>Settings</span>
   </button>
@@ -108,7 +108,7 @@
   <div class="slideout__inner">
     <div class="slideout__header">
       <span class="slideout__title">Settings</span>
-      <button class="slideout__close" type="button" onclick="this.closest('.slideout').classList.remove('slideout--open')" aria-label="Close settings">&times;</button>
+      <button class="slideout__close" type="button" data-dock-action="close-slideout" aria-label="Close settings">&times;</button>
     </div>
 
     <!-- Manual provider form -->

@@ -3249,16 +3249,20 @@
 
     var saved;
     try { saved = localStorage.getItem(storageKey); } catch(e) {}
-    if (saved === 'alt') applyTheme(true);
+    // Apply on both branches so the toggle label/classes and stylesheet
+    // disabled flags always match the persisted theme on first load.
+    applyTheme(saved === 'alt');
 
     themeToggle.addEventListener('click', function() {
       applyTheme(cssAlt ? cssAlt.disabled : false);
     });
   }
 
-  // v4-overlay: keyboard (Enter/Space) support for label[role="button"] toggles
-  // No-op on layouts that don't have these elements.
-  document.querySelectorAll('label[role="button"]').forEach(function(el) {
+  // Keyboard (Enter/Space) activation for <label> controls that visually
+  // act as buttons or tabs. Covers v4-overlay (role="button") and v3-tabs
+  // (role="tab") where the underlying inputs are display:none and thus
+  // out of the tab order. No-op on layouts without these elements.
+  document.querySelectorAll('label[role="button"], label[role="tab"]').forEach(function(el) {
     el.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
@@ -3266,4 +3270,61 @@
       }
     });
   });
+
+  // Sync aria-selected on v3-tabs labels with the underlying radio :checked
+  // state so screen readers announce the active tab correctly.
+  (function syncV3TabsAriaSelected() {
+    var tabs = document.querySelectorAll('.topbar-tab[role="tab"]');
+    if (!tabs.length) return;
+    function update() {
+      tabs.forEach(function(tab) {
+        var radio = document.getElementById(tab.getAttribute('for'));
+        tab.setAttribute('aria-selected', radio && radio.checked ? 'true' : 'false');
+      });
+    }
+    update();
+    document.querySelectorAll('.tab-radio').forEach(function(r) {
+      r.addEventListener('change', update);
+    });
+  })();
+
+  // v2-dock: settings slideout actions. Replaces inline onclick="..." that
+  // violated CSP and broke the project rule of keeping browser logic in app.js.
+  // No-op on layouts that don't have these elements.
+  (function bindDockSlideoutActions() {
+    var slideout = document.getElementById('settingsSlideout');
+    if (!slideout) return;
+    document.querySelectorAll('[data-dock-action]').forEach(function(el) {
+      var action = el.getAttribute('data-dock-action');
+      if (action === 'toggle-settings') {
+        el.addEventListener('click', function() {
+          slideout.classList.toggle('slideout--open');
+        });
+      } else if (action === 'open-settings-and-scroll') {
+        el.addEventListener('click', function() {
+          slideout.classList.add('slideout--open');
+          var target = document.getElementById(el.getAttribute('data-scroll-target') || '');
+          if (target) {
+            setTimeout(function() {
+              target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 50);
+          }
+        });
+      } else if (action === 'close-slideout') {
+        el.addEventListener('click', function() {
+          var parent = el.closest('.slideout');
+          if (parent) parent.classList.remove('slideout--open');
+        });
+      }
+    });
+  })();
+
+  // v4-overlay: closing the History overlay when Compare Runs is clicked.
+  // Replaces inline onclick. No-op when the overlay toggle isn't present.
+  (function bindV4CompareCloseHistory() {
+    var compareBtn = document.getElementById('compareRunsBtn');
+    var historyToggle = document.getElementById('history-toggle');
+    if (!compareBtn || !historyToggle || historyToggle.type !== 'checkbox') return;
+    compareBtn.addEventListener('click', function() { historyToggle.checked = false; });
+  })();
 
