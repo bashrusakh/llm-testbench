@@ -1,0 +1,1272 @@
+/* ============================================================
+   V2 Dock  --  Ultra-narrow 180px dock + full-width grid
+   Dark: bg var(--bg), dock var(--surface), accent var(--accent), text var(--text)
+   Fonts: Space Grotesk (UI), Fira Code (data)
+   ============================================================ */
+
+/* ---------- Theme palette (default / ch1) ---------- */
+:root {
+  /* Backgrounds (deepest -> elevated) */
+  --bg: #020617;
+  --bg-panel: #0B1120;
+  --surface: #0F172A;
+  --surface-2: #1E293B;
+
+  /* Borders */
+  --border: #1E293B;
+  --border-strong: #334155;
+
+  /* Text (faint -> bright) */
+  --text-faint: #5B6B82;   /* a11y: was #475569 (2.36:1 on surface) -> 3.29:1 */
+  --text-muted: #7C8DA3;   /* a11y: was #64748B (3.75:1 on surface) -> 5.27:1 */
+  --text-secondary: #94A3B8;
+  --text: #CBD5E1;
+  --text-bright: #F1F5F9;
+
+  /* Accent */
+  --accent: #0EA5E9;
+  --accent-hover: #38BDF8;
+  --accent-strong: #0369A1;
+  --accent-deep: #0C4A6E;
+  --accent-light: #BAE6FD;
+  --on-accent: #020617;
+
+  /* Component: slideout primary-btn hover fill. Scoped darker than --accent-strong
+     so accent-light text stays >=4.5:1 (accent-light on accent-strong was 4.47). */
+  --slideout-btn-hover-bg: #0C4A6E;
+
+  /* Success */
+  --success-bg: #064E3B;
+  --success-bg-strong: #065F46;
+  --success-border: #065F46;
+  --success-border-strong: #059669;
+  --success-text: #34D399;
+  --success-badge-bg: #022C22;
+  --success-badge-border: #064E3B;
+
+  /* Danger */
+  --danger-bg: #7F1D1D;
+  --danger-bg-strong: #991B1B;
+  --danger-border: #991B1B;
+  --danger-border-strong: #B91C1C;
+  --danger-text: #FCA5A5;
+  --danger-text-strong: #FECACA;
+}
+
+/* ============================================================
+   Color scheme v2 — INSTRUMENT TEAL (canonical, from themes page)
+   Role map onto this dock's own vars:
+     themes --bg #0D1118        -> --bg-panel (mid panel)
+     themes --sidebar/card #161B24 -> --surface (dock/buttons/cards)
+     themes --accent #14B8A6    -> --accent / --accent-strong base
+     themes teal-light #5EEAD4  -> --accent-light/-hover
+     themes --text-main #f3f4f6 -> --text-bright
+     success #10b981 / error #ef4444 -> success-/danger- sets
+   ============================================================ */
+html[data-design="v2"] {
+  --bg: #0A0E15;
+  --bg-panel: #0D1118;
+  --surface: #161B24;
+  --surface-2: #1F2733;
+
+  --border: #262D38;
+  --border-strong: #3A4452;
+
+  --text-faint: #5F7186;     /* 3.45:1 on surface (UI) */
+  --text-muted: #8595AC;     /* 5.67:1 */
+  --text-secondary: #A6B4C8; /* 8.21:1 */
+  --text: #CBD5E1;           /* 11.63:1 */
+  --text-bright: #F3F4F6;    /* 15.69:1 (themes --text-main) */
+
+  --accent: #14B8A6;         /* 6.94:1 as link text on surface */
+  --accent-hover: #5EEAD4;
+  --accent-strong: #0D9488;
+  --accent-deep: #0F3D38;
+  --accent-light: #5EEAD4;
+  --on-accent: #03110F;
+
+  /* slideout btn: accent-light on accent-deep = 8.14:1 */
+  --slideout-btn-hover-bg: #0D9488;
+
+  --success-bg: #064E3B;
+  --success-bg-strong: #065F46;
+  --success-border: #065F46;
+  --success-border-strong: #10B981;
+  --success-text: #34D399;
+  --success-badge-bg: #052E26;
+  --success-badge-border: #064E3B;
+
+  --danger-bg: #7F1D1D;
+  --danger-bg-strong: #991B1B;
+  --danger-border: #991B1B;
+  --danger-border-strong: #B91C1C;
+  --danger-text: #FCA5A5;
+  --danger-text-strong: #FECACA;
+}
+
+/* ============================================================
+   Color scheme v3 — PHOSPHOR GREEN (canonical, from themes page)
+   Role map:
+     themes --bg #080C14 -> --bg, --sidebar #101828 -> --bg-panel,
+     --card #152034 -> --surface, accent #00E599, text-main #E4EAF2,
+     warn #FFA940 reused as accent-light glow, error #FF4D6A -> danger.
+   ============================================================ */
+html[data-design="v3"] {
+  --bg: #070B12;
+  --bg-panel: #101828;
+  --surface: #152034;
+  --surface-2: #1E2B45;
+
+  --border: #27334E;
+  --border-strong: #364766;
+
+  --text-faint: #5C6B86;     /* 3.03:1 on surface (UI) */
+  --text-muted: #8793AA;     /* 5.27:1 (themes --text-muted) */
+  --text-secondary: #A8B4C8; /* 7.78:1 */
+  --text: #C7D2E0;           /* 10.65:1 */
+  --text-bright: #E4EAF2;    /* 13.47:1 (themes --text-main) */
+
+  --accent: #00E599;         /* 9.83:1 as link text on surface */
+  --accent-hover: #33F0B3;
+  --accent-strong: #00CC8A;
+  --accent-deep: #0A3D2E;
+  --accent-light: #33F0B3;
+  --on-accent: #061410;
+
+  /* slideout btn: accent-light on accent-deep = 8.29:1 */
+  --slideout-btn-hover-bg: #00CC8A;
+
+  --success-bg: #0A3D2E;
+  --success-bg-strong: #0F5C45;
+  --success-border: #0F5C45;
+  --success-border-strong: #00CC8A;
+  --success-text: #33F0B3;
+  --success-badge-bg: #06281E;
+  --success-badge-border: #0A3D2E;
+
+  --danger-bg: #5C1620;
+  --danger-bg-strong: #7A1D2B;
+  --danger-border: #7A1D2B;
+  --danger-border-strong: #FF4D6A;
+  --danger-text: #FF8FA3;
+  --danger-text-strong: #FFC2CD;
+}
+
+/* ============================================================
+   Color scheme v4 — NEON NOIR (canonical channels-d456)
+   Role map: bg #0D0A14, sidebar #13102A -> --bg-panel,
+   card #16102A -> --surface, accent #A855F7, text-main #F0E6FF,
+   success(cyan) #22D3EE, error(rose) #F43F5E.
+   ============================================================ */
+html[data-design="v4"] {
+  --bg: #0D0A14;
+  --bg-panel: #13102A;
+  --surface: #16102A;
+  --surface-2: #231A40;
+
+  --border: #2D1B4E;
+  --border-strong: #463272;
+
+  --text-faint: #7A6B99;     /* 3.85:1 on surface (UI) */
+  --text-muted: #A294C4;     /* 6.63:1 */
+  --text-secondary: #C4B6E0; /* 9.74:1 */
+  --text: #DED3F0;           /* 12.86:1 */
+  --text-bright: #F0E6FF;    /* 15.30:1 (themes --text-main) */
+
+  --accent: #A855F7;         /* 4.65:1 as link text on surface */
+  --accent-hover: #C084FC;
+  --accent-strong: #9333EA;
+  --accent-deep: #3B1D6B;
+  --accent-light: #E9D5FF;
+  --on-accent: #0D0A14;      /* 4.96:1 on accent fill */
+
+  /* slideout btn: accent-light on accent-deep = 9.80:1 */
+  --slideout-btn-hover-bg: #9333EA;
+
+  --success-bg: #0E3A44;
+  --success-bg-strong: #155E6E;
+  --success-border: #155E6E;
+  --success-border-strong: #22D3EE;
+  --success-text: #67E8F9;
+  --success-badge-bg: #08272E;
+  --success-badge-border: #0E3A44;
+
+  --danger-bg: #5C1626;
+  --danger-bg-strong: #7A1D33;
+  --danger-border: #7A1D33;
+  --danger-border-strong: #F43F5E;
+  --danger-text: #FDA4AF;
+  --danger-text-strong: #FECDD3;
+}
+
+/* ============================================================
+   Color scheme v5 — ARCTIC LIGHT  (canonical channels-d456; LIGHT)
+   Light surfaces, dark text. Role map: bg #F8FAFC, sidebar/card
+   #FFFFFF -> --surface, accent #0EA5E9. Because pure accent on white
+   is only 2.77:1, --accent is darkened to #0A7AAC (accent-strong role)
+   so accent-as-text passes; pure #0EA5E9 kept for fill where white
+   labels sit (--accent-strong). text-main #0F172A, success #16A34A,
+   error #DC2626, warn #D97706.
+   ============================================================ */
+html[data-design="v5"] {
+  --bg: #F8FAFC;
+  --bg-panel: #F1F5F9;
+  --surface: #FFFFFF;
+  --surface-2: #F1F5F9;
+
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+
+  --text-faint: #5A6B82;     /* 5.44:1 on white */
+  --text-muted: #475569;     /* 7.58:1 */
+  --text-secondary: #334155; /* 10.35:1 */
+  --text: #1E293B;           /* 14.63:1 */
+  --text-bright: #0F172A;    /* 17.85:1 (themes --text-main) */
+
+  --accent: #0A7AAC;         /* 4.78:1 as link/active text */
+  --accent-hover: #086690;
+  --accent-strong: #0A7AAC;
+  --accent-deep: #E0F2FE;
+  --accent-light: #075985;
+  --on-accent: #FFFFFF;      /* 4.78:1 on accent fill */
+
+  /* slideout btn fill is light tint here (set below); hover = darker tint */
+  --slideout-btn-hover-bg: #BAE6FD;
+
+  --success-bg: #DCFCE7;
+  --success-bg-strong: #BBF7D0;
+  --success-border: #86EFAC;
+  --success-border-strong: #16A34A;
+  --success-text: #15803D;       /* 5.02:1 on white */
+  --success-badge-bg: #DCFCE7;
+  --success-badge-border: #86EFAC;
+
+  --danger-bg: #FEE2E2;
+  --danger-bg-strong: #FECACA;
+  --danger-border: #FCA5A5;
+  --danger-border-strong: #DC2626;
+  --danger-text: #B91C1C;        /* 6.47:1 on white */
+  --danger-text-strong: #991B1B;
+}
+
+/* ============================================================
+   Color scheme v6 — AMBER TERMINAL (canonical channels-d456)
+   Role map: bg #0C0A04, sidebar #110F06 -> --bg-panel,
+   card #14120A -> --surface, accent #F59E0B, text-main #E8D5A0,
+   success(lime) #84CC16, error #EF4444.
+   ============================================================ */
+html[data-design="v6"] {
+  --bg: #0A0803;
+  --bg-panel: #110F06;
+  --surface: #14120A;
+  --surface-2: #221E0F;
+
+  --border: #2A2210;
+  --border-strong: #443818;
+
+  --text-faint: #8A7A0C;     /* 4.35:1 on surface */
+  --text-muted: #B8A340;     /* 7.45:1 */
+  --text-secondary: #CDBC78; /* 9.87:1 */
+  --text: #E8D5A0;           /* 12.90:1 (themes --text-main) */
+  --text-bright: #F5ECCC;    /* 15.84:1 */
+
+  --accent: #F59E0B;         /* 8.73:1 as link text on surface */
+  --accent-hover: #FBBF24;
+  --accent-strong: #D97706;
+  --accent-deep: #3D2A05;
+  --accent-light: #FCD34D;
+  --on-accent: #0C0A04;      /* 9.22:1 on accent fill */
+
+  /* slideout btn: accent-light on accent-deep = 9.51:1 */
+  --slideout-btn-hover-bg: #D97706;
+
+  --success-bg: #1F3D08;
+  --success-bg-strong: #2F5C0C;
+  --success-border: #2F5C0C;
+  --success-border-strong: #84CC16;
+  --success-text: #A3E635;
+  --success-badge-bg: #142906;
+  --success-badge-border: #1F3D08;
+
+  --danger-bg: #5C1616;
+  --danger-bg-strong: #7A1D1D;
+  --danger-border: #7A1D1D;
+  --danger-border-strong: #EF4444;
+  --danger-text: #FCA5A5;
+  --danger-text-strong: #FECACA;
+}
+
+/* ---------- Reset & base ---------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+  display: flex;
+}
+
+/* ---------- Scrollbar ---------- */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+/* ---------- Selection ---------- */
+::selection { background: var(--accent); color: var(--bg); }
+
+/* ============================================================
+   DOCK  (240px left column)
+   ============================================================ */
+.dock {
+  width: 240px;
+  min-width: 240px;
+  height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 10px;
+  gap: 6px;
+  z-index: 20;
+  position: relative;
+}
+
+/* Brand */
+.dock__brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.dock__logo {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.15;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+.dock__version {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  color: var(--text-faint);
+  background: var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* Design channel buttons */
+.dock__channels {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+.design-ch__btn {
+  width: 28px;
+  height: 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.design-ch__btn:hover { border-color: var(--accent); color: var(--accent); }
+.design-ch__btn.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+/* ---------- Layout switcher (links to sibling layout prototypes) ---------- */
+.layout-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+.layout-switcher__link {
+  flex: 1 1 auto;
+  text-align: center;
+  padding: 3px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.layout-switcher__link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.layout-switcher__link--active,
+.layout-switcher__link[aria-current="page"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ---------- Dock groups ---------- */
+.dock__group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 0;
+}
+.dock__group + .dock__group { border-top: 1px solid var(--border); }
+.dock__group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 3px;
+}
+.dock__group-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.dock__model-count {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  color: var(--text-faint);
+  background: var(--border);
+  padding: 0 5px;
+  border-radius: 8px;
+}
+
+/* ---------- Dock buttons ---------- */
+.dock__btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+.dock__btn:hover {
+  background: var(--border);
+  border-color: var(--border-strong);
+  color: var(--text-bright);
+}
+.dock__btn:active { transform: scale(0.97); }
+.dock__btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+.dock__btn--secondary {
+  border-style: dashed;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 5px 10px;
+}
+.dock__btn--secondary:hover { color: var(--text-secondary); }
+
+.dock__btn--start {
+  background: var(--success-bg);
+  border-color: var(--success-bg-strong);
+  color: var(--success-text);
+}
+.dock__btn--start:hover:not(:disabled) { background: var(--success-bg-strong); border-color: var(--success-border-strong); }
+.dock__btn--stop {
+  background: var(--danger-bg);
+  border-color: var(--danger-bg-strong);
+  color: var(--danger-text);
+}
+.dock__btn--stop:hover:not(:disabled) { background: var(--danger-bg-strong); border-color: var(--danger-border-strong); }
+
+.dock__btn--settings {
+  margin-top: auto;
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+.dock__btn--settings:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ---------- Dock icons ---------- */
+.dock__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ---------- Dock status ---------- */
+.dock__status {
+  font-size: 10px;
+  color: var(--text-faint);
+  padding: 2px 4px;
+  line-height: 1.3;
+}
+.dock__status--job {
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  border-radius: 4px;
+  padding: 4px 6px;
+  text-align: center;
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+}
+.dock__endpoint-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+/* ---------- Model list (scrollable) ---------- */
+.dock__group--models { flex: 1; min-height: 0; }
+.dock__search {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.dock__search:focus { border-color: var(--accent); }
+.dock__search::placeholder { color: var(--border-strong); }
+
+.dock__model-actions {
+  display: flex;
+  gap: 6px;
+  padding: 2px 0;
+}
+.dock__link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dock__link-btn:hover { color: var(--accent-hover); }
+
+.dock__model-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 40px;
+  max-height: 220px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  padding: 4px;
+}
+
+/* Discovered-model rows. app.js renders each as <label class="model-item">
+   with a checkbox + <span> name. Without this rule they were unstyled and
+   long model IDs overflowed the narrow dock — now they wrap and align. */
+.dock__model-list .model-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.dock__model-list .model-item:hover {
+  background: var(--surface-2);
+  color: var(--text-bright);
+}
+.dock__model-list .model-item input[type="checkbox"] {
+  margin-top: 1px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.dock__model-list .model-item span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dock__empty {
+  font-size: 10px;
+  color: var(--border-strong);
+  text-align: center;
+  padding: 8px 0;
+}
+
+/* Checkbox styling */
+.dock__chk {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.dock__chk input[type="checkbox"] {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--surface);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+.dock__chk input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.dock__chk input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 4px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--bg);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Tests row */
+.dock__group--tests {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.dock__group--tests .dock__group-label { width: 100%; }
+
+/* Run row */
+.dock__group--run {
+  flex-direction: row;
+  gap: 4px;
+}
+.dock__group--run .dock__btn { flex: 1; justify-content: center; }
+
+/* ============================================================
+   SLIDE-OUT SETTINGS PANEL
+   ============================================================ */
+.slideout {
+  position: fixed;
+  top: 0;
+  left: 240px;
+  width: 300px;
+  height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  transform: translateX(-100%);
+  transition: transform 0.22s ease;
+  z-index: 15;
+  overflow-y: auto;
+  box-shadow: none;
+}
+.slideout--open {
+  transform: translateX(0);
+  box-shadow: 8px 0 32px rgba(0,0,0,0.5);
+}
+.slideout__inner {
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.slideout__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+.slideout__title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-bright);
+}
+.slideout__close {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.slideout__close:hover { color: var(--text-bright); border-color: var(--text-muted); }
+
+.slideout__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.slideout__section:first-of-type { border-top: none; }
+.slideout__section-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.slideout__btn {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-deep);
+  color: var(--accent-light);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.slideout__btn:hover { background: var(--slideout-btn-hover-bg); border-color: var(--accent-hover); }
+
+/* ---------- Form fields in slideout ---------- */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.form-field label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.form-field input,
+.form-field select,
+.form-field textarea {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+  border-color: var(--accent);
+}
+.form-field input::placeholder,
+.form-field textarea::placeholder { color: var(--border-strong); }
+.form-field select { cursor: pointer; }
+.form-field select option { background: var(--surface); color: var(--text); }
+
+.form-hint {
+  font-size: 10px;
+  color: var(--text-faint);
+  line-height: 1.3;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.form-row-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: 100%;
+}
+
+/* Speed presets */
+.speed-preset-row {
+  display: flex;
+  gap: 4px;
+}
+.speed-preset-chip {
+  flex: 1;
+  padding: 5px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+.speed-preset-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ============================================================
+   MAIN GRID AREA
+   ============================================================ */
+.grid-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ---------- Top bar ---------- */
+.grid-area__topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.topbar__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.topbar__badge {
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--success-text);
+  background: var(--success-badge-bg);
+  border: 1px solid var(--success-bg);
+  padding: 3px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.topbar__op {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.topbar__progress {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.topbar__progress-track {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.topbar__progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.topbar__progress-label {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  min-width: 50px;
+  text-align: right;
+}
+
+/* ---------- Speed metric cards ---------- */
+.speed-cards {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+.metric-card {
+  flex: 1;
+  min-width: 90px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.metric-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+.metric-value {
+  font-family: 'Fira Code', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+.metric-value--sm { font-size: 11px; }
+
+.grid-hint {
+  font-size: 10px;
+  color: var(--border-strong);
+  padding: 0 16px 6px;
+}
+
+/* ---------- View toggle ---------- */
+.view-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 0 16px 8px;
+}
+.view-toggle button {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.view-toggle button:first-child { border-radius: 4px 0 0 4px; }
+.view-toggle button:last-child { border-radius: 0 4px 4px 0; }
+.view-toggle button.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+.view-toggle button:hover:not(.active) { border-color: var(--border-strong); color: var(--text-secondary); }
+
+/* ---------- SQL grid area ---------- */
+.grid-area__sql {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 16px 8px;
+}
+.sql-grid { min-height: 0; }
+.sql-compare { min-height: 0; }
+
+/* ---------- History ---------- */
+.grid-area__history {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  max-height: 35vh;
+}
+.history__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: var(--bg-panel);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.history__title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-bright);
+}
+.history__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.history__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.history__status {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.history__btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.history__btn:hover { border-color: var(--border-strong); color: var(--text-bright); }
+.history__btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.history__btn--accent {
+  border-color: var(--accent-deep);
+  color: var(--accent);
+}
+.history__btn--accent:hover:not(:disabled) { background: var(--accent-deep); color: var(--accent-light); }
+.history__btn--danger {
+  border-color: var(--danger-bg);
+  color: var(--danger-text);
+}
+.history__btn--danger:hover:not(:disabled) { background: var(--danger-bg); color: var(--danger-text-strong); }
+
+.history__table-wrap {
+  overflow: auto;
+  flex: 1;
+}
+
+/* ---------- Shared table styles ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+th {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-panel);
+  white-space: nowrap;
+}
+td {
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--text);
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--surface);
+  white-space: nowrap;
+}
+tr:hover td { background: var(--surface); }
+.history__empty {
+  text-align: center;
+  color: var(--border-strong);
+  font-family: 'Space Grotesk', sans-serif;
+  font-style: italic;
+  padding: 20px 10px;
+}
+
+/* ============================================================
+   .btn-small  --  dynamic history-row actions (Open button + JSONL/CSV/
+   TSV/Manifest/Summary download links). Emitted by app.js as both
+   <button class="btn-small"> and <a class="btn-small">. Must theme both.
+   ============================================================ */
+.btn-small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-decoration: none;       /* kill default <a> underline */
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-small:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--surface);
+}
+.btn-small:active { transform: scale(0.97); }
+.btn-small:disabled,
+.btn-small[aria-disabled="true"],
+.btn-small.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.btn-small:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+/* History "Actions" cell: wrap the cluster of btn-small links cleanly */
+td .btn-small { margin: 1px 2px 1px 0; }
+
+/* ============================================================
+   Utility classes
+   ============================================================ */
+.hidden { display: none !important; }
+
+/* Theme native form controls (checkbox/radio) to the active accent.
+   .dock__chk checkboxes override appearance above; this catches every
+   other native checkbox/radio (e.g. select-all history, dynamic rows). */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+}
+
+/* Focus ring for accessibility */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* All interactive elements get pointer cursor */
+button, select, input[type="checkbox"], .dock__link-btn,
+a, [role="button"] {
+  cursor: pointer;
+}
+
+/* ============================================================
+   Responsive: collapse dock on very narrow viewports
+   ============================================================ */
+@media (max-width: 640px) {
+  .dock { width: 48px; min-width: 48px; padding: 8px 4px; }
+  .dock__btn span,
+  .dock__brand .dock__logo,
+  .dock__group-label,
+  .dock__model-count,
+  .dock__search,
+  .dock__model-actions,
+  .dock__model-list,
+  .dock__status,
+  .dock__channels,
+  .dock__endpoint-list,
+  .dock__chk span,
+  .layout-switcher,
+  .dock__group--tests .dock__group-label { display: none; }
+  .dock__btn { justify-content: center; padding: 8px; }
+  .slideout { left: 48px; }
+}
+
+/* ============================================================
+   v5 ARCTIC LIGHT — scoped component fixes
+   This dock has many surfaces + the shared sql-grid.css hardcodes
+   white glyphs on bright fills. The var() swap themes most of the UI,
+   but these spots need explicit light-scheme overrides so nothing
+   reads white-on-light or dark-on-dark. WCAG-verified.
+   ============================================================ */
+
+/* Slideout primary button: light tinted fill, darkened hover so the
+   accent-light label keeps >=4.5:1 (accent on #BAE6FD was only 3.6:1). */
+html[data-design="v5"] .slideout__btn {
+  background: var(--accent-deep);   /* #E0F2FE */
+  color: var(--accent-light);       /* #075985 = 6.59:1 */
+  border-color: var(--accent-strong);
+}
+html[data-design="v5"] .slideout__btn:hover {
+  background: #BAE6FD;
+  border-color: var(--accent-strong);
+  color: #075985;                   /* #075985 on #BAE6FD = 4.6:1 */
+}
+
+/* SQL heatmap cells (sql-grid.css ships color:#fff on bright fills).
+   Re-fill with the v5 palette and use a near-black glyph on the light
+   green/amber so the heatmap reads; white still passes on the red. */
+html[data-design="v5"] .sql-result-cell.pass  { background: #16A34A; color: #052e16; } /* 4.52:1 */
+html[data-design="v5"] .sql-result-cell.fail  { background: #DC2626; color: #ffffff; } /* 4.83:1 */
+html[data-design="v5"] .sql-result-cell.error { background: #D97706; color: #2b1804; } /* 5.34:1 */
+html[data-design="v5"] .sql-result-cell:hover {
+  box-shadow: 0 0 0 2px rgba(15,23,42,0.22);
+}
+
+/* Topbar success badge: success-text on light tint (5.02:1 / 4.57:1 ok),
+   but make the border read on white. */
+html[data-design="v5"] .topbar__badge {
+  border-color: var(--success-border);
+}
+
+/* Scrollbar thumbs visible on the light surfaces. */
+html[data-design="v5"] ::-webkit-scrollbar-thumb { background: #CBD5E1; }
+html[data-design="v5"] ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+/* Search/empty placeholders use --border-strong (now light #CBD5E1);
+   bump to a mid slate so placeholder/empty text stays legible. */
+html[data-design="v5"] .dock__search::placeholder,
+html[data-design="v5"] .form-field input::placeholder,
+html[data-design="v5"] .form-field textarea::placeholder { color: #94A3B8; }
+html[data-design="v5"] .dock__empty,
+html[data-design="v5"] .grid-hint,
+html[data-design="v5"] .history__empty { color: #64748B; }
+
+/* Native checkbox tick: base draws the tick in var(--bg) (now light) on an
+   accent fill -> invisible. Use white tick on the accent. */
+html[data-design="v5"] .dock__chk input[type="checkbox"]:checked::after {
+  border-color: #ffffff;
+}
+
+/* Start/Stop hover: on the light tinted hover fills the medium green/red
+   labels dropped below 4.5:1 (start 4.14, stop 4.47). Use darker labels. */
+html[data-design="v5"] .dock__btn--start:hover:not(:disabled) { color: #166534; } /* 5.88:1 */
+html[data-design="v5"] .dock__btn--stop:hover:not(:disabled)  { color: #991B1B; } /* 5.74:1 */
+
+/* History danger button on light: keep the red label legible on tinted hover. */
+html[data-design="v5"] .history__btn--danger:hover:not(:disabled) {
+  background: var(--danger-bg);
+  color: #991B1B;
+}
+
+/* Version + model-count chips sit on the light --border fill (#E2E8F0);
+   --text-faint there was 4.41:1 -> bump to --text-muted (#475569 = 6.15:1). */
+html[data-design="v5"] .dock__version,
+html[data-design="v5"] .dock__model-count { color: var(--text-muted); }

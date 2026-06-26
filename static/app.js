@@ -60,6 +60,7 @@
   function applyButtonState(status) {
     const startBtn = $('startBtn');
     const stopBtn = $('stopBtn');
+    const stopBtn2 = $('stopBtn2');
     const discoverBtn = $('discoverBtn');
     const live = status === 'queued' || status === 'running' || status === 'stopping';
     state.isBenchmarkRunning = live;
@@ -67,6 +68,10 @@
     if (stopBtn) {
       stopBtn.disabled = !live;
       stopBtn.classList.toggle('running', live);
+    }
+    if (stopBtn2) {
+      stopBtn2.disabled = !live;
+      stopBtn2.classList.toggle('running', live);
     }
     if (discoverBtn) discoverBtn.disabled = live || !getBaseUrlValue();
     syncModelSelectionLock();
@@ -2980,6 +2985,9 @@
   const stopBtn = $('stopBtn');
   if (stopBtn) stopBtn.addEventListener('click', stopBenchmark);
 
+  const stopBtn2 = $('stopBtn2');
+  if (stopBtn2) stopBtn2.addEventListener('click', stopBenchmark);
+
   const refreshHistoryBtn = $('refreshHistoryBtn');
   if (refreshHistoryBtn) refreshHistoryBtn.addEventListener('click', loadHistory);
 
@@ -3158,7 +3166,7 @@
   // ── Design toggle (channel selector) ──
   function applyDesign(name) {
     const html = document.documentElement;
-    const ch = name === 'v1' ? '1' : name === 'v2' ? '2' : '3';
+    const ch = name ? name.replace('v', '') : '1';
     if (name === 'v1' || !name) {
       delete html.dataset.design;
     } else {
@@ -3174,12 +3182,13 @@
   (function initDesign() {
     let saved;
     try { saved = localStorage.getItem('llmTestbench.design'); } catch (_) {}
-    const initial = saved === 'v1' || saved === 'v2' || saved === 'v3' ? saved : 'v1';
+    const validChannels = ['v1','v2','v3','v4','v5','v6'];
+    const initial = validChannels.includes(saved) ? saved : 'v1';
     applyDesign(initial);
     document.querySelectorAll('.design-ch__btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const ch = btn.dataset.ch;
-        const name = ch === '1' ? 'v1' : ch === '2' ? 'v2' : 'v3';
+        const name = 'v' + ch;
         applyDesign(name);
       });
     });
@@ -3200,4 +3209,122 @@
   restoreActiveJob();
   scanEndpoints();
   loadAppVersion();
+
+  // Base theme switcher for index.html — swaps style.css for one of 4 alternatives.
+  var themeSelect = document.getElementById('theme-select');
+  if (themeSelect) {
+    var themeIds = { default: 'css-base', instrument: 'css-instrument', monitor: 'css-monitor', startup: 'css-startup', terminal: 'css-terminal' };
+    var themeKey = 'base-theme';
+    function applyBaseTheme(name) {
+      Object.keys(themeIds).forEach(function(k) {
+        var el = document.getElementById(themeIds[k]);
+        if (el) el.disabled = (k !== name);
+      });
+      themeSelect.value = name;
+      try { localStorage.setItem(themeKey, name); } catch(e) {}
+    }
+    var savedTheme;
+    try { savedTheme = localStorage.getItem(themeKey); } catch(e) {}
+    if (savedTheme && themeIds[savedTheme]) applyBaseTheme(savedTheme);
+    themeSelect.addEventListener('change', function() { applyBaseTheme(themeSelect.value); });
+  }
+
+  // Variant theme toggle: switches between #css-layout and #css-alt stylesheets.
+  // Each V-layout HTML has these two <link> elements + a #theme-toggle button.
+  var themeToggle = $('theme-toggle');
+  if (themeToggle) {
+    var cssLayout = document.getElementById('css-layout');
+    var cssAlt    = document.getElementById('css-alt');
+    var nameDefault = themeToggle.getAttribute('data-default') || 'Default';
+    var nameAlt     = themeToggle.getAttribute('data-alt')     || 'Alt';
+    var storageKey  = 'variant-theme:' + location.pathname;
+
+    function applyTheme(useAlt) {
+      if (cssLayout) cssLayout.disabled = useAlt;
+      if (cssAlt)    cssAlt.disabled    = !useAlt;
+      themeToggle.textContent = useAlt ? '↩ ' + nameDefault : nameAlt;
+      themeToggle.classList.toggle('is-alt', useAlt);
+      try { localStorage.setItem(storageKey, useAlt ? 'alt' : 'default'); } catch(e) {}
+    }
+
+    var saved;
+    try { saved = localStorage.getItem(storageKey); } catch(e) {}
+    // Apply on both branches so the toggle label/classes and stylesheet
+    // disabled flags always match the persisted theme on first load.
+    applyTheme(saved === 'alt');
+
+    themeToggle.addEventListener('click', function() {
+      applyTheme(cssAlt ? cssAlt.disabled : false);
+    });
+  }
+
+  // Keyboard (Enter/Space) activation for <label> controls that visually
+  // act as buttons or tabs. Covers v4-overlay (role="button") and v3-tabs
+  // (role="tab") where the underlying inputs are display:none and thus
+  // out of the tab order. No-op on layouts without these elements.
+  document.querySelectorAll('label[role="button"], label[role="tab"]').forEach(function(el) {
+    el.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        el.click();
+      }
+    });
+  });
+
+  // Sync aria-selected on v3-tabs labels with the underlying radio :checked
+  // state so screen readers announce the active tab correctly.
+  (function syncV3TabsAriaSelected() {
+    var tabs = document.querySelectorAll('.topbar-tab[role="tab"]');
+    if (!tabs.length) return;
+    function update() {
+      tabs.forEach(function(tab) {
+        var radio = document.getElementById(tab.getAttribute('for'));
+        tab.setAttribute('aria-selected', radio && radio.checked ? 'true' : 'false');
+      });
+    }
+    update();
+    document.querySelectorAll('.tab-radio').forEach(function(r) {
+      r.addEventListener('change', update);
+    });
+  })();
+
+  // v2-dock: settings slideout actions. Replaces inline onclick="..." that
+  // violated CSP and broke the project rule of keeping browser logic in app.js.
+  // No-op on layouts that don't have these elements.
+  (function bindDockSlideoutActions() {
+    var slideout = document.getElementById('settingsSlideout');
+    if (!slideout) return;
+    document.querySelectorAll('[data-dock-action]').forEach(function(el) {
+      var action = el.getAttribute('data-dock-action');
+      if (action === 'toggle-settings') {
+        el.addEventListener('click', function() {
+          slideout.classList.toggle('slideout--open');
+        });
+      } else if (action === 'open-settings-and-scroll') {
+        el.addEventListener('click', function() {
+          slideout.classList.add('slideout--open');
+          var target = document.getElementById(el.getAttribute('data-scroll-target') || '');
+          if (target) {
+            setTimeout(function() {
+              target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 50);
+          }
+        });
+      } else if (action === 'close-slideout') {
+        el.addEventListener('click', function() {
+          var parent = el.closest('.slideout');
+          if (parent) parent.classList.remove('slideout--open');
+        });
+      }
+    });
+  })();
+
+  // v4-overlay: closing the History overlay when Compare Runs is clicked.
+  // Replaces inline onclick. No-op when the overlay toggle isn't present.
+  (function bindV4CompareCloseHistory() {
+    var compareBtn = document.getElementById('compareRunsBtn');
+    var historyToggle = document.getElementById('history-toggle');
+    if (!compareBtn || !historyToggle || historyToggle.type !== 'checkbox') return;
+    compareBtn.addEventListener('click', function() { historyToggle.checked = false; });
+  })();
 

@@ -1,0 +1,609 @@
+/* SQL Heatmap Grid Styles — extracted from style.css */
+/* Shared across all layout variants */
+
+/* SQL Benchmark Results Grid */
+:root {
+    --sql-model-column-width: 360px;
+    --sql-question-column-width: 30px;
+    --sql-result-cell-size: 22px;
+    --sql-error-cell: #f59e0b;
+    --sql-error-text: #fbbf24;
+    --sql-category-border: rgba(148,163,184,0.34);
+    --sql-comment-column-width: 180px;
+    --sql-think-column-width: 56px;
+
+}
+
+.sql-results-table {
+  width: 100%;
+
+}
+
+.sql-results-table td {
+  padding: 6px 4px;
+  font-size: 0.8rem;
+
+}
+
+.sql-result-scroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding-bottom: 8px;
+    --sql-model-column-width: 360px;
+
+}
+
+.sql-result-table {
+    width: max-content;
+    min-width: max-content;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+
+}
+
+.sql-result-table col.sql-model-col {
+  min-width: var(--sql-model-column-width);
+  width: auto;
+
+}
+
+.sql-result-table col.sql-question-col {
+  width: var(--sql-question-column-width);
+
+}
+
+.sql-result-table col.sql-comment-col {
+  width: var(--sql-comment-column-width);
+
+}
+
+.sql-result-table col.sql-think-col {
+  width: var(--sql-think-column-width);
+
+}
+
+/* Comment column: appears in the run-comparison heatmap, after question columns.
+     Shows the run's metadata (quant, thinking, temperature, seed, etc.). */
+  .sql-result-table .sql-comment-col-header {
+    width: var(--sql-comment-column-width);
+    min-width: var(--sql-comment-column-width);
+    max-width: var(--sql-comment-column-width);
+    text-align: left;
+    padding: 4px 8px;
+
+}
+
+.sql-result-table tbody td.sql-comment-cell {
+    width: var(--sql-comment-column-width);
+    min-width: var(--sql-comment-column-width);
+    max-width: var(--sql-comment-column-width);
+    text-align: left;
+    padding: 6px 8px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    border-left: 1px solid var(--border);
+    line-height: 1.3;
+    white-space: normal;
+    overflow-wrap: anywhere;
+
+}
+
+/* Think column: appears after question columns, before Comment in compare view.
+     Shows reasoning mode per run (e.g. [on] when thinking_mode is enabled). */
+  .sql-result-table .sql-think-header {
+    width: var(--sql-think-column-width);
+    min-width: var(--sql-think-column-width);
+    max-width: var(--sql-think-column-width);
+    text-align: center;
+    padding: 4px;
+
+}
+
+.sql-result-table tbody td.sql-think-cell {
+    width: var(--sql-think-column-width);
+    min-width: var(--sql-think-column-width);
+    max-width: var(--sql-think-column-width);
+    text-align: center;
+    padding: 3px 4px;
+    font-size: 0.7rem;
+    color: var(--warn, #f59e0b);
+    border-left: 1px solid rgba(255,255,255,0.08);
+    font-weight: 600;
+
+}
+
+/* ── Run comparison: model group header row ────────────────────
+     Spans the full table width, non-sticky so it scrolls with the
+     content. Separates model groups visually with a top border. */
+  .sql-result-table .sql-compare-model-head td {
+    border-top: 2px solid var(--border);
+
+}
+
+.sql-result-table .sql-compare-model-head td.sql-result-model-name {
+    background: #131a26;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+    width: auto !important;
+    min-width: auto !important;
+    max-width: none !important;
+    position: static !important;
+    left: auto !important;
+    box-shadow: none !important;
+    padding: 8px 12px;
+
+}
+
+.sql-result-table .sql-compare-model-head td.sql-think-cell,
+  .sql-result-table .sql-compare-model-head td.sql-comment-cell,
+  .sql-result-table .sql-compare-model-head td.sql-compare-model-spacer {
+    background: #131a26;
+
+}
+
+.sql-result-table .sql-compare-model-head td.sql-compare-model-spacer {
+    padding: 0;
+
+}
+
+.sql-result-model-row.sql-compare-model-head:hover td.sql-result-model-name {
+  background: #243244;
+
+}
+
+.sql-result-model-row.sql-compare-model-head:hover td.sql-think-cell,
+  .sql-result-model-row.sql-compare-model-head:hover td.sql-comment-cell,
+  .sql-result-model-row.sql-compare-model-head:hover td.sql-compare-model-spacer {
+  background: rgba(255,255,255,0.06);
+
+}
+
+.sql-compare-model-label {
+    font-weight: 600;
+    color: var(--text-main);
+    margin-right: 8px;
+
+}
+
+.sql-compare-run-label {
+    font-size: 0.76rem;
+    color: var(--text-main);
+    font-weight: 500;
+    margin-right: 8px;
+
+}
+
+.sql-result-table thead th {
+    width: var(--sql-question-column-width);
+    min-width: var(--sql-question-column-width);
+    max-width: var(--sql-question-column-width);
+    text-align: center;
+    padding: 4px;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--card-bg);
+    z-index: 5;
+
+}
+
+.sql-result-table thead th.sql-model-header {
+    min-width: var(--sql-model-column-width);
+    width: auto;
+    max-width: none;
+    text-align: left;
+    padding-left: 8px;
+    left: 0;
+    z-index: 8;
+    background: var(--card-bg);
+    box-shadow: 12px 0 18px -18px rgba(0,0,0,0.95);
+
+}
+
+.sql-result-table thead tr.sql-category-row th {
+    top: 0;
+    height: 24px;
+    background: #182235;
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+
+}
+
+.sql-result-table thead tr.sql-category-row th.sql-category-header {
+    width: auto;
+    min-width: unset;
+    max-width: unset;
+    border-left: 1px solid var(--sql-category-border);
+    border-bottom: 1px solid rgba(148,163,184,0.18);
+
+}
+
+.sql-result-table thead tr.sql-question-row th {
+    top: 24px;
+
+}
+
+.sql-result-table .sql-group-start {
+    border-left: 1px solid var(--sql-category-border);
+    padding-left: 3px;
+
+}
+
+.sql-result-table tbody td {
+    width: var(--sql-question-column-width);
+    min-width: var(--sql-question-column-width);
+    max-width: var(--sql-question-column-width);
+    text-align: center;
+    padding: 3px 4px;
+    vertical-align: middle;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+
+}
+
+.sql-result-table tbody td:first-child {
+    min-width: var(--sql-model-column-width);
+    width: auto;
+    max-width: none;
+    position: sticky;
+    left: 0;
+    z-index: 6;
+    text-align: left;
+    padding-left: 8px;
+    padding-right: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+    background: var(--card-bg);
+    box-shadow: 12px 0 18px -18px rgba(0,0,0,0.95);
+
+}
+
+.sql-result-model-row:hover td {
+  background: rgba(255,255,255,0.025);
+
+}
+
+.sql-result-model-row:hover td:first-child {
+  background: #243244;
+
+}
+
+.sql-result-model-name {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+
+}
+
+.sql-result-model-name .name-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.25;
+
+}
+
+.sql-result-count {
+    font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+    white-space: nowrap;
+  flex-shrink: 0;
+
+}
+
+.sql-result-count.all-pass {
+  background: rgba(16,185,129,0.15);
+  color: #6ee7b7;
+
+}
+
+.sql-result-count.partial {
+  background: rgba(251,191,36,0.15);
+  color: #fbbf24;
+
+}
+
+.sql-result-count.none {
+  background: rgba(239,68,68,0.15);
+  color: #fca5a5;
+
+}
+
+.sql-result-cell {
+    display: flex;
+  align-items: center;
+  justify-content: center;
+    width: var(--sql-result-cell-size);
+  height: var(--sql-result-cell-size);
+  border-radius: 4px;
+    margin: 0 auto;
+    font-size: 0.6rem;
+  font-weight: 700;
+  color: #fff;
+    cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+    transition: transform 0.1s, box-shadow 0.1s;
+
+}
+
+.sql-result-cell:hover {
+  transform: scale(1.25);
+  z-index: 100;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.25);
+
+}
+
+.sql-result-cell.pass {
+  background: #10b981;
+
+}
+
+.sql-result-cell.fail {
+  background: #ef4444;
+
+}
+
+.sql-result-cell.error {
+  background: var(--sql-error-cell);
+  color: #111827;
+
+}
+
+.sql-cell-tooltip {
+  display: none;
+
+}
+
+.sql-tooltip-status.error {
+  color: var(--sql-error-text);
+
+}
+
+.sql-detail-modal-status.error {
+  color: var(--sql-error-text);
+
+}
+
+/* Design-channel-specific overrides removed.
+   These rules referenced CSS variables (--teal, --copper, --success, --error, --warn, etc.)
+   that only exist in the original style.css. The variant pages use their own CSS files
+   and the base colors (hardcoded green/red/amber) apply universally. */
+
+
+/* ═══════════════════════════════════════════════════════════════
+   D5 — Arctic Light: SQL heatmap overrides
+   The rules above bake in dark surfaces (#131a26, #182235, #243244)
+   and rgba(255,255,255,…) overlays that look fine on dark layouts
+   but render dark-on-white or invisible on the light channel.
+   Re-theme every such surface for v5 so the compare view, sticky
+   headers, hover states, and result-count chips read correctly.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Sticky thead + sticky model column — base uses var(--card-bg) which is
+   undefined in V-layout palettes, so without this they fall back to
+   transparent and the sticky bands disappear over light scroll content. */
+html[data-design="v5"] .sql-result-table thead th {
+  background: #FFFFFF;
+  color: #475569;
+  border-bottom-color: #E2E8F0;
+}
+html[data-design="v5"] .sql-result-table thead th.sql-model-header {
+  background: #FFFFFF;
+  box-shadow: 12px 0 18px -18px rgba(15,23,42,0.25);
+}
+html[data-design="v5"] .sql-result-table thead tr.sql-category-row th {
+  background: #EEF2F7;
+  color: #475569;
+}
+html[data-design="v5"] .sql-result-table thead tr.sql-category-row th.sql-category-header {
+  border-bottom-color: rgba(100,116,139,0.28);
+}
+
+/* Body cells: borders + sticky-first-column surface */
+html[data-design="v5"] .sql-result-table tbody td {
+  border-bottom-color: #F1F5F9;
+}
+html[data-design="v5"] .sql-result-table tbody td:first-child {
+  background: #FFFFFF;
+  color: #0F172A;
+  box-shadow: 12px 0 18px -18px rgba(15,23,42,0.25);
+}
+html[data-design="v5"] .sql-result-table tbody td.sql-think-cell {
+  border-left-color: #E2E8F0;
+  color: #B45309;          /* amber that passes 4.5:1 on white */
+}
+html[data-design="v5"] .sql-result-table tbody td.sql-comment-cell {
+  border-left-color: #E2E8F0;
+  color: #475569;
+}
+
+/* Row hover: rgba-white overlays don't show on light bgs */
+html[data-design="v5"] .sql-result-model-row:hover td {
+  background: rgba(14,165,233,0.04);
+}
+html[data-design="v5"] .sql-result-model-row:hover td:first-child {
+  background: #E0F2FE;     /* sky-100 */
+}
+
+/* Compare view — model group header rows */
+html[data-design="v5"] .sql-result-table .sql-compare-model-head td.sql-result-model-name,
+html[data-design="v5"] .sql-result-table .sql-compare-model-head td.sql-think-cell,
+html[data-design="v5"] .sql-result-table .sql-compare-model-head td.sql-comment-cell,
+html[data-design="v5"] .sql-result-table .sql-compare-model-head td.sql-compare-model-spacer {
+  background: #EEF2F7;
+  color: #0F172A;
+}
+html[data-design="v5"] .sql-result-table .sql-compare-model-head td {
+  border-top-color: #CBD5E1;
+}
+html[data-design="v5"] .sql-result-model-row.sql-compare-model-head:hover td.sql-result-model-name,
+html[data-design="v5"] .sql-result-model-row.sql-compare-model-head:hover td.sql-think-cell,
+html[data-design="v5"] .sql-result-model-row.sql-compare-model-head:hover td.sql-comment-cell,
+html[data-design="v5"] .sql-result-model-row.sql-compare-model-head:hover td.sql-compare-model-spacer {
+  background: #E0F2FE;
+}
+
+/* Group-start vertical separator */
+html[data-design="v5"] .sql-result-table .sql-group-start {
+  border-left-color: rgba(100,116,139,0.28);
+}
+
+/* Result-count chips: pastel-on-dark text fails on white tints */
+html[data-design="v5"] .sql-result-count.all-pass {
+  background: rgba(22,163,74,0.14);
+  color: #15803D;
+}
+html[data-design="v5"] .sql-result-count.partial {
+  background: rgba(217,119,6,0.14);
+  color: #B45309;
+}
+html[data-design="v5"] .sql-result-count.none {
+  background: rgba(220,38,38,0.12);
+  color: #B91C1C;
+}
+
+/* Result cells: pass/fail/error contrast + dark hover ring */
+html[data-design="v5"] .sql-result-cell.pass  { background: #16A34A; color: #052e16; }
+html[data-design="v5"] .sql-result-cell.fail  { background: #DC2626; color: #ffffff; }
+html[data-design="v5"] .sql-result-cell.error { background: #D97706; color: #2b1804; }
+html[data-design="v5"] .sql-result-cell:hover {
+  box-shadow: 0 0 0 2px rgba(15,23,42,0.22);
+}
+
+/* Quant badge — slate chip works on either surface but needs darker glyph */
+html[data-design="v5"] .sql-quant-badge {
+  color: #475569;
+  background: rgba(100,116,139,0.10);
+  border-color: rgba(100,116,139,0.28);
+}
+
+/* Compare bar (inserted by app.js with inline accent-glow background) — the
+   --accent-glow var is too faint on white; give it a real tint. */
+html[data-design="v5"] .sql-compare-bar {
+  background: rgba(14,165,233,0.08) !important;
+  border-bottom-color: #E2E8F0 !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Dark channels — palette polish for SQL heatmap
+   Hardcoded #131a26 / #182235 / #243244 + white rgba overlays
+   work on any dark layout but don't carry each channel's accent.
+   These rules tint compare-head, hover states, and category rows
+   in the channel's own colour so the heatmap stops looking generic.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── v1 Default Blue ─────────────────────────────────────────── */
+html[data-design="v1"] .sql-result-table thead tr.sql-category-row th {
+  background: #1E293B;
+}
+html[data-design="v1"] .sql-result-table .sql-compare-model-head td.sql-result-model-name,
+html[data-design="v1"] .sql-result-table .sql-compare-model-head td.sql-think-cell,
+html[data-design="v1"] .sql-result-table .sql-compare-model-head td.sql-comment-cell,
+html[data-design="v1"] .sql-result-table .sql-compare-model-head td.sql-compare-model-spacer {
+  background: #1E293B;
+}
+html[data-design="v1"] .sql-result-model-row.sql-compare-model-head:hover td.sql-result-model-name,
+html[data-design="v1"] .sql-result-model-row.sql-compare-model-head:hover td.sql-think-cell,
+html[data-design="v1"] .sql-result-model-row.sql-compare-model-head:hover td.sql-comment-cell,
+html[data-design="v1"] .sql-result-model-row.sql-compare-model-head:hover td.sql-compare-model-spacer {
+  background: #273548;
+}
+html[data-design="v1"] .sql-result-model-row:hover td { background: rgba(59,130,246,0.06); }
+html[data-design="v1"] .sql-result-model-row:hover td:first-child { background: #273548; }
+html[data-design="v1"] .sql-result-cell:hover { box-shadow: 0 0 0 2px rgba(96,165,250,0.55); }
+
+/* ── v2 Instrument Teal ──────────────────────────────────────── */
+html[data-design="v2"] .sql-result-table thead tr.sql-category-row th {
+  background: #122A26;
+}
+html[data-design="v2"] .sql-result-table .sql-compare-model-head td.sql-result-model-name,
+html[data-design="v2"] .sql-result-table .sql-compare-model-head td.sql-think-cell,
+html[data-design="v2"] .sql-result-table .sql-compare-model-head td.sql-comment-cell,
+html[data-design="v2"] .sql-result-table .sql-compare-model-head td.sql-compare-model-spacer {
+  background: #122A26;
+}
+html[data-design="v2"] .sql-result-model-row.sql-compare-model-head:hover td.sql-result-model-name,
+html[data-design="v2"] .sql-result-model-row.sql-compare-model-head:hover td.sql-think-cell,
+html[data-design="v2"] .sql-result-model-row.sql-compare-model-head:hover td.sql-comment-cell,
+html[data-design="v2"] .sql-result-model-row.sql-compare-model-head:hover td.sql-compare-model-spacer {
+  background: #18352F;
+}
+html[data-design="v2"] .sql-result-model-row:hover td { background: rgba(20,184,166,0.07); }
+html[data-design="v2"] .sql-result-model-row:hover td:first-child { background: #18352F; }
+html[data-design="v2"] .sql-result-cell:hover { box-shadow: 0 0 0 2px rgba(94,234,212,0.55); }
+
+/* ── v3 Phosphor Green ───────────────────────────────────────── */
+html[data-design="v3"] .sql-result-table thead tr.sql-category-row th {
+  background: #10231A;
+}
+html[data-design="v3"] .sql-result-table .sql-compare-model-head td.sql-result-model-name,
+html[data-design="v3"] .sql-result-table .sql-compare-model-head td.sql-think-cell,
+html[data-design="v3"] .sql-result-table .sql-compare-model-head td.sql-comment-cell,
+html[data-design="v3"] .sql-result-table .sql-compare-model-head td.sql-compare-model-spacer {
+  background: #10231A;
+}
+html[data-design="v3"] .sql-result-model-row.sql-compare-model-head:hover td.sql-result-model-name,
+html[data-design="v3"] .sql-result-model-row.sql-compare-model-head:hover td.sql-think-cell,
+html[data-design="v3"] .sql-result-model-row.sql-compare-model-head:hover td.sql-comment-cell,
+html[data-design="v3"] .sql-result-model-row.sql-compare-model-head:hover td.sql-compare-model-spacer {
+  background: #16301F;
+}
+html[data-design="v3"] .sql-result-model-row:hover td { background: rgba(0,229,153,0.07); }
+html[data-design="v3"] .sql-result-model-row:hover td:first-child { background: #16301F; }
+html[data-design="v3"] .sql-result-cell:hover { box-shadow: 0 0 0 2px rgba(51,240,179,0.55); }
+
+/* ── v4 Neon Noir Purple ─────────────────────────────────────── */
+html[data-design="v4"] .sql-result-table thead tr.sql-category-row th {
+  background: #13102A;
+}
+html[data-design="v4"] .sql-result-table .sql-compare-model-head td.sql-result-model-name,
+html[data-design="v4"] .sql-result-table .sql-compare-model-head td.sql-think-cell,
+html[data-design="v4"] .sql-result-table .sql-compare-model-head td.sql-comment-cell,
+html[data-design="v4"] .sql-result-table .sql-compare-model-head td.sql-compare-model-spacer {
+  background: #13102A;
+}
+html[data-design="v4"] .sql-result-model-row.sql-compare-model-head:hover td.sql-result-model-name,
+html[data-design="v4"] .sql-result-model-row.sql-compare-model-head:hover td.sql-think-cell,
+html[data-design="v4"] .sql-result-model-row.sql-compare-model-head:hover td.sql-comment-cell,
+html[data-design="v4"] .sql-result-model-row.sql-compare-model-head:hover td.sql-compare-model-spacer {
+  background: #1E1640;
+}
+html[data-design="v4"] .sql-result-model-row:hover td { background: rgba(168,85,247,0.08); }
+html[data-design="v4"] .sql-result-model-row:hover td:first-child { background: #1E1640; }
+html[data-design="v4"] .sql-result-cell:hover { box-shadow: 0 0 0 2px rgba(192,132,252,0.55); }
+
+/* ── v6 Amber Terminal ───────────────────────────────────────── */
+html[data-design="v6"] .sql-result-table thead tr.sql-category-row th {
+  background: #110F06;
+}
+html[data-design="v6"] .sql-result-table .sql-compare-model-head td.sql-result-model-name,
+html[data-design="v6"] .sql-result-table .sql-compare-model-head td.sql-think-cell,
+html[data-design="v6"] .sql-result-table .sql-compare-model-head td.sql-comment-cell,
+html[data-design="v6"] .sql-result-table .sql-compare-model-head td.sql-compare-model-spacer {
+  background: #110F06;
+}
+html[data-design="v6"] .sql-result-model-row.sql-compare-model-head:hover td.sql-result-model-name,
+html[data-design="v6"] .sql-result-model-row.sql-compare-model-head:hover td.sql-think-cell,
+html[data-design="v6"] .sql-result-model-row.sql-compare-model-head:hover td.sql-comment-cell,
+html[data-design="v6"] .sql-result-model-row.sql-compare-model-head:hover td.sql-compare-model-spacer {
+  background: #1C190E;
+}
+html[data-design="v6"] .sql-result-model-row:hover td { background: rgba(245,158,11,0.08); }
+html[data-design="v6"] .sql-result-model-row:hover td:first-child { background: #1C190E; }
+html[data-design="v6"] .sql-result-cell:hover { box-shadow: 0 0 0 2px rgba(251,191,36,0.55); }
+

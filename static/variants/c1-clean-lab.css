@@ -1,0 +1,111 @@
+/* ═══════════════════════════════════════════════════════════════
+   Visual Style C1: Clean Lab
+   Light minimalist. Generous spacing. Large radius. 14px base font.
+   Load AFTER style.css + channel CSS. Adds html[data-style="c1"].
+   ═══════════════════════════════════════════════════════════════ */
+
+html[data-style="c1"] {
+  --bg: #FAFBFC;
+  --sidebar-bg: #FFFFFF;
+  --card-bg: #FFFFFF;
+  --text-main: #1A1A2E;
+  --text-muted: #6B7280;
+  --text-dim: #767676; /* raised from #9CA3AF for WCAG AA 4.5:1 on white */
+  --border: #E5E7EB;
+  --border-light: #F3F4F6;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 12px;
+  --accent-glow: rgba(59,130,246,0.04);
+}
+
+html[data-style="c1"] body {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+html[data-style="c1"] aside {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  padding: 28px 24px;
+}
+
+html[data-style="c1"] main {
+  padding: 28px 32px;
+  gap: 24px;
+  background: var(--bg);
+}
+
+html[data-style="c1"] .results-card {
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+html[data-style="c1"] .sidebar-section {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+}
+
+html[data-style="c1"] .metric-card {
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+html[data-style="c1"] .results-summary {
+  gap: 12px;
+}
+
+html[data-style="c1"] .speed-settings-grid {
+  gap: 16px;
+}
+
+html[data-style="c1"] .model-list {
+  gap: 8px;
+}
+
+html[data-style="c1"] .model-item {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+}
+
+html[data-style="c1"] .btn-primary,
+html[data-style="c1"] .btn-secondary,
+html[data-style="c1"] .btn-danger {
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+html[data-style="c1"] input[type="number"],
+html[data-style="c1"] input[type="text"],
+html[data-style="c1"] input[type="password"],
+html[data-style="c1"] select,
+html[data-style="c1"] textarea {
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+}
+
+html[data-style="c1"] .progress-bar {
+  height: 8px;
+  border-radius: 4px;
+}
+html[data-style="c1"] .progress-fill {
+  border-radius: 4px;
+}
+
+html[data-style="c1"] table th,
+html[data-style="c1"] table td {
+  padding: 10px 14px;
+}
+
+html[data-style="c1"] .sql-result-cell {
+  border-radius: 4px !important;
+}
