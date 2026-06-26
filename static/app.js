@@ -3221,21 +3221,3 @@
     });
   });
 
-  // A2 tab switching (no-op when #a2-panel-* elements are absent)
-  document.querySelectorAll('.a2-tab-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      document.querySelectorAll('.a2-tab-btn').forEach(function(b) {
-        b.classList.remove('active');
-        b.setAttribute('aria-selected', 'false');
-      });
-      document.querySelectorAll('.a2-tab-panel').forEach(function(p) {
-        p.classList.remove('active');
-      });
-      btn.classList.add('active');
-      btn.setAttribute('aria-selected', 'true');
-      var panelId = btn.getAttribute('aria-controls');
-      var panel = document.getElementById(panelId);
-      if (panel) panel.classList.add('active');
-    });
-  });
-
