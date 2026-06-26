@@ -6,8 +6,12 @@
   <title>LLM Testbench</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,600;9..40,700;9..40,800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,600;9..40,700;9..40,800&family=Fira+Code:wght@400;500;700&family=Fira+Sans:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Share+Tech+Mono&family=Sora:wght@600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link id="css-base"       rel="stylesheet" href="/static/style.css">
+  <link id="css-instrument" rel="stylesheet" href="/static/variants/v1-instrument.css" disabled>
+  <link id="css-monitor"    rel="stylesheet" href="/static/variants/v2-monitor.css"    disabled>
+  <link id="css-startup"    rel="stylesheet" href="/static/variants/v3-startup.css"    disabled>
+  <link id="css-terminal"   rel="stylesheet" href="/static/variants/v4-terminal.css"   disabled>
   <link rel="stylesheet" href="/static/variants/channels-d456.css">
   <style>
     .layout-switcher { display:inline-flex; gap:2px; padding:3px; margin-top:10px; border:1px solid var(--border); border-radius:8px; background:var(--card-bg); }
@@ -16,6 +20,8 @@
     .layout-switcher__link--active { color:#fff; background:var(--accent); pointer-events:none; cursor:default; }
     html[data-design="v5"] .layout-switcher { background:#fff; }
     html[data-design="v5"] .layout-switcher__link--active { background:#0369A1; color:#fff; }
+    #theme-select { margin-top:8px; font-size:11px; padding:3px 6px; background:var(--card-bg); color:var(--text-muted); border:1px solid var(--border); border-radius:5px; cursor:pointer; width:100%; }
+    #theme-select:hover { color:var(--text-main); }
   </style>
 </head>
 <body>
@@ -29,6 +35,13 @@
       <a class="layout-switcher__link" href="/static/index-v3-tabs.html">Tabs</a>
       <a class="layout-switcher__link" href="/static/index-v4-overlay.html">Overlay</a>
     </nav>
+    <select id="theme-select" aria-label="Visual theme">
+      <option value="default">Default</option>
+      <option value="instrument">Instrument (Fira Code, slate)</option>
+      <option value="monitor">Monitor (JetBrains Mono, deep blue)</option>
+      <option value="startup">Startup (Space Grotesk, indigo)</option>
+      <option value="terminal">Terminal (Share Tech Mono, cyberpunk)</option>
+    </select>
 
     <div class="sidebar-section sidebar-actions">
       <div class="sidebar-section-title">Run</div>

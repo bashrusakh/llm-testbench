@@ -3210,6 +3210,25 @@
   scanEndpoints();
   loadAppVersion();
 
+  // Base theme switcher for index.html — swaps style.css for one of 4 alternatives.
+  var themeSelect = document.getElementById('theme-select');
+  if (themeSelect) {
+    var themeIds = { default: 'css-base', instrument: 'css-instrument', monitor: 'css-monitor', startup: 'css-startup', terminal: 'css-terminal' };
+    var themeKey = 'base-theme';
+    function applyBaseTheme(name) {
+      Object.keys(themeIds).forEach(function(k) {
+        var el = document.getElementById(themeIds[k]);
+        if (el) el.disabled = (k !== name);
+      });
+      themeSelect.value = name;
+      try { localStorage.setItem(themeKey, name); } catch(e) {}
+    }
+    var savedTheme;
+    try { savedTheme = localStorage.getItem(themeKey); } catch(e) {}
+    if (savedTheme && themeIds[savedTheme]) applyBaseTheme(savedTheme);
+    themeSelect.addEventListener('change', function() { applyBaseTheme(themeSelect.value); });
+  }
+
   // Variant theme toggle: switches between #css-layout and #css-alt stylesheets.
   // Each V-layout HTML has these two <link> elements + a #theme-toggle button.
   var themeToggle = $('theme-toggle');
