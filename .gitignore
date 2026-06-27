@@ -20,4 +20,5 @@ python/_probe.txt
 # version resolver reads it when git is unavailable. Never committed.
 VERSION
 dist/
+graymatter
 
