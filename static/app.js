@@ -2115,16 +2115,27 @@
       container.style.display = 'none';
       return;
     }
+    // Bar structure: [left group: filter slot + info]  [right: Close]
+    // Filter input is injected into .sql-compare-bar__left by
+    // bindSqlCompareModelFilter so it sits over the leftmost Model/Run
+    // column — see UX rationale (Gestalt proximity to what it filters).
     if (!bar) {
       bar = document.createElement('div');
       bar.className = 'sql-compare-bar';
-      bar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--accent-glow);';
-      const label = document.createElement('span');
-      label.className = 'text-muted';
-      label.style.cssText = 'font-size:0.78rem;';
-      label.textContent = `Comparing ${state.historySelection.size} runs`;
+      bar.style.cssText = 'display:flex;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--accent-glow);';
+
+      const left = document.createElement('div');
+      left.className = 'sql-compare-bar__left';
+      left.style.cssText = 'display:flex;align-items:center;gap:10px;flex:1;min-width:0;';
+
+      const info = document.createElement('span');
+      info.className = 'sql-compare-bar__info text-muted';
+      info.style.cssText = 'font-size:0.78rem;white-space:nowrap;';
+      info.textContent = `Comparing ${state.historySelection.size} runs`;
+      left.appendChild(info);
+
       const closeBtn = document.createElement('button');
-      closeBtn.className = 'btn-small';
+      closeBtn.className = 'btn-small sql-compare-bar__close';
       closeBtn.textContent = 'Close';
       closeBtn.addEventListener('click', () => {
         state.historySelection.clear();
@@ -2133,11 +2144,15 @@
         updateHistorySelectionUi();
         renderHistory();
       });
-      bar.appendChild(label);
+
+      bar.appendChild(left);
       bar.appendChild(closeBtn);
       container.insertBefore(bar, container.firstChild);
     } else {
-      bar.querySelector('span').textContent = `Comparing ${state.historySelection.size} runs`;
+      // Update info text only; preserve filter input + visibility counter
+      // managed by bindSqlCompareModelFilter.
+      const info = bar.querySelector('.sql-compare-bar__info');
+      if (info) info.textContent = `Comparing ${state.historySelection.size} runs`;
     }
   }
 
@@ -3326,5 +3341,149 @@
     var historyToggle = document.getElementById('history-toggle');
     if (!compareBtn || !historyToggle || historyToggle.type !== 'checkbox') return;
     compareBtn.addEventListener('click', function() { historyToggle.checked = false; });
+  })();
+
+  // SQL compare-view: filter by model name. Works on every layout that
+  // renders the compare heatmap into #sqlCompareContainer (classic, v1-v4).
+  // app.js wipes the container's innerHTML on each re-render, so we use a
+  // MutationObserver and disconnect/observe to dodge the feedback loop
+  // (mutating .textContent on the empty-state hint would otherwise re-fire
+  //  the observer and pin the main thread).
+  (function bindSqlCompareModelFilter() {
+    var container = document.getElementById('sqlCompareContainer');
+    if (!container) return;
+
+    var filterValue = '';
+    var observer;
+
+    function withoutObserver(fn) {
+      if (observer) observer.disconnect();
+      try { fn(); }
+      finally {
+        if (observer) observer.observe(container, { childList: true, subtree: true });
+      }
+    }
+
+    function annotateRows(table) {
+      var currentModel = '';
+      var rows = table.querySelectorAll('tbody > tr');
+      rows.forEach(function(row) {
+        if (row.classList.contains('sql-compare-model-head')) {
+          var label = row.querySelector('.sql-compare-model-label');
+          currentModel = label ? label.textContent.trim() : '';
+        }
+        if (currentModel) row.setAttribute('data-model', currentModel);
+      });
+    }
+
+    function updateInfo(matched, total) {
+      var info = container.querySelector('.sql-compare-bar__info');
+      if (!info) return;
+      var runs = (state.historySelection || new Set()).size;
+      var base = 'Comparing ' + runs + ' runs';
+      var tail = (filterValue && total > 0) ? ' · ' + matched + ' of ' + total + ' visible' : '';
+      var next = base + tail;
+      if (info.textContent !== next) info.textContent = next;
+    }
+
+    function applyFilter() {
+      var q = (filterValue || '').trim().toLowerCase();
+      var tokens = q ? q.split(/\s+/).filter(Boolean) : [];
+      var rows = container.querySelectorAll('tr[data-model]');
+      var matchedHeads = 0;
+      var totalHeads = 0;
+      rows.forEach(function(row) {
+        var isHead = row.classList.contains('sql-compare-model-head');
+        if (isHead) totalHeads++;
+        var model = (row.getAttribute('data-model') || '').toLowerCase();
+        var ok = !tokens.length || tokens.every(function(t) { return model.indexOf(t) !== -1; });
+        var next = ok ? '' : 'none';
+        if (row.style.display !== next) row.style.display = next;
+        if (ok && isHead) matchedHeads++;
+      });
+
+      updateInfo(matchedHeads, totalHeads);
+
+      var hint = container.querySelector('.sql-compare-empty');
+      if (tokens.length && matchedHeads === 0) {
+        if (!hint) {
+          hint = document.createElement('div');
+          hint.className = 'sql-compare-empty empty-state';
+          hint.style.padding = '16px';
+          hint.style.textAlign = 'center';
+          container.appendChild(hint);
+        }
+        var msg = 'No models match "' + filterValue + '"';
+        if (hint.textContent !== msg) hint.textContent = msg;
+      } else if (hint) {
+        hint.remove();
+      }
+    }
+
+    function ensureFilterInput() {
+      var bar = container.querySelector('.sql-compare-bar');
+      if (!bar) return;
+      var left = bar.querySelector('.sql-compare-bar__left') || bar;
+      if (left.querySelector('.sql-compare-filter-wrap')) return;
+
+      // Wrap = relative box with absolutely-positioned search icon, so the
+      // icon paints with currentColor (theme-aware) regardless of how the
+      // input is restyled per layout. Sits leftmost in the bar, vertically
+      // aligned with the Model/Run column header that follows below.
+      var wrap = document.createElement('span');
+      wrap.className = 'sql-compare-filter-wrap';
+      wrap.style.cssText = 'position:relative;display:inline-flex;align-items:center;flex:0 1 280px;min-width:160px;';
+
+      var icon = document.createElement('span');
+      icon.style.cssText = 'position:absolute;left:9px;top:50%;transform:translateY(-50%);display:flex;pointer-events:none;color:var(--text-muted, var(--text-dim, #94A3B8));';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>';
+
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'sql-compare-filter';
+      input.placeholder = 'Filter models…';
+      input.setAttribute('aria-label', 'Filter compared models by name');
+      input.value = filterValue;
+      // Fallback chain covers every surface-token name used across layouts:
+      //   classic       --card-bg
+      //   v1-gridhero   --bg-surface
+      //   v2-dock       --bg-panel  (or --bg as last-ditch)
+      //   v3-tabs       --bg-card
+      //   v4-overlay    --bg-surface
+      // Text + muted similarly. Class .sql-compare-filter lets per-theme CSS
+      // files (channels-d456.css, sql-grid.css) tighten styling beyond this.
+      input.style.cssText = [
+        'flex:1', 'width:100%',
+        'padding:4px 10px 4px 28px', 'border-radius:6px',
+        'border:1px solid var(--border)',
+        'background:var(--card-bg, var(--bg-card, var(--bg-surface, var(--bg-panel, var(--bg, var(--bg-body, var(--bg-root, #fff)))))))',
+        'color:var(--text-main, var(--text, #0F172A))',
+        'font:inherit', 'font-size:0.78rem',
+        'min-height:28px', 'outline:none',
+        'transition:border-color .15s, box-shadow .15s'
+      ].join(';');
+      input.addEventListener('input', function() {
+        filterValue = input.value;
+        withoutObserver(applyFilter);
+      });
+
+      wrap.appendChild(icon);
+      wrap.appendChild(input);
+      // Prepend so it sits at the very left of the bar's left group,
+      // visually anchoring the model column underneath.
+      left.insertBefore(wrap, left.firstChild);
+    }
+
+    observer = new MutationObserver(function() {
+      var table = container.querySelector('.sql-result-table');
+      if (!table) return;
+      withoutObserver(function() {
+        annotateRows(table);
+        ensureFilterInput();
+        applyFilter();
+      });
+    });
+    observer.observe(container, { childList: true, subtree: true });
   })();
 
