@@ -401,10 +401,19 @@ body {
 
 .toolbar__dropdown-chk {
   position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.toolbar__dropdown-chk:focus-visible ~ .toolbar__btn--dropdown {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .toolbar__dropdown-panel {

@@ -30,7 +30,6 @@
     overflow-x: auto;
     overflow-y: visible;
     padding-bottom: 8px;
-    --sql-model-column-width: 360px;
 
 }
 
@@ -684,4 +683,3 @@ html[data-design="v6"] .sql-result-model-row.sql-compare-model-head:hover td.sql
 html[data-design="v6"] .sql-result-model-row:hover td { background: rgba(245,158,11,0.08); }
 html[data-design="v6"] .sql-result-model-row:hover td:first-child { background: #1C190E; }
 html[data-design="v6"] .sql-result-cell:hover { box-shadow: inset 0 0 0 2px rgba(251,191,36,0.9); }
-

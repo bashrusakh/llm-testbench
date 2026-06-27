@@ -153,7 +153,7 @@ html[data-design="v5"] aside {
 html[data-design="v5"] h1,
 html[data-design="v5"] .section-title {
   color: var(--text-main);
-  font-family: 'Inter', sans-serif;
+  font-family: Inter, sans-serif;
   font-weight: 700;
 }
 
