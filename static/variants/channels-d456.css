@@ -153,7 +153,7 @@ html[data-design="v5"] aside {
 html[data-design="v5"] h1,
 html[data-design="v5"] .section-title {
   color: var(--text-main);
-  font-family: 'Inter', sans-serif;
+  font-family: Inter, sans-serif;
   font-weight: 700;
 }
 
@@ -303,6 +303,48 @@ html[data-design="v5"] .design-ch__btn[data-ch="5"] {
 html[data-design="v5"] .sql-compare-bar {
   background: rgba(14,165,233,0.08) !important;
   border-bottom-color: var(--border) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Compare filter input — per-channel polish (classic page)
+   The inline base in app.js handles geometry + variable fallbacks;
+   these rules add focus/hover state, placeholder colour, and tinted
+   borders where the default --border blends into the input surface.
+   ═══════════════════════════════════════════════════════════════ */
+.sql-compare-filter::placeholder { color: var(--text-muted); opacity: 0.7; }
+.sql-compare-filter:hover { border-color: var(--text-muted); }
+.sql-compare-filter:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+
+/* v5 (Arctic Light): white-on-white. Lift border so the field is a real
+   shape, not a phantom outline that blends into the bar. */
+html[data-design="v5"] .sql-compare-filter { border-color: #CBD5E1; }
+html[data-design="v5"] .sql-compare-filter:hover { border-color: #94A3B8; }
+html[data-design="v5"] .sql-compare-filter:focus {
+  border-color: #0EA5E9;
+  box-shadow: 0 0 0 2px rgba(14,165,233,0.18);
+}
+
+/* v6 (Amber Terminal): dark brown-on-brown. Tint the border + monospace
+   font so the field reads as a CRT prompt and survives the scanline bg. */
+html[data-design="v6"] .sql-compare-filter {
+  border-color: rgba(245,158,11,0.40);
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  letter-spacing: 0.02em;
+}
+html[data-design="v6"] .sql-compare-filter::placeholder { color: rgba(245,158,11,0.55); }
+html[data-design="v6"] .sql-compare-filter:hover { border-color: rgba(245,158,11,0.7); }
+html[data-design="v6"] .sql-compare-filter:focus {
+  border-color: #F59E0B;
+  box-shadow: 0 0 0 2px rgba(245,158,11,0.18);
+}
+
+/* v4 (Neon Noir): subtle purple accent so the field feels native to the
+   palette instead of generic. Border base is fine but flat. */
+html[data-design="v4"] .sql-compare-filter { border-color: rgba(168,85,247,0.35); }
+html[data-design="v4"] .sql-compare-filter:hover { border-color: rgba(168,85,247,0.55); }
+html[data-design="v4"] .sql-compare-filter:focus {
+  border-color: #A855F7;
+  box-shadow: 0 0 0 2px rgba(168,85,247,0.22);
 }
 
 html[data-design="v5"] .design-ch__btn {

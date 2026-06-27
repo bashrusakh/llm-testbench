@@ -30,7 +30,6 @@
     overflow-x: auto;
     overflow-y: visible;
     padding-bottom: 8px;
-    --sql-model-column-width: 360px;
 
 }
 
@@ -340,10 +339,15 @@
 
 }
 
+/* V-layouts wrap the heatmap in containers with overflow:auto
+   (.grid-area__sql, .sql-compare-area, etc.), which clip a scaled-up
+   cell visually. Use an INSET ring + brightness/saturation bump so the
+   hover state stays inside the cell box and never gets cropped. */
 .sql-result-cell:hover {
-  transform: scale(1.25);
-  z-index: 100;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.25);
+  transform: none;
+  z-index: 1;
+  filter: brightness(1.18) saturate(1.1);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.65);
 
 }
 
@@ -481,7 +485,7 @@ html[data-design="v5"] .sql-result-cell.pass  { background: #16A34A; color: #052
 html[data-design="v5"] .sql-result-cell.fail  { background: #DC2626; color: #ffffff; }
 html[data-design="v5"] .sql-result-cell.error { background: #D97706; color: #2b1804; }
 html[data-design="v5"] .sql-result-cell:hover {
-  box-shadow: 0 0 0 2px rgba(15,23,42,0.22);
+  box-shadow: inset 0 0 0 2px rgba(15,23,42,0.45);
 }
 
 /* Quant badge — slate chip works on either surface but needs darker glyph */
@@ -496,6 +500,79 @@ html[data-design="v5"] .sql-quant-badge {
 html[data-design="v5"] .sql-compare-bar {
   background: rgba(14,165,233,0.08) !important;
   border-bottom-color: #E2E8F0 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Compare filter input — per-channel polish (V-layouts)
+   Mirrors the channels-d456.css block for the classic page so all
+   layouts get focus state, placeholder colour, and tinted borders.
+   ═══════════════════════════════════════════════════════════════ */
+.sql-compare-filter::placeholder {
+  color: var(--text-muted, var(--text-dim, #94A3B8));
+  opacity: 0.7;
+}
+.sql-compare-filter:hover {
+  border-color: var(--text-muted, var(--text-dim, #94A3B8));
+}
+.sql-compare-filter:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+/* v1 Default Blue */
+html[data-design="v1"] .sql-compare-filter { border-color: rgba(59,130,246,0.30); }
+html[data-design="v1"] .sql-compare-filter:hover { border-color: rgba(59,130,246,0.55); }
+html[data-design="v1"] .sql-compare-filter:focus {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.22);
+}
+
+/* v2 Instrument Teal */
+html[data-design="v2"] .sql-compare-filter { border-color: rgba(20,184,166,0.30); }
+html[data-design="v2"] .sql-compare-filter:hover { border-color: rgba(20,184,166,0.55); }
+html[data-design="v2"] .sql-compare-filter:focus {
+  border-color: #14B8A6;
+  box-shadow: 0 0 0 2px rgba(20,184,166,0.22);
+}
+
+/* v3 Phosphor Green — instrument vibe, semi-mono for chunky chars */
+html[data-design="v3"] .sql-compare-filter {
+  border-color: rgba(0,229,153,0.30);
+  font-family: 'DM Sans', Inter, sans-serif;
+}
+html[data-design="v3"] .sql-compare-filter:hover { border-color: rgba(0,229,153,0.55); }
+html[data-design="v3"] .sql-compare-filter:focus {
+  border-color: #00E599;
+  box-shadow: 0 0 0 2px rgba(0,229,153,0.22);
+}
+
+/* v4 Neon Noir */
+html[data-design="v4"] .sql-compare-filter { border-color: rgba(168,85,247,0.35); }
+html[data-design="v4"] .sql-compare-filter:hover { border-color: rgba(168,85,247,0.55); }
+html[data-design="v4"] .sql-compare-filter:focus {
+  border-color: #A855F7;
+  box-shadow: 0 0 0 2px rgba(168,85,247,0.22);
+}
+
+/* v5 Arctic Light — white-on-white needs a real border, not --border ghost */
+html[data-design="v5"] .sql-compare-filter { border-color: #CBD5E1; }
+html[data-design="v5"] .sql-compare-filter:hover { border-color: #94A3B8; }
+html[data-design="v5"] .sql-compare-filter:focus {
+  border-color: #0EA5E9;
+  box-shadow: 0 0 0 2px rgba(14,165,233,0.18);
+}
+
+/* v6 Amber Terminal — monospace + amber accent so it fits the CRT vibe */
+html[data-design="v6"] .sql-compare-filter {
+  border-color: rgba(245,158,11,0.40);
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  letter-spacing: 0.02em;
+}
+html[data-design="v6"] .sql-compare-filter::placeholder { color: rgba(245,158,11,0.55); }
+html[data-design="v6"] .sql-compare-filter:hover { border-color: rgba(245,158,11,0.7); }
+html[data-design="v6"] .sql-compare-filter:focus {
+  border-color: #F59E0B;
+  box-shadow: 0 0 0 2px rgba(245,158,11,0.18);
 }
 
 
@@ -525,7 +602,7 @@ html[data-design="v1"] .sql-result-model-row.sql-compare-model-head:hover td.sql
 }
 html[data-design="v1"] .sql-result-model-row:hover td { background: rgba(59,130,246,0.06); }
 html[data-design="v1"] .sql-result-model-row:hover td:first-child { background: #273548; }
-html[data-design="v1"] .sql-result-cell:hover { box-shadow: 0 0 0 2px rgba(96,165,250,0.55); }
+html[data-design="v1"] .sql-result-cell:hover { box-shadow: inset 0 0 0 2px rgba(96,165,250,0.9); }
 
 /* ── v2 Instrument Teal ──────────────────────────────────────── */
 html[data-design="v2"] .sql-result-table thead tr.sql-category-row th {
@@ -545,7 +622,7 @@ html[data-design="v2"] .sql-result-model-row.sql-compare-model-head:hover td.sql
 }
 html[data-design="v2"] .sql-result-model-row:hover td { background: rgba(20,184,166,0.07); }
 html[data-design="v2"] .sql-result-model-row:hover td:first-child { background: #18352F; }
-html[data-design="v2"] .sql-result-cell:hover { box-shadow: 0 0 0 2px rgba(94,234,212,0.55); }
+html[data-design="v2"] .sql-result-cell:hover { box-shadow: inset 0 0 0 2px rgba(94,234,212,0.9); }
 
 /* ── v3 Phosphor Green ───────────────────────────────────────── */
 html[data-design="v3"] .sql-result-table thead tr.sql-category-row th {
@@ -565,7 +642,7 @@ html[data-design="v3"] .sql-result-model-row.sql-compare-model-head:hover td.sql
 }
 html[data-design="v3"] .sql-result-model-row:hover td { background: rgba(0,229,153,0.07); }
 html[data-design="v3"] .sql-result-model-row:hover td:first-child { background: #16301F; }
-html[data-design="v3"] .sql-result-cell:hover { box-shadow: 0 0 0 2px rgba(51,240,179,0.55); }
+html[data-design="v3"] .sql-result-cell:hover { box-shadow: inset 0 0 0 2px rgba(51,240,179,0.9); }
 
 /* ── v4 Neon Noir Purple ─────────────────────────────────────── */
 html[data-design="v4"] .sql-result-table thead tr.sql-category-row th {
@@ -585,7 +662,7 @@ html[data-design="v4"] .sql-result-model-row.sql-compare-model-head:hover td.sql
 }
 html[data-design="v4"] .sql-result-model-row:hover td { background: rgba(168,85,247,0.08); }
 html[data-design="v4"] .sql-result-model-row:hover td:first-child { background: #1E1640; }
-html[data-design="v4"] .sql-result-cell:hover { box-shadow: 0 0 0 2px rgba(192,132,252,0.55); }
+html[data-design="v4"] .sql-result-cell:hover { box-shadow: inset 0 0 0 2px rgba(192,132,252,0.9); }
 
 /* ── v6 Amber Terminal ───────────────────────────────────────── */
 html[data-design="v6"] .sql-result-table thead tr.sql-category-row th {
@@ -605,5 +682,4 @@ html[data-design="v6"] .sql-result-model-row.sql-compare-model-head:hover td.sql
 }
 html[data-design="v6"] .sql-result-model-row:hover td { background: rgba(245,158,11,0.08); }
 html[data-design="v6"] .sql-result-model-row:hover td:first-child { background: #1C190E; }
-html[data-design="v6"] .sql-result-cell:hover { box-shadow: 0 0 0 2px rgba(251,191,36,0.55); }
-
+html[data-design="v6"] .sql-result-cell:hover { box-shadow: inset 0 0 0 2px rgba(251,191,36,0.9); }

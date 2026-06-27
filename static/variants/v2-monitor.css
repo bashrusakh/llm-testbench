@@ -57,7 +57,7 @@ body {
 /* ── Accessibility ─────────────────────────────────────────────────── */
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border-width: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1005,7 +1005,7 @@ tbody tr:hover td { background: rgba(14,165,233,0.03); }
 }
 .conv-tool-result { border-left: 2px solid var(--success); background: rgba(34,197,94,0.04); }
 .conv-tool-result-label { color: var(--success); }
-.conv-text { color: var(--text-main); white-space: pre-wrap; word-break: break-word; }
+.conv-text { color: var(--text-main); white-space: pre-wrap; overflow-wrap: anywhere; }
 .conv-call-header {
   padding: 2px 12px; font-size: 9px; color: var(--text-dim);
   letter-spacing: 0.08em; background: var(--sidebar-bg);
@@ -1091,7 +1091,7 @@ tbody tr:hover td { background: rgba(14,165,233,0.03); }
   border-left: 1px solid var(--border);
   line-height: 1.3;
   white-space: normal;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* Think column */
@@ -1276,7 +1276,7 @@ tbody tr:hover td { background: rgba(14,165,233,0.03); }
   cursor: pointer; position: relative; flex-shrink: 0;
   transition: transform 100ms, box-shadow 100ms;
 }
-.sql-result-cell:hover { transform: scale(1.25); z-index: 100; box-shadow: 0 0 0 2px rgba(255,255,255,0.2); }
+.sql-result-cell:hover { transform: translateY(-1px); z-index: 100; box-shadow: 0 0 0 2px rgba(255,255,255,0.2); }
 .sql-result-cell.pass { background: var(--success); }
 .sql-result-cell.fail { background: var(--error); }
 .sql-result-cell.error { background: var(--sql-error-cell); color: var(--bg); }
@@ -1628,7 +1628,7 @@ tbody tr:hover td { background: rgba(14,165,233,0.03); }
   padding: 5px 6px; border-bottom: 1px solid rgba(255,255,255,0.04);
   vertical-align: top;
   font-family: 'JetBrains Mono', monospace;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .sql-mismatch-table tr:last-child td { border-bottom: 0; }
 .sql-mismatch-col { color: #CBD5E1; font-weight: 600; }

@@ -944,7 +944,7 @@
     cursor: pointer; position: relative; flex-shrink: 0;
     transition: transform 0.1s, box-shadow 0.1s;
   }
-  .sql-result-cell:hover { transform: scale(1.25); z-index: 100; box-shadow: 0 0 0 2px rgba(255,255,255,0.25); }
+  .sql-result-cell:hover { transform: translateY(-1px); z-index: 100; box-shadow: 0 0 0 2px rgba(255,255,255,0.25); }
   .sql-result-cell.pass { background: #10b981; }
   .sql-result-cell.fail { background: #ef4444; }
   .sql-result-cell.error { background: var(--sql-error-cell); color: #111827; }
@@ -2274,7 +2274,7 @@
 
   /* ── SQL cell hover ── */
   html[data-design="v3"] .sql-result-cell:hover {
-    transform: scale(1.3);
+    transform: translateY(-1px);
     z-index: 10;
     box-shadow: 0 0 8px rgba(0,229,153,0.22);
   }
