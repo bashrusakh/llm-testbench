@@ -1427,6 +1427,10 @@ tbody tr:hover td {
 .sql-result-cell.fail { background: var(--error); }
 .sql-result-cell.error { background: var(--sql-error-cell); color: var(--bg); }
 
+html[data-design="v5"] .sql-result-cell.pass { color: #052e16; }
+html[data-design="v5"] .sql-result-cell.fail { color: #1a0606; }
+html[data-design="v5"] .sql-result-cell.error { color: #1a0d00; }
+
 
 /* ── SQL tooltips ── */
 .sql-cell-tooltip { display: none; }

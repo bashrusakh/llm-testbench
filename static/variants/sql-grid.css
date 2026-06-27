@@ -538,7 +538,7 @@ html[data-design="v2"] .sql-compare-filter:focus {
 /* v3 Phosphor Green — instrument vibe, semi-mono for chunky chars */
 html[data-design="v3"] .sql-compare-filter {
   border-color: rgba(0,229,153,0.30);
-  font-family: 'DM Sans', 'Inter', sans-serif;
+  font-family: 'DM Sans', Inter, sans-serif;
 }
 html[data-design="v3"] .sql-compare-filter:hover { border-color: rgba(0,229,153,0.55); }
 html[data-design="v3"] .sql-compare-filter:focus {
