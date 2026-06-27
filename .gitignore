@@ -21,4 +21,4 @@ python/_probe.txt
 VERSION
 dist/
 graymatter
-
+.graymatter/
