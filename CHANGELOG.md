@@ -2,6 +2,97 @@
 
 All notable release changes for LLM Testbench are tracked here.
 
+## v0.5.0 (2026-06-29)
+
+Major UI/UX overhaul — four new layout variants (V1-V4), six design channels,
+SQL compare filter, accessibility and contrast fixes across all themes.
+
+### Added
+
+- **Four layout variants (V1–V4)** — distinct UI shells for the classic sidebar
+  experience:
+  - **V1 Grid Hero** — dashboard-style grid with hero metrics card
+  - **V2 Dock** — bottom-docked settings panel with slideout, SVG icon buttons
+  - **V3 Tabs** — top-tabbed setup (Endpoints / Models / Settings) with full
+    keyboard-accessible `role="tab"` ARIA pattern
+  - **V4 Overlay** — full-screen overlay settings with `label[role="button"]`
+    keyboard support
+- **Six design channels (D1–D6)** — complete colour-system variants applied
+  per-layout via `html[data-design="vX"]` + `html[data-channel="dY"]`:
+  - D1 Default (phosphor accent), D2 Instrument (teal/copper), D3 Monitor
+    (IBM Plex), D4 Startup (Space Grotesk), D5 Arctic Light (light theme,
+    WCAG AA), D6 Terminal (monospace amber)
+- **Channel selector in sidebar** — oscilloscope-style channel picker (D1–D6)
+  replaces the old 3-way theme toggle; choice persists in `localStorage`.
+- **SQL Compare model filter** — universal text filter anchored over the
+  Model/Run column in the comparison heatmap bar; live visibility counter,
+  `MutationObserver`-guarded against microtask loops; per-channel focus rings
+  and accent borders.
+- **Alternative visual themes per V-layout** — each V1–V4 layout has a second
+  standalone CSS theme loaded disabled by default:
+  - V1 Grid Hero ↔ Instrument (Fira Code / Fira Sans)
+  - V2 Dock ↔ Monitor (IBM Plex Sans / JetBrains Mono)
+  - V3 Tabs ↔ Startup (Space Grotesk / DM Sans)
+  - V4 Overlay ↔ Terminal (Share Tech Mono / Fira Code)
+  Theme switcher button in each V-layout nav persists via `localStorage`.
+- **SQL heatmap channel polish** — full D5 Arctic Light override block
+  (sticky headers, hover states, compare-head, result chips, pass/fail cells
+  on white background); per-channel tinted hover + compare-head rows for D1–D4
+  and D6; D5 compare-bar visibility fix.
+
+### Fixed
+
+- **V2 Dock slideout CSP violation** — `data-dock-action` attributes replace
+  inline `onclick` handlers; slideout toggle/open/close bound in `app.js`.
+- **V3 Tabs accessibility** — `label[role="tab"]` now syncs `aria-selected`
+  with radio `:checked` state for screen-reader tab announcements.
+- **V4 Overlay keyboard** — `label[role="button"]` responds to Enter/Space;
+  mobile `.grid-viewport` inset restored (`0 0 60px 0`).
+- **CSS deprecated `word-break: break-word` replaced** with `overflow-wrap`** across
+  v1-instrument, v2-dock, v2-monitor, v3-startup, v3-tabs, sql-grid.
+- **`.sr-only` rules gain `clip-path: inset(50%)`** alongside legacy
+  `clip: rect()` for modern browser support (v1-instrument, v3-startup).
+- **Firefox `::marker` hiding** — `::marker { display: none }` added alongside
+  `::-webkit-details-marker` (a3.css).
+- **Hardcoded `rgba(255,255,255)` replaced with CSS token vars** (a2.css).
+- **C1 Clean Lab contrast** — `--text-dim` raised `#9CA3AF → #767676` for
+  WCAG AA 4.5:1 on white.
+- **V4 Terminal contrast** — `--text-dim`/`--text-muted` raised to WCAG AA;
+  channel palette overrides added for `html[data-design="v2…v6"]`.
+- **SQL hover rings in V-layouts** — `transform:scale` was clipped by
+  `overflow:auto` on `.grid-area__sql`/`.sql-compare-area`; replaced with
+  `inset box-shadow` + `filter:brightness`.
+- **Index-a2.html aria-labels** on single-letter layout nav links.
+- **Cleanup of dead layout experiments** — removed `index-a1/a2/a3.html`,
+  `index-themes.html`, `variants/a1/a2/a3.css` (never linked from production,
+  no nav switcher, no routes).
+
+### Changed
+
+- **Theme switching architecture** — moved from per-V-layout toggle to a
+  global `<select>` theme switcher on `index.html` (classic layout) that
+  swaps between `style.css` and 4 alternatives; choice persists via
+  `localStorage`. V-layouts use their own channel selector.
+- **Variants index page** — updated note copy to match shared switcher.
+- **SQL compare bar** — `#sqlCompareContainer` added to `index-v3-tabs.html`,
+  inline `onclick` removed from v4-overlay `compareRunsBtn`.
+
+### Removed
+
+- **Layout experiment files** — `static/index-a1.html`, `static/index-a2.html`,
+  `static/index-a3.html`, `static/index-themes.html`, `static/variants/a1.css`,
+  `static/variants/a2.css`, `static/variants/a3.css`.
+- **Redundant `index-compare-filter.html`** — filter logic now lives in
+  `app.js`.
+- **A2 tab-switching inline script** — moved into `app.js`.
+- **Graymatter cache** — added to `.gitignore`.
+
+### Tests
+
+- Test suite: **217 passed** (up from 213).
+
+---
+
 ## v0.4.0 (2026-06-18)
 
 v3 Phosphor default design, oscilloscope-style channel selector, Think column
